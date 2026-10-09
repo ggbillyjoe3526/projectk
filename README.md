@@ -3,8 +3,9 @@
 A web survival-horror game (working title UNBURIED): TypeScript, Vite and Three.js's `WebGPURenderer`, keyboard and
 mouse. The design lives in the project's concept document (v0.6).
 
-This is the engine skeleton: the loop, saving, input, renderer start-up and diagnostics. There is no gameplay or art
-yet; the page draws an empty scene.
+The engine skeleton (the loop, saving, input, renderer start-up and diagnostics) runs the first playable slice, M0:
+the father's cottage, the Brough and the tidal causeway in greybox, under authored tracking cameras (concept camera A),
+in the low-resolution dithered look, with the tide and the island's hum. There is no combat, story or art yet.
 
 ## Run it
 
@@ -18,10 +19,14 @@ npm run check        # unit tests, then type check and production build
 npm run build        # static site in dist/ (relative paths; any static host)
 ```
 
-Press `` ` `` or F3 for the debug overlay (frame rate, renderer, draw calls, GPU time, simulation tick, seed).
+Controls: WASD to walk (relative to the camera), the mouse to aim the torch, hold F to kneel and listen to the island
+(the hum's strength and beat tell the tide), Q for the torch. Press `` ` `` or F3 for the debug overlay (frame rate,
+renderer, draw calls, GPU time, simulation tick, seed, tide, player, camera zone, hum) and `]` to run island time
+×4, ×16 or ×64.
 
 URL flags: `?seed=N` plays seed N; `?forceWebGL` draws with the renderer's WebGL2 back end without asking for WebGPU
-(automated browsers in containers have no WebGPU adapter).
+(automated browsers in containers have no WebGPU adapter); `?at=x,z` starts the player at that point and `?tide=f` at
+fraction f of the tide's cycle (0 low water, 0.5 high water).
 
 ## How it starts
 
@@ -35,16 +40,21 @@ URL flags: `?seed=N` plays seed N; `?forceWebGL` draws with the renderer's WebGL
 ## Layout
 
 ```
-src/config     tuning data: simulation rate, renderer, quality, controls, save keys, crash text
+src/config     tuning data: simulation rate, renderer, quality and look, controls, tide, player, save keys, crash text
 src/core       fixed-timestep loop, frame pacing, seeds, pausing when the player looks away, crash reports
-src/input      keyboard and mouse into actions: bindings (rebindable, two keys each), keyboard layout names
-src/render     renderer start-up, the WebGPU adapter probe, GPU tier, automatic quality step-down
+src/input      keyboard and mouse into actions: bindings (rebindable, two keys each), keyboard layout names, mouse aim
+src/game       the playable slice: runs the simulation and presents it (game/broughSlice.ts)
+src/camera     authored cameras: zones, fixed/rail/crane rigs, movement keys that keep their direction across cuts
+src/render     renderer start-up, the WebGPU adapter probe, GPU tier, automatic quality step-down; the greybox scene,
+               sea and GPU-computed rain
+src/render/retro  the low-resolution look: ordered dither and colour quantisation (TSL), PS1 vertex snapping
 src/render/webgpu  the renderer back end (device loss, GPU timing) and Chromium WebGPU compatibility fixes
 src/save       guarded storage, the save file (format, migrations, checksum), restore points and Undo, tab lock
 src/settings   the player's saved settings: one versioned object
-src/sim        pure simulation helpers: seeded random numbers, allocation-free vectors
-src/audio      voice limiting
-src/ui         debug overlay, crash pane
+src/sim        pure simulation: the tide, the hum's rhythm, player movement and wading, collision, the greybox world;
+               seeded random numbers, allocation-free vectors
+src/audio      voice limiting; the island's hum, wind and rain (synthesised with Web Audio)
+src/ui         start pane, debug overlay, crash pane
 ```
 
 ## Where this came from

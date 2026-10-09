@@ -1,4 +1,4 @@
-/* The page and the overlays the skeleton has: the canvas, the debug overlay and the crash pane. */
+/* The page and its overlays: the canvas, the start pane, the debug overlay and the crash pane. */
 
 html,
 body {
@@ -15,10 +15,12 @@ body {
   inset: 0;
 }
 
+/* The canvas is drawn small and scaled up with hard pixels: the low-resolution look (config/render.ts RETRO_LOOK). */
 #app canvas {
   display: block;
   width: 100%;
   height: 100%;
+  image-rendering: pixelated;
 }
 
 .debug-overlay {
@@ -82,4 +84,54 @@ body {
 .button-primary {
   background: #a5501f;
   border-color: #c4642a;
+}
+
+.start-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(5 8 10 / 0.72);
+  cursor: pointer;
+}
+
+.start-gate-box {
+  max-width: 28rem;
+  padding: 0 16px;
+  font: 14px/1.5 ui-monospace, 'SF Mono', Consolas, monospace;
+}
+
+.start-gate h1 {
+  margin: 0 0 1rem;
+  font-size: 1.6rem;
+  letter-spacing: 0.3em;
+}
+
+.start-gate-controls {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.25rem 1rem;
+  margin: 0 0 1.5rem;
+  color: #a9b0b3;
+}
+
+.start-gate-controls dt {
+  color: #e8e6e1;
+}
+
+.start-gate-controls dd {
+  margin: 0;
+}
+
+.start-gate-go {
+  margin: 0;
+  animation: start-gate-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes start-gate-pulse {
+  50% {
+    opacity: 0.45;
+  }
 }
