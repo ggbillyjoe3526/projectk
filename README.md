@@ -5,7 +5,9 @@ mouse. The design lives in the project's concept document (v0.6).
 
 The engine skeleton (the loop, saving, input, renderer start-up and diagnostics) runs the first playable slice, M0:
 the father's cottage, the Brough and the tidal causeway in greybox, under authored tracking cameras (concept camera A),
-in the low-resolution dithered look, with the tide and the island's hum. There is no combat, story or art yet.
+in the low-resolution dithered look, with the tide and the island's hum; and M1, the fight: three of the dead on the
+shore, the kitchen knife that cuts them down but can't keep them down, the note on the cottage table, and the sword on
+the howe slab past the dyke, with deflect, Resolve, Break and the Rite. There is no story beyond that, and no art yet.
 
 ## Run it
 
@@ -20,13 +22,15 @@ npm run build        # static site in dist/ (relative paths; any static host)
 ```
 
 Controls: WASD to walk (relative to the camera), the mouse to aim the torch, hold F to kneel and listen to the island
-(the hum's strength and beat tell the tide), Q for the torch. Press `` ` `` or F3 for the debug overlay (frame rate,
+(the hum's strength and beat tell the tide), Q for the torch. Left click attacks (hold it with the sword for a sained
+strike, which costs Resolve), right click deflects (just as a blow lands), Space steps aside, and E reads, takes, rests
+at the hearth (where a death reloads to) and gives a kneeling body the Rite. Press `` ` `` or F3 for the debug overlay (frame rate,
 renderer, draw calls, GPU time, simulation tick, seed, tide, player, camera zone, hum) and `]` to run island time
 ×4, ×16 or ×64.
 
 URL flags: `?seed=N` plays seed N; `?forceWebGL` draws with the renderer's WebGL2 back end without asking for WebGPU
 (automated browsers in containers have no WebGPU adapter); `?at=x,z` starts the player at that point and `?tide=f` at
-fraction f of the tide's cycle (0 low water, 0.5 high water).
+fraction f of the tide's cycle (0 low water, 0.5 high water); `?weapon=sword` starts with the sword in hand.
 
 ## How it starts
 
@@ -43,7 +47,8 @@ fraction f of the tide's cycle (0 low water, 0.5 high water).
 src/config     tuning data: simulation rate, renderer, quality and look, controls, tide, player, save keys, crash text
 src/core       fixed-timestep loop, frame pacing, seeds, pausing when the player looks away, crash reports
 src/input      keyboard and mouse into actions: bindings (rebindable, two keys each), keyboard layout names, mouse aim
-src/game       the playable slice: runs the simulation and presents it (game/broughSlice.ts)
+src/game       the playable slice: runs the simulation and presents it (game/broughSlice.ts), and the fight in it
+               (game/broughFight.ts)
 src/camera     authored cameras: zones, fixed/rail/crane rigs, movement keys that keep their direction across cuts
 src/render     renderer start-up, the WebGPU adapter probe, GPU tier, automatic quality step-down; the greybox scene,
                sea and GPU-computed rain
@@ -51,7 +56,8 @@ src/render/retro  the low-resolution look: ordered dither and colour quantisatio
 src/render/webgpu  the renderer back end (device loss, GPU timing) and Chromium WebGPU compatibility fixes
 src/save       guarded storage, the save file (format, migrations, checksum), restore points and Undo, tab lock
 src/settings   the player's saved settings: one versioned object
-src/sim        pure simulation: the tide, the hum's rhythm, player movement and wading, collision, the greybox world;
+src/sim        pure simulation: the tide, the hum's rhythm, player movement and wading, collision, the greybox world,
+               the fight (sim/combat: moves, Resolve, Break, the Rite, the dead's behaviour);
                seeded random numbers, allocation-free vectors
 src/audio      voice limiting; the island's hum, wind and rain (synthesised with Web Audio)
 src/ui         start pane, debug overlay, crash pane

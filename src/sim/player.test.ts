@@ -4,7 +4,7 @@ import { broughGreybox as world, CAUSEWAY } from './world/broughGreybox';
 import { resolveCircleVsBoxes } from './collision';
 import { DEFAULT_TIDE as T } from '../config/tide';
 
-const idle = (): PlayerCommand => ({ moveX: 0, moveZ: 0, aimX: null, aimZ: null, listen: false });
+const idle = (): PlayerCommand => ({ moveX: 0, moveZ: 0, aimX: null, aimZ: null, listen: false, speedScale: 1, turn: true });
 
 function walkEast(waterLevel: number, seconds: number, startX: number) {
   const p = createPlayer(world);

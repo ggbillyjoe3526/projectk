@@ -1,5 +1,5 @@
 import { RenderPipeline, type Camera, type Scene, type WebGPURenderer } from 'three/webgpu';
-import { Fn, floor, fract, pass, renderOutput, screenCoordinate, uniform, vec4 } from 'three/tsl';
+import { Fn, dot, floor, fract, mix, pass, renderOutput, screenCoordinate, screenUV, smoothstep, uniform, vec3, vec4 } from 'three/tsl';
 import type { Node } from 'three/webgpu';
 import { RETRO_LOOK } from '../../config/render';
 
@@ -23,11 +23,14 @@ export interface RetroControls {
   readonly levels: { value: number };
   /** 0 = plain quantisation (banding), 1 = full ordered dither. */
   readonly dither: { value: number };
+  /** 0..1: low Resolve closing the view in (darkened edges, colour drained). */
+  readonly squeeze: { value: number };
 }
 
 export function createRetroPipeline(renderer: WebGPURenderer, scene: Scene, camera: Camera): { pipeline: RenderPipeline; controls: RetroControls } {
   const levels = uniform(RETRO_LOOK.colourLevels);
   const dither = uniform(1);
+  const squeeze = uniform(0);
 
   // Tone-map and convert to sRGB first, so quantisation steps are perceptual.
   const color = renderOutput(pass(scene, camera));
@@ -35,11 +38,15 @@ export function createRetroPipeline(renderer: WebGPURenderer, scene: Scene, came
   const output = Fn(() => {
     const steps = levels.sub(1);
     const threshold = bayer4(screenCoordinate.xy).sub(0.5).mul(dither).add(0.5);
-    const q = floor(color.rgb.mul(steps).add(threshold)).div(steps);
+    // Low Resolve: the colour drains and the edges close in.
+    const grey = vec3(dot(color.rgb, vec3(0.299, 0.587, 0.114)));
+    const edge = smoothstep(0.25, 0.75, screenUV.sub(0.5).length().mul(1.3));
+    const squeezed = mix(color.rgb, grey, squeeze.mul(0.7)).mul(edge.mul(squeeze).oneMinus());
+    const q = floor(squeezed.mul(steps).add(threshold)).div(steps);
     return vec4(q.clamp(0, 1), 1);
   })();
 
   const pipeline = new RenderPipeline(renderer, output);
   pipeline.outputColorTransform = false;
-  return { pipeline, controls: { levels, dither } };
+  return { pipeline, controls: { levels, dither, squeeze } };
 }

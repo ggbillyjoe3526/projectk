@@ -34,6 +34,8 @@ const WALLS: Wall[] = [
   { minX: 15, maxX: 16, minZ: 7.5, maxZ: 8.3, height: 0.8, kind: 'boulder' },
   { minX: 26, maxX: 26.6, minZ: -16, maxZ: -5, height: 1.2, kind: 'dyke' },
   { minX: 26, maxX: 26.6, minZ: -2, maxZ: 16, height: 1.2, kind: 'dyke' },
+  // The howe slab past the dyke, where the old sword lies.
+  { minX: 33.2, maxX: 34.8, minZ: -10.7, maxZ: -9.3, height: 0.45, kind: 'stone' },
   // A table and the bier in the cottage (low, still solid).
   { minX: -25.2, maxX: -23.8, minZ: -1.2, maxZ: 0.2, height: 0.8, kind: 'stone' },
   { minX: -27.6, maxX: -26.2, minZ: 1.2, maxZ: 2.6, height: 0.9, kind: 'stone' },
@@ -76,3 +78,15 @@ export const broughGreybox: WorldDef = {
 };
 
 export const COTTAGE_BOUNDS = COTTAGE;
+
+/** Where things are in the M1 greybox: the note on the table, the hearth, the sword on the howe slab, and the dead. */
+export const BROUGH_PLACES = {
+  note: { x: -24.5, z: -0.5 },
+  hearth: { x: -27, z: -2.2 },
+  sword: { x: 34, z: -10, top: SHORE.top + 0.45 },
+  dead: [
+    { x: 18, z: 7, facing: -Math.PI / 2 },
+    { x: 23, z: -9, facing: -Math.PI / 2 },
+    { x: 31, z: 5, facing: -Math.PI / 2 },
+  ],
+} as const;

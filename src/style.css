@@ -135,3 +135,108 @@ body {
     opacity: 0.45;
   }
 }
+
+.hud {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  font: 13px/1.5 ui-monospace, 'SF Mono', Consolas, monospace;
+}
+
+.hud-bars {
+  position: absolute;
+  left: 20px;
+  bottom: 20px;
+  display: grid;
+  gap: 5px;
+  width: min(220px, 40vw);
+}
+
+.hud-track {
+  height: 4px;
+  background: rgb(255 255 255 / 0.08);
+}
+
+.hud-fill {
+  height: 100%;
+  transition: width 0.25s linear;
+}
+
+.hud-health .hud-fill {
+  background: #8c3b32;
+}
+
+.hud-resolve .hud-fill {
+  background: #b9c8d2;
+}
+
+.hud-resolve .hud-fill.low {
+  animation: hud-falter 0.9s ease-in-out infinite;
+}
+
+@keyframes hud-falter {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.hud-prompt {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 22px;
+  text-align: center;
+  color: #d9d6cf;
+  text-shadow: 0 1px 2px #000;
+}
+
+.hud-caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 18%;
+  text-align: center;
+  font-size: 15px;
+  letter-spacing: 0.08em;
+  color: #c9d4da;
+  text-shadow: 0 1px 3px #000;
+  opacity: 0;
+  transition: opacity 1.2s ease;
+}
+
+.hud-caption.on {
+  opacity: 1;
+}
+
+.hud-reader {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgb(5 7 8 / 0.82);
+}
+
+.hud-reader-text {
+  max-width: 30rem;
+  padding: 0 16px;
+  font: italic 16px/1.6 Georgia, 'Times New Roman', serif;
+  color: #e3dccb;
+}
+
+.hud-reader-close {
+  color: #8d9396;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hud-resolve .hud-fill.low {
+    animation: none;
+  }
+}
+
+.hud[hidden],
+.hud-reader[hidden] {
+  display: none;
+}
