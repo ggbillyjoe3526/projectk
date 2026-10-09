@@ -26,7 +26,7 @@ describe('KeyBindings', () => {
 
   it('lists every action but the debug keys for rebinding', () => {
     const listed = new Set(REBINDABLE.map((r) => r.action));
-    for (const action of Object.keys(DEFAULT_BINDINGS)) expect(listed.has(action as never), action).toBe(action !== 'debugOverlay');
+    for (const action of Object.keys(DEFAULT_BINDINGS)) expect(listed.has(action as never), action).toBe(!action.startsWith('debug'));
   });
 
   it('lets attack and deflect move to a key or a side button', () => {

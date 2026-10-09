@@ -1,28 +1,31 @@
 import './style.css';
-import * as THREE from 'three';
+import type { Action } from './config/controls';
 import { CRASH_TEXT, GRAPHICS_ERROR } from './config/crash';
 import { FRAME_RATE_CAPS } from './config/render';
 import { DEFAULT_RENDERER, RENDER_BACKEND, RENDERER_IDS } from './config/renderBackend';
 import { SIM, SIM_DT } from './config/sim';
 import { awayWatch } from './core/awayWatch';
 import { crashReport, type ReportField } from './core/crashReport';
-import { advanceStepper, createStepper } from './core/fixedStepper';
+import { advanceStepper, createStepper, stepperAlpha } from './core/fixedStepper';
 import { FramePacer } from './core/framePacer';
 import { parseSeed, randomSeed } from './core/seed';
+import { BroughSlice, type SliceIntent } from './game/broughSlice';
 import { KeyBindings } from './input/keyBindings';
 import { Keyboard } from './input/keyboard';
 import { browserKeyboardMap, watchKeyboardLayout } from './input/keyboardLayout';
+import { PointerAim } from './input/pointerAim';
 import { startingRenderer } from './render/rendererStart';
 import { isDeviceLossEcho, type NodeBackend } from './render/webgpu/nodeBackend';
 import { startGuardedStorage } from './save/guardedStorage';
 import { browserStorage, flushSettings, loadSetting, oneOf } from './settings/storage';
 import { CrashScreen } from './ui/crashScreen';
 import { DebugOverlay } from './ui/debugOverlay';
+import { startGate } from './ui/startGate';
 
 /**
  * The boot shell: starts the save storage, the renderer (WebGPU, else its WebGL2 back end), input and the fixed 60 Hz
- * loop, with the debug overlay (` or F3) and the crash pane. It draws an empty scene: the simulation's fixed step
- * goes where the ticks are counted, and presentation interpolates between ticks with `stepperAlpha(stepper)`.
+ * loop, with the debug overlay (` or F3) and the crash pane. It runs the first playable slice (game/broughSlice.ts):
+ * its simulation on the fixed step, its scene drawn at the display rate between ticks.
  */
 
 /** The facts every crash report carries, filled in as the boot learns them. */
@@ -65,20 +68,16 @@ async function main(): Promise<void> {
   facts.seed = parseSeed(params.get('seed')) ?? randomSeed();
 
   const choice = loadSetting('renderer', oneOf(RENDERER_IDS), DEFAULT_RENDERER);
-  const start = await startingRenderer(choice, params.has('forceWebGL'), true);
+  // No multisampling: hard pixel edges are part of the look.
+  const start = await startingRenderer(choice, params.has('forceWebGL'), false);
   let node: NodeBackend = start.node;
   facts.backend = node.kind;
   facts.adapter = start.adapterName;
 
-  const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0b0d10);
-  const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 500);
-  const fit = (): void => {
-    node.renderer.setPixelRatio(window.devicePixelRatio);
-    node.renderer.setSize(window.innerWidth, window.innerHeight, false);
-    camera.aspect = window.innerWidth / Math.max(1, window.innerHeight);
-    camera.updateProjectionMatrix();
-  };
+  const slice = new BroughSlice(params);
+  const { scene, camera } = slice;
+  slice.attach(node.renderer);
+  const fit = (): void => slice.fit(window.innerWidth, Math.max(1, window.innerHeight));
   container.appendChild(node.renderer.domElement);
   fit();
   window.addEventListener('resize', fit);
@@ -86,6 +85,7 @@ async function main(): Promise<void> {
   const bindings = new KeyBindings(browserStorage());
   watchKeyboardLayout(browserKeyboardMap(), window, (layout) => bindings.setLayout(layout));
   const keyboard = new Keyboard(window, bindings);
+  const pointer = new PointerAim(window, container);
   awayWatch({ doc: document, win: window }, () => keyboard.releaseAll());
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) flushSettings();
@@ -98,6 +98,7 @@ async function main(): Promise<void> {
     'gpu ms': Number.isNaN(node.gpuMs) ? '-' : node.gpuMs.toFixed(2),
     tick: facts.tick,
     seed: facts.seed ?? '-',
+    ...slice.debugStats(),
   }));
   overlay.setFpsReadout(loadSetting('showFps', (raw) => (typeof raw === 'boolean' ? raw : undefined), false));
   const frameRateCap = loadSetting('frameRateCap', (raw) => FRAME_RATE_CAPS.find((cap) => cap === raw), 0);
@@ -114,6 +115,7 @@ async function main(): Promise<void> {
         current.dispose();
         node = next;
         facts.backend = node.kind;
+        slice.attach(node.renderer);
         fit();
         node.setTiming(overlay.visible);
         node.compile(scene, camera);
@@ -124,6 +126,10 @@ async function main(): Promise<void> {
   watchLoss(node);
 
   const stepper = createStepper(SIM_DT, SIM.maxTicksPerFrame);
+  const intent: SliceIntent = { forward: false, back: false, left: false, right: false, listen: false, aim: null };
+  const aim = { x: 0, y: 0 };
+  /** The simulation waits behind the start pane. */
+  let playing = false;
   const pacer = new FramePacer();
   let last = performance.now();
   let lastDrawn = last;
@@ -133,8 +139,19 @@ async function main(): Promise<void> {
   const frame = (now: number): void => {
     const dt = Math.min(Math.max(0, (now - last) / 1000), SIM.maxFrameDt);
     last = now;
-    const ticks = advanceStepper(stepper, dt);
+    const ticks = playing ? advanceStepper(stepper, dt) : 0;
     facts.tick += ticks;
+    intent.forward = keyboard.isDown('forward');
+    intent.back = keyboard.isDown('back');
+    intent.left = keyboard.isDown('left');
+    intent.right = keyboard.isDown('right');
+    intent.listen = keyboard.isDown('listen');
+    aim.x = pointer.x;
+    aim.y = pointer.y;
+    intent.aim = pointer.known ? aim : null;
+    for (let i = 0; i < ticks; i++) slice.tick(intent, SIM_DT);
+    if (keyboard.wasPressed('swapOffHand')) slice.toggleTorch();
+    if (keyboard.wasPressed('debugTimeScale')) slice.cycleTimeScale();
     if (keyboard.wasPressed('debugOverlay')) {
       overlay.toggle();
       node.setTiming(overlay.visible);
@@ -142,7 +159,8 @@ async function main(): Promise<void> {
     if (keyboard.wasPressed('fullscreen')) void (document.fullscreenElement ? document.exitFullscreen() : container.requestFullscreen()).catch(() => undefined);
     keyboard.endFrame();
     if (!node.lost && pacer.shouldDraw(now, frameRateCap)) {
-      node.renderer.render(scene, camera);
+      slice.present(stepperAlpha(stepper), dt, now);
+      slice.render();
       node.frameDone();
       overlay.frame((now - lastDrawn) / 1000);
       lastDrawn = now;
@@ -151,6 +169,17 @@ async function main(): Promise<void> {
   };
   keyboard.capturing = true;
   requestAnimationFrame(frame);
+
+  const key = (action: Action): string => keyboard.keyName(action);
+  await startGate(container, 'UNBURIED', [
+    [`${key('forward')} ${key('left')} ${key('back')} ${key('right')}`, 'walk'],
+    ['Mouse', 'aim the torch'],
+    [`${key('listen')} (hold)`, 'kneel and listen to the island'],
+    [key('swapOffHand'), 'torch on or off'],
+    [`${key('debugOverlay')} / ${key('debugTimeScale')}`, 'debug readout / faster island time'],
+  ]);
+  slice.startAudio();
+  playing = true;
 }
 
 window.addEventListener('error', (e) => fail(e.error ?? e.message));

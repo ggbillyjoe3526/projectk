@@ -22,11 +22,13 @@ export const DEFAULT_BINDINGS = {
   /** F11 is the browser's own and would leave the page's fullscreen; F10 is free once the game takes it. */
   fullscreen: ['F10'],
   debugOverlay: ['Backquote', 'F3'],
+  /** Development: run island time faster (×1, ×4, ×16, ×64, then back to ×1) to watch a whole tide. */
+  debugTimeScale: ['BracketRight'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type Action = keyof typeof DEFAULT_BINDINGS;
 
-/** Actions players can rebind, in the order the settings list them, with their labels. The debug keys are not listed. */
+/** Actions players can rebind, in the order the settings list them, with their labels. The debug keys (`debug…`) are not listed. */
 export const REBINDABLE: readonly { action: Action; label: string }[] = [
   { action: 'forward', label: 'Move forward' },
   { action: 'back', label: 'Move back' },
