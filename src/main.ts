@@ -8,11 +8,12 @@ import { awayWatch } from './core/awayWatch';
 import { crashReport, type ReportField } from './core/crashReport';
 import { advanceStepper, createStepper, stepperAlpha } from './core/fixedStepper';
 import { FramePacer } from './core/framePacer';
-import { parseSeed, randomSeed } from './core/seed';
+import { deriveSeed, parseSeed, randomSeed } from './core/seed';
 import { BroughSlice, type SliceIntent } from './game/broughSlice';
 import { KeyBindings } from './input/keyBindings';
 import { Keyboard } from './input/keyboard';
 import { browserKeyboardMap, watchKeyboardLayout } from './input/keyboardLayout';
+import { watchMouseButtons } from './input/mouseButtons';
 import { PointerAim } from './input/pointerAim';
 import { startingRenderer } from './render/rendererStart';
 import { isDeviceLossEcho, type NodeBackend } from './render/webgpu/nodeBackend';
@@ -74,7 +75,7 @@ async function main(): Promise<void> {
   facts.backend = node.kind;
   facts.adapter = start.adapterName;
 
-  const slice = new BroughSlice(params);
+  const slice = new BroughSlice(params, deriveSeed(facts.seed, 0x9e3779b1, 0x2545f491), container);
   const { scene, camera } = slice;
   slice.attach(node.renderer);
   const fit = (): void => slice.fit(window.innerWidth, Math.max(1, window.innerHeight));
@@ -86,6 +87,7 @@ async function main(): Promise<void> {
   watchKeyboardLayout(browserKeyboardMap(), window, (layout) => bindings.setLayout(layout));
   const keyboard = new Keyboard(window, bindings);
   const pointer = new PointerAim(window, container);
+  watchMouseButtons(container, keyboard);
   awayWatch({ doc: document, win: window }, () => keyboard.releaseAll());
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) flushSettings();
@@ -126,7 +128,20 @@ async function main(): Promise<void> {
   watchLoss(node);
 
   const stepper = createStepper(SIM_DT, SIM.maxTicksPerFrame);
-  const intent: SliceIntent = { forward: false, back: false, left: false, right: false, listen: false, aim: null };
+  const intent: SliceIntent = {
+    forward: false,
+    back: false,
+    left: false,
+    right: false,
+    listen: false,
+    aim: null,
+    attackHeld: false,
+    attackPressed: false,
+    deflectHeld: false,
+    deflectPressed: false,
+    stepPressed: false,
+    interactPressed: false,
+  };
   const aim = { x: 0, y: 0 };
   /** The simulation waits behind the start pane. */
   let playing = false;
@@ -149,7 +164,17 @@ async function main(): Promise<void> {
     aim.x = pointer.x;
     aim.y = pointer.y;
     intent.aim = pointer.known ? aim : null;
-    for (let i = 0; i < ticks; i++) slice.tick(intent, SIM_DT);
+    intent.attackHeld = keyboard.isDown('attack');
+    intent.deflectHeld = keyboard.isDown('deflect');
+    // A press reaches the next tick only, held over a frame that runs no tick (above 60 frames a second).
+    intent.attackPressed ||= keyboard.wasPressed('attack');
+    intent.deflectPressed ||= keyboard.wasPressed('deflect');
+    intent.stepPressed ||= keyboard.wasPressed('step');
+    intent.interactPressed ||= keyboard.wasPressed('interact');
+    for (let i = 0; i < ticks; i++) {
+      slice.tick(intent, SIM_DT);
+      intent.attackPressed = intent.deflectPressed = intent.stepPressed = intent.interactPressed = false;
+    }
     if (keyboard.wasPressed('swapOffHand')) slice.toggleTorch();
     if (keyboard.wasPressed('debugTimeScale')) slice.cycleTimeScale();
     if (keyboard.wasPressed('debugOverlay')) {
@@ -173,7 +198,11 @@ async function main(): Promise<void> {
   const key = (action: Action): string => keyboard.keyName(action);
   await startGate(container, 'UNBURIED', [
     [`${key('forward')} ${key('left')} ${key('back')} ${key('right')}`, 'walk'],
-    ['Mouse', 'aim the torch'],
+    ['Mouse', 'aim'],
+    [`${key('attack')}`, 'attack (hold with the sword: sained strike)'],
+    [`${key('deflect')}`, 'deflect, just as a blow lands'],
+    [`${key('step')}`, 'step aside'],
+    [key('interact'), 'read, take, rest, the Rite'],
     [`${key('listen')} (hold)`, 'kneel and listen to the island'],
     [key('swapOffHand'), 'torch on or off'],
     [`${key('debugOverlay')} / ${key('debugTimeScale')}`, 'debug readout / faster island time'],

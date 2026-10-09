@@ -14,6 +14,8 @@ export class IslandHum {
   private readonly hum: GainNode;
   private readonly grind: GainNode;
   private readonly hiss: GainNode;
+  /** Low Resolve closes the sound in: everything passes through this before the limiter. */
+  private readonly squeeze: BiquadFilterNode;
 
   constructor() {
     this.ctx = new AudioContext();
@@ -22,7 +24,8 @@ export class IslandHum {
     const limiter = ctx.createDynamicsCompressor();
     limiter.threshold.value = -6;
     limiter.ratio.value = 12;
-    this.master.connect(limiter).connect(ctx.destination);
+    this.squeeze = filter(ctx, 'lowpass', 20000, 0.5);
+    this.master.connect(this.squeeze).connect(limiter).connect(ctx.destination);
 
     const noise = noiseBuffer(ctx, 4);
 
@@ -61,6 +64,20 @@ export class IslandHum {
     loop(ctx, noise, 0.83).connect(filter(ctx, 'highpass', 2600, 0.5)).connect(this.hiss).connect(this.master);
   }
 
+  /** The context and the mix bus, for other sounds (the fight) to play into the same mix. */
+  get context(): AudioContext {
+    return this.ctx;
+  }
+
+  get bus(): AudioNode {
+    return this.master;
+  }
+
+  /** 0: open; 1: the sound closes right in (low Resolve, broken). */
+  setSqueeze(k: number): void {
+    set(this.squeeze.frequency, 20000 * Math.pow(600 / 20000, Math.min(1, Math.max(0, k))), this.ctx.currentTime, 0.3);
+  }
+
   resume(): Promise<void> {
     return this.ctx.resume();
   }
@@ -84,19 +101,19 @@ export class IslandHum {
 function set(param: AudioParam, value: number, t: number, tc: number): void {
   param.setTargetAtTime(value, t, tc);
 }
-function gain(ctx: AudioContext, v: number): GainNode {
+export function gain(ctx: AudioContext, v: number): GainNode {
   const g = ctx.createGain();
   g.gain.value = v;
   return g;
 }
-function filter(ctx: AudioContext, type: BiquadFilterType, f: number, q: number): BiquadFilterNode {
+export function filter(ctx: AudioContext, type: BiquadFilterType, f: number, q: number): BiquadFilterNode {
   const b = ctx.createBiquadFilter();
   b.type = type;
   b.frequency.value = f;
   b.Q.value = q;
   return b;
 }
-function noiseBuffer(ctx: AudioContext, seconds: number): AudioBuffer {
+export function noiseBuffer(ctx: AudioContext, seconds: number): AudioBuffer {
   const b = ctx.createBuffer(1, Math.floor(ctx.sampleRate * seconds), ctx.sampleRate);
   const d = b.getChannelData(0);
   let s = 22222;

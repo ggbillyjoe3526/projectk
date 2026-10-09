@@ -2,26 +2,31 @@ import { PerspectiveCamera, Plane, Raycaster, type RenderPipeline, type Scene, V
 import { IslandHum } from '../audio/islandHum';
 import { type CameraPose, HeldMoveBasis, selectZone, zoneMoveYaw, zonePose } from '../camera/authoredCamera';
 import { BROUGH_ZONES } from '../camera/broughZones';
+import type { WeaponId } from '../config/combat';
 import { RETRO_LOOK } from '../config/render';
 import { DEFAULT_TIDE } from '../config/tide';
 import { buildGreybox, type GreyboxScene } from '../render/greyboxScene';
 import { Rain } from '../render/rain';
 import { ps1Snap } from '../render/retro/ps1Snap';
 import { internalResolution } from '../render/retro/retroMath';
-import { createRetroPipeline } from '../render/retro/retroPipeline';
+import { createRetroPipeline, type RetroControls } from '../render/retro/retroPipeline';
+import type { FighterInput } from '../sim/combat/encounter';
 import { HumClock, listeningClarity } from '../sim/humClock';
-import { createPlayer, type PlayerCommand, type PlayerState, stepPlayer } from '../sim/player';
+import { createPlayer, type PlayerCommand, type PlayerState } from '../sim/player';
 import { causewayPassable, humParams, tideLevel, tidePhase } from '../sim/tide';
-import { broughGreybox as world } from '../sim/world/broughGreybox';
+import { broughGreybox as world, COTTAGE_BOUNDS } from '../sim/world/broughGreybox';
+import { CombatHud } from '../ui/combatHud';
+import { BroughFight, type FightSnapshot } from './broughFight';
 
 /**
- * The first playable slice (M0): the father's cottage, the Brough and the tidal causeway in greybox, under the
- * authored cameras (concept v0.6 section 7, camera A), in the low-resolution dithered look, with the tide and the
- * island's hum. It owns the scene and the simulation; main.ts runs it on the fixed 60 Hz step and draws it.
+ * The playable slice: the father's cottage, the Brough and the tidal causeway in greybox, under the authored cameras
+ * (concept v0.6 section 7, camera A), in the low-resolution dithered look, with the tide and the island's hum (M0),
+ * and the fight with the dead on the shore (M1, game/broughFight.ts). It owns the scene and the simulation; main.ts
+ * runs it on the fixed 60 Hz step and draws it.
  */
 
-/** What the player asks for this tick, from the bindings and the mouse. */
-export interface SliceIntent {
+/** What the player asks for this tick, from the bindings and the mouse. Presses are true on one tick only. */
+export interface SliceIntent extends FighterInput {
   forward: boolean;
   back: boolean;
   left: boolean;
@@ -37,6 +42,13 @@ const TIME_SCALES = [1, 4, 16, 64] as const;
 const START_TIDE = 0.82;
 const MOVE_YAWS = BROUGH_ZONES.map(zoneMoveYaw);
 
+/** What a death reloads: everything as it was when the player last rested at the hearth. */
+interface Checkpoint {
+  readonly fight: FightSnapshot;
+  readonly player: PlayerState;
+  readonly tideClock: number;
+}
+
 export class BroughSlice {
   readonly scene: Scene;
   readonly camera = new PerspectiveCamera(50, 16 / 9, 0.1, 220);
@@ -44,7 +56,13 @@ export class BroughSlice {
   private readonly rain = new Rain();
   private renderer: WebGPURenderer | null = null;
   private pipeline: RenderPipeline | null = null;
+  private look: RetroControls | null = null;
   private audio: IslandHum | null = null;
+  private readonly hud: CombatHud;
+  private readonly fight: BroughFight;
+  private checkpoint: Checkpoint;
+  /** The time of the last drawn frame (performance.now()), for the HUD's captions. */
+  private now = 0;
 
   private readonly player: PlayerState;
   /** The player at the previous tick, for interpolating between ticks. */
@@ -53,7 +71,7 @@ export class BroughSlice {
   private tideClock: number;
   private timeScale = 0;
   private torchOn = true;
-  private readonly cmd: PlayerCommand = { moveX: 0, moveZ: 0, aimX: null, aimZ: null, listen: false };
+  private readonly cmd: PlayerCommand = { moveX: 0, moveZ: 0, aimX: null, aimZ: null, listen: false, speedScale: 1, turn: true };
   private moveHeld = false;
 
   private readonly humClock = new HumClock();
@@ -71,11 +89,17 @@ export class BroughSlice {
   /** What the last drawn frame showed, for the debug overlay. */
   private readonly shown = { clarity: 0, hum: 0, beatHz: 0 };
 
-  /** `params`: `at=x,z` starts the player there, `tide=f` at fraction f of the tide's cycle (0 low, 0.5 high). */
-  constructor(params: URLSearchParams) {
+  /**
+   * `params`: `at=x,z` starts the player there, `tide=f` at fraction f of the tide's cycle (0 low, 0.5 high),
+   * `weapon=sword` with the sword already in hand. `seed` seeds the fight; `hudParent` holds the on-screen readouts.
+   */
+  constructor(params: URLSearchParams, seed: number, hudParent: HTMLElement) {
     this.g = buildGreybox(world);
     this.scene = this.g.scene;
     this.scene.add(this.rain.object);
+    this.hud = new CombatHud(hudParent);
+    const weapon: WeaponId = params.get('weapon') === 'sword' ? 'sword' : 'knife';
+    this.fight = new BroughFight(this.scene, this.g, this.hud, seed, weapon);
 
     this.player = createPlayer(world);
     const at = params.get('at')?.split(',').map(Number);
@@ -88,6 +112,7 @@ export class BroughSlice {
     this.tideClock = DEFAULT_TIDE.cycleSeconds * (Number.isFinite(tide) ? tide : START_TIDE);
     this.copyPrev();
     this.zone = selectZone(BROUGH_ZONES, -1, this.player.x, this.player.z);
+    this.checkpoint = this.save();
   }
 
   /** Draw with this renderer (the first one, or the one replacing a lost device). */
@@ -95,7 +120,9 @@ export class BroughSlice {
     this.pipeline?.dispose();
     this.renderer = renderer;
     renderer.shadowMap.enabled = true;
-    this.pipeline = createRetroPipeline(renderer, this.scene, this.camera).pipeline;
+    const retro = createRetroPipeline(renderer, this.scene, this.camera);
+    this.pipeline = retro.pipeline;
+    this.look = retro.controls;
   }
 
   /** Size the canvas to the low internal resolution for a window of `width` × `height` CSS pixels. */
@@ -113,6 +140,7 @@ export class BroughSlice {
     try {
       this.audio = new IslandHum();
       void this.audio.resume().catch(() => undefined);
+      this.fight.attachAudio(this.audio.context, this.audio.bus);
     } catch {
       this.audio = null; // No Web Audio: the game plays silent.
     }
@@ -159,11 +187,37 @@ export class BroughSlice {
 
     this.copyPrev();
     this.tideClock += dt * TIME_SCALES[this.timeScale]!;
-    stepPlayer(this.player, this.cmd, world, tideLevel(this.tideClock), dt);
+    const indoors = this.inCottage();
+    const ctx = { lit: this.torchOn, dark: !this.torchOn && !indoors, inRefuge: indoors };
+    const rested = this.fight.tick(intent, this.cmd, this.player, world, tideLevel(this.tideClock), ctx, dt, this.now);
+    if (rested) this.checkpoint = this.save();
+    if (this.fight.wantsWake) {
+      this.load(this.checkpoint);
+      this.hud.say('You wake by the hearth.', this.now, 3.5);
+    }
+  }
+
+  private inCottage(): boolean {
+    const c = COTTAGE_BOUNDS;
+    const p = this.player;
+    return p.x > c.minX && p.x < c.maxX && p.z > c.minZ && p.z < c.maxZ;
+  }
+
+  private save(): Checkpoint {
+    return { fight: this.fight.snapshot(), player: { ...this.player, listening: false }, tideClock: this.tideClock };
+  }
+
+  private load(c: Checkpoint): void {
+    this.fight.restore(c.fight);
+    Object.assign(this.player, c.player);
+    this.tideClock = c.tideClock;
+    this.copyPrev();
+    this.snapCamera = true;
   }
 
   /** Bring the scene up to date for drawing: `alpha` is how far between the last two ticks this frame falls. */
   present(alpha: number, frameDt: number, now: number): void {
+    this.now = now;
     const p = this.player;
     const px = this.prev.x + (p.x - this.prev.x) * alpha;
     const py = this.prev.y + (p.y - this.prev.y) * alpha;
@@ -235,6 +289,12 @@ export class BroughSlice {
     if (this.renderer) this.rain.step(this.renderer, frameDt, { x: px, y: py, z: pz });
 
     this.audio?.update(hum, beat, this.humClock.hiss(hum), clarity, p.listening, indoors);
+
+    const fx = this.fight.present(p, alpha, frameDt, now / 1000, now);
+    this.camera.position.x += (Math.random() - 0.5) * fx.shake;
+    this.camera.position.y += (Math.random() - 0.5) * fx.shake;
+    if (this.look) this.look.squeeze.value += (fx.squeeze - this.look.squeeze.value) * Math.min(1, frameDt * 3);
+    this.audio?.setSqueeze(fx.squeeze);
   }
 
   render(): void {
@@ -250,6 +310,7 @@ export class BroughSlice {
       player: `${p.x.toFixed(1)}, ${p.z.toFixed(1)}, water ${p.depth.toFixed(2)} m`,
       camera: BROUGH_ZONES[this.zone]!.id,
       hum: `${(this.shown.hum * 100).toFixed(0)}%, ${this.shown.beatHz.toFixed(2)} beats/s, heard ${(this.shown.clarity * 100).toFixed(0)}%`,
+      ...this.fight.debugStats(),
     };
   }
 

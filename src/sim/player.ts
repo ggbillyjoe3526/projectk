@@ -22,6 +22,10 @@ export interface PlayerCommand {
   aimX: number | null;
   aimZ: number | null;
   listen: boolean;
+  /** Multiplies the walking speed: combat slows or stops the player, the evasive step dashes. */
+  speedScale: number;
+  /** Whether the aim turns the player this tick (not mid-swing). */
+  turn: boolean;
 }
 
 
@@ -44,14 +48,14 @@ export function walkable(world: WorldDef, x: number, z: number, waterLevel: numb
 export function stepPlayer(s: PlayerState, cmd: PlayerCommand, world: WorldDef, waterLevel: number, dt: number): void {
   s.listening = cmd.listen;
 
-  if (cmd.aimX !== null && cmd.aimZ !== null) {
+  if (cmd.turn && cmd.aimX !== null && cmd.aimZ !== null) {
     const ax = cmd.aimX - s.x;
     const az = cmd.aimZ - s.z;
     if (ax * ax + az * az > 0.04) s.facing = Math.atan2(ax, az);
   }
 
   if (!s.listening) {
-    let speed = PLAYER_TUNING.walkSpeed;
+    let speed = PLAYER_TUNING.walkSpeed * cmd.speedScale;
     if (s.depth > PLAYER_TUNING.wadeDepth) speed *= PLAYER_TUNING.wadeSpeedFactor;
     const dx = cmd.moveX * speed * dt;
     const dz = cmd.moveZ * speed * dt;
