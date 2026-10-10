@@ -1,31 +1,21 @@
 # Airsoft sync record
 
 Project Outbound's engine skeleton came from William's other game, Airsoft
-([ggbillyjoe3526/Airsoft](https://github.com/ggbillyjoe3526/Airsoft), MIT). Both games keep being worked on, so a weekly
-check compares new Airsoft commits against the modules Project Outbound took and opens a pull request here when one of
-them gained a fix or improvement worth having. This file is that check's record: what was taken, and from which Airsoft
-commit.
+([ggbillyjoe3526/Airsoft](https://github.com/ggbillyjoe3526/Airsoft), MIT). This file records what was
+taken, and from which Airsoft commit.
+
+**No more syncing.** A weekly check used to compare new Airsoft commits against these files and port fixes. William
+stopped it on 2026-10-10: nothing more is pulled from Airsoft, and the files below are now Project Outbound's own.
 
 **Last synced Airsoft commit:** `324602b813e89def3aa41cfd12252d455c9d3d86` (main, "WebGPU step 3", 0.1 Dev 4)
 
-Every file below matches Airsoft at that commit apart from Project Outbound's own adaptations (the `outbound.` storage
+Every file below matched Airsoft at that commit apart from Project Outbound's own adaptations (the `outbound.` storage
 prefix and the one-time move of keys from the first working title's `projectk.` prefix in `guardedStorage.ts`, which
-also reads save files marked `ProjectK`; Project Outbound's controls; the single-renderer start-up). A sync pull request
-updates the commit above in the same change that brings the code across.
-
-## How to check
-
-```bash
-git clone --filter=blob:none https://github.com/ggbillyjoe3526/Airsoft.git ../airsoft
-git -C ../airsoft log --oneline <last synced>..origin/main -- <paths below>
-git -C ../airsoft diff <last synced>..origin/main -- <path>
-```
-
-Then port the Airsoft change onto the Project Outbound file by hand, keeping its adaptations, and run `npm run check`.
+also reads save files marked `ProjectK`; Project Outbound's controls; the single-renderer start-up).
 
 ## Taken as-is (same path in both repos, with their tests)
 
-Tests beside a module (`x.test.ts`, `x.qa.test.ts` and so on) are at the same path in both repos and come across with it.
+Tests beside a module (`x.test.ts`, `x.qa.test.ts` and so on) are at the same path in both repos and came across with it.
 
 | Area | Paths |
 |---|---|
@@ -43,9 +33,10 @@ Tests beside a module (`x.test.ts`, `x.qa.test.ts` and so on) are at the same pa
 
 `src/ui/dom.ts` and `src/testSupport/memoryStorage.ts` are Project Outbound's own.
 
-## Not taken yet: rewrite references
+## Never taken: rewrite references
 
-These are read, not copied, when a Project Outbound feature reaches them. A check only notes changes to them.
+The 2026-10-09 review marked these as references for later Project Outbound features. Since the sync stopped, nothing
+more is taken from Airsoft, these included.
 
 `src/render/retroFilter.ts` (dither and low-res maths, to be rewritten in TSL), `src/sim/simulation.ts`,
 `src/sim/commands.ts`, `src/sim/events.ts`, `src/input/playerInput.ts`, `src/input/pointerLock.ts`,

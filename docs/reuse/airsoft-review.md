@@ -96,10 +96,13 @@ If William approves, copy section 1 into the game's repo as the M0 skeleton (`sr
 start-up, diagnostics), each module with its tests, renamed off the `airsoft.` storage prefix. Section 2 items are then
 written fresh as M0 and M1 reach them, with the Airsoft file open as the reference.
 
-## 6. Ongoing sync (weekly)
+## 6. Ongoing sync (weekly, stopped)
+
+**Stopped 2026-10-10.** William no longer wants anything pulled from Airsoft. The routine was deleted and no further
+checks run. The modules already taken are now Project Outbound's own.
 
 Section 1 was copied into the game's repo in PR #1 (merged 2026-10-09). A weekly routine ("Airsoft sync check", Mondays
-08:58 UTC) now compares new Airsoft commits against what Project Outbound took. Its record of files and the last *synced*
+08:58 UTC) compared new Airsoft commits against what Project Outbound took. Its record of files and the last *synced*
 commit lives in the game's repo at `docs/airsoft-sync.md`; this file keeps the log of checks.
 
 **Last checked Airsoft commit:** `324602b` (2026-10-09, baseline; nothing new since the review)
@@ -107,3 +110,4 @@ commit lives in the game's repo at `docs/airsoft-sync.md`; this file keeps the l
 ### Check log
 
 - 2026-10-09: baseline set at `324602b`. No changes to port.
+- 2026-10-10: sync stopped at William's request; routine deleted.

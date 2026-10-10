@@ -309,21 +309,21 @@ load.
 
 Airsoft ([ggbillyjoe3526/Airsoft](https://github.com/ggbillyjoe3526/Airsoft), MIT) is William's other browser game, on
 the same stack. On 2026-10-09 it was reviewed for reuse ([reuse/airsoft-review.md](reuse/airsoft-review.md)): it has no
-separable engine, so the small, well-tested modules around the edges were copied (PR #1) and the rest is used only as a
-reference when a feature needs it, starting with the retro dither filter, to be rewritten in TSL. Airsoft's gameplay,
+separable engine, so the small, well-tested modules around the edges were copied (PR #1). The rest was
+noted as reference, but on 2026-10-10 William stopped all pulling from Airsoft, so nothing more is taken. Airsoft's gameplay,
 WebGL renderer, procedural art and physics were left behind. The record of what was taken, and from which Airsoft
 commit, is [airsoft-sync.md](airsoft-sync.md) (PR #2).
 
 ### Routines
 
 William asked on 2026-10-09 for the project to keep checking Airsoft for useful updates. A routine, **"Airsoft sync
-check"**, runs on Mondays at 08:58 UTC: it compares new Airsoft commits on the modules Project Outbound took, ports
-clear fixes by hand while keeping this game's adaptations, and opens a sync pull request, merged by the rule above. It
-reports in the project's "Airsoft sync" thread, and its check log is section 6 of the Airsoft review (the copy here is a
+check"**, ran on Mondays at 08:58 UTC: it compared new Airsoft commits on the modules Project Outbound took, ported
+clear fixes by hand while keeping this game's adaptations, and opened a sync pull request, merged by the rule above. It
+reported in the project's "Airsoft sync" thread, and its check log is section 6 of the Airsoft review (the copy here is a
 snapshot from 2026-10-10).
 
-**The routine is paused.** William asked for that when he put the project on hold (2026-10-10). It is still set up,
-just disabled, and can be turned back on when he asks.
+**The routine is stopped for good.** On 2026-10-10 William said he no longer wants anything pulled from Airsoft, so
+the routine was deleted. Don't set it up again unless he asks.
 
 ## History
 
@@ -348,3 +348,4 @@ just disabled, and can be turned back on when he asks.
 | 2026-10-10 | William started the vertical slice and chose to build it in two stages, "Low water" first ([plan](vertical-slice-plan.md)). Levels became data (PR #12). |
 | 2026-10-10 | Stage 1, "Low water", built and played through PR #25 (spaces, expedition loop, the opening's beats, torch battery, CI, the cottage, the low-Resolve grade, and the controls, combat and HUD after William's playtests). William wrapped up the vertical slice there; work moves to the first chapter, in another thread. Stage 2, "The funeral", was not started. |
 | 2026-10-10 | William set the version scheme: a minor version per chapter, numbered Dev builds within it; chapter 1 releases as "0.1 Dev 1". |
+| 2026-10-10 | William stopped the Airsoft sync for good: the routine was deleted and nothing more is pulled from Airsoft. |
