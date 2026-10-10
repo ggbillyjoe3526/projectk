@@ -1,8 +1,7 @@
 import { BoxGeometry, Color, Group, Mesh, MeshLambertNodeMaterial, PointLight, type Scene, Vector3 } from 'three/webgpu';
 import { CombatSounds } from '../audio/combatSounds';
-import { PLAYER_COMBAT as PC, type WeaponId } from '../config/combat';
-import type { LevelPlaces } from '../content/level';
-import { PLAYER_TUNING } from '../config/player';
+import { PLAYER_COMBAT as PC } from '../config/combat';
+import type { Placement } from '../content/level';
 import { ClashSparks } from '../render/clashSparks';
 import { PlayerWeapon, UnburiedFigures } from '../render/fighterFigures';
 import type { GreyboxScene } from '../render/greyboxScene';
@@ -15,6 +14,7 @@ import {
   type FightContext,
   type FighterInput,
   interactTarget,
+  passTime,
   stepEncounter,
 } from '../sim/combat/encounter';
 import type { PlayerCommand, PlayerState } from '../sim/player';
@@ -22,35 +22,17 @@ import type { WorldDef } from '../sim/world/types';
 import type { CombatHud } from '../ui/combatHud';
 
 /**
- * The M1 fight on the Brough's greybox (concept v0.6 sections 3.2 to 3.4): the player starts with the kitchen knife,
- * which cuts the dead down but never keeps them down; the note on the cottage table says why; the old sword lies on the
- * howe slab in the kirk. Resting at the hearth restores the player and is where a death reloads to.
+ * The fight (concept v0.6 sections 3.2 to 3.4): the player starts with the kitchen knife, which cuts the dead down but
+ * never keeps them down, until they take the old sword from the howe slab in the kirk. This presents the encounter
+ * (bodies, the blade, sparks, sounds, the gauges) and gives the rest of the game what it needs to rest and reload.
  */
 
-/** Read at the cottage table. */
-const NOTE = [
-  'From your father’s notebook, the last page written:',
-  'The knife won’t do it. Nothing will that wasn’t in the ground with them.',
-  'Iron from the howe. Nothing else will lay them.',
-  'When one goes down on its knees, say the words over it, and it stays down for good.',
-  'The old blade is in the kirk, on the slab where they opened the howe. Go at low water.',
-] as const;
-
-/** Ticks after dying before waking at the hearth. */
+/** Ticks after dying before waking at the last place rested. */
 const WAKE_AFTER = 150;
-const ITEM_REACH = 1.6;
-
-type Place = 'hearth' | 'note' | 'sword';
-
-export interface FightSnapshot {
-  readonly encounter: Encounter;
-  readonly swordTaken: boolean;
-}
 
 export class BroughFight {
   enc: Encounter;
-  private swordTaken: boolean;
-  private noteRead = false;
+  private hasSword = false;
   private readonly weapon: PlayerWeapon;
   private readonly figures: UnburiedFigures;
   private readonly swordOnSlab: Group;
@@ -76,14 +58,15 @@ export class BroughFight {
     scene: Scene,
     private readonly g: GreyboxScene,
     private readonly hud: CombatHud,
-    private readonly places: LevelPlaces,
+    private readonly swordAt: { x: number; z: number; top: number } | null,
+    private readonly deadAt: readonly Placement[],
     private readonly seed: number,
-    weapon: WeaponId,
   ) {
-    this.enc = createEncounter(seed, weapon, places.dead);
-    this.swordTaken = weapon === 'sword';
+    const sword = swordAt;
+    const dead = deadAt;
+    this.enc = createEncounter(seed, 'knife', dead);
     this.weapon = new PlayerWeapon(g.player);
-    this.figures = new UnburiedFigures(scene, places.dead.length);
+    this.figures = new UnburiedFigures(scene, dead.length);
     this.prevDead = this.enc.dead.map((u) => ({ x: u.x, z: u.z }));
 
     this.swordOnSlab = new Group();
@@ -92,9 +75,9 @@ export class BroughFight {
     const hilt = new Mesh(new BoxGeometry(0.24, 0.04, 0.05), steel);
     hilt.position.z = -0.47;
     this.swordOnSlab.add(blade, hilt);
-    this.swordOnSlab.position.set(places.sword.x, places.sword.top + 0.02, places.sword.z);
+    if (sword) this.swordOnSlab.position.set(sword.x, sword.top + 0.02, sword.z);
     this.swordOnSlab.rotation.y = 0.4;
-    this.swordOnSlab.visible = !this.swordTaken;
+    this.swordOnSlab.visible = sword !== null;
     scene.add(this.swordOnSlab, this.flash);
     this.sparks = new ClashSparks(scene);
   }
@@ -104,14 +87,62 @@ export class BroughFight {
     this.sounds = new CombatSounds(ctx, bus);
   }
 
-  snapshot(): FightSnapshot {
-    return { encounter: structuredClone({ ...this.enc, events: [] }), swordTaken: this.swordTaken };
+  /** The encounter as plain data, for a checkpoint. */
+  snapshot(): Encounter {
+    return structuredClone({ ...this.enc, events: [] });
   }
 
-  restore(s: FightSnapshot): void {
-    this.enc = structuredClone(s.encounter);
-    this.swordTaken = s.swordTaken;
-    this.swordOnSlab.visible = !this.swordTaken;
+  /** Back to a checkpoint. The sword stays in hand once taken, whatever the checkpoint says. */
+  restore(encounter: Encounter): void {
+    this.enc = structuredClone(encounter);
+    this.enc.fighter.weapon = this.hasSword ? 'sword' : 'knife';
+    this.syncPrev();
+  }
+
+  /** A new game: the dead as they first stood, the knife in hand and the sword back on its slab. */
+  reset(): void {
+    this.enc = createEncounter(this.seed, 'knife', this.deadAt);
+    this.hasSword = false;
+    this.swordOnSlab.visible = this.swordAt !== null;
+    this.sawRise = false;
+    this.syncPrev();
+  }
+
+  get swordTaken(): boolean {
+    return this.hasSword;
+  }
+
+  /** The sword in hand (taken from the slab, or already taken in a saved game). */
+  takeSword(): void {
+    this.hasSword = true;
+    this.swordOnSlab.visible = false;
+    this.enc.fighter.weapon = 'sword';
+  }
+
+  /** Resting: health and Resolve back to full (the hearth), or only what's left (a refuge). */
+  recover(full: boolean): void {
+    if (!full) return;
+    this.enc.fighter.health = PC.maxHealth;
+    this.enc.fighter.resolve = PC.maxResolve;
+  }
+
+  /** Lose this much Resolve (a night waiting out the tide), never quite to zero. */
+  wear(resolve: number): void {
+    this.enc.fighter.resolve = Math.max(1, this.enc.fighter.resolve - resolve);
+  }
+
+  /** Hours have passed: the dead are back where they stood (sim passTime). */
+  passTime(): void {
+    passTime(this.enc);
+    this.syncPrev();
+  }
+
+  /** The player is free to use something (not fighting, hurt, broken or down). */
+  get free(): boolean {
+    return this.enc.fighter.action === 'free';
+  }
+
+  private syncPrev(): void {
     this.enc.dead.forEach((u, i) => Object.assign(this.prevDead[i]!, { x: u.x, z: u.z }));
   }
 
@@ -124,35 +155,20 @@ export class BroughFight {
     return this.enc.fighter.action === 'free';
   }
 
-  /**
-   * One fixed tick. E is spent on the reader, the hearth, the note or the sword before the fight sees it. Returns true
-   * when the player rests at the hearth (the caller saves the checkpoint).
-   */
-  tick(input: FighterInput, cmd: PlayerCommand, p: PlayerState, world: WorldDef, waterLevel: number, ctx: FightContext, dt: number, now: number): boolean {
-    let rested = false;
-    if (this.hud.reading) {
-      if (input.interactPressed) this.hud.closeReader();
-      cmd.moveX = cmd.moveZ = 0;
-      input.interactPressed = input.attackPressed = input.deflectPressed = input.stepPressed = false;
-    } else if (input.interactPressed && this.enc.fighter.action === 'free') {
-      const place = this.placeHere(p);
-      if (place) {
-        input.interactPressed = false;
-        rested = this.use(place, now);
-      }
-    }
-    this.enc.dead.forEach((u, i) => Object.assign(this.prevDead[i]!, { x: u.x, z: u.z }));
+  /** One fixed tick. The caller has already spent E on anything the player used. */
+  tick(input: FighterInput, cmd: PlayerCommand, p: PlayerState, world: WorldDef, waterLevel: number, ctx: FightContext, dt: number): void {
+    this.syncPrev();
     stepEncounter(this.enc, input, cmd, p, world, waterLevel, ctx, dt);
     // Events wait here until the next drawn frame plays and shows them.
     if (this.enc.events.length) {
       this.pending.push(...this.enc.events);
       this.enc.events.length = 0;
     }
-    return rested;
   }
 
   /** Per drawn frame: poses, effects, sounds, the HUD. Returns how hard the view should shake and squeeze. */
-  present(p: PlayerState, alpha: number, frameDt: number, clock: number, now: number): { shake: number; squeeze: number } {
+  /** `thingPrompt`: what E would do with something nearby, which takes the prompt over the fight's own. */
+  present(p: PlayerState, alpha: number, frameDt: number, clock: number, now: number, thingPrompt: string | null): { shake: number; squeeze: number } {
     const f = this.enc.fighter;
     this.player = p;
     for (const e of this.pending) this.show(e, now);
@@ -187,7 +203,7 @@ export class BroughFight {
     const resolve = f.resolve / PC.maxResolve;
     const low = f.resolve < PC.lowResolve;
     this.hud.setGauges(f.health / PC.maxHealth, resolve, low);
-    this.hud.setPrompt(this.promptHere(p));
+    this.hud.setPrompt(this.hud.reading || !this.free ? '' : (thingPrompt ?? this.promptHere(p)));
     this.hud.frame(now);
 
     const squeeze = f.action === 'broken' || f.action === 'dead' ? 1 : low ? 0.85 * (1 - f.resolve / PC.lowResolve) : 0;
@@ -257,43 +273,9 @@ export class BroughFight {
     this.hud.say(this.readout ? 'Deflect timing shown' : 'Deflect timing hidden', now, 2);
   }
 
-  private placeHere(p: PlayerState): Place | null {
-    const near = (q: { x: number; z: number }): boolean => Math.hypot(q.x - p.x, q.z - p.z) < ITEM_REACH + PLAYER_TUNING.radius;
-    if (near(this.places.hearth)) return 'hearth';
-    if (near(this.places.note)) return 'note';
-    if (!this.swordTaken && near(this.places.sword)) return 'sword';
-    return null;
-  }
-
-  private use(place: Place, now: number): boolean {
-    const f = this.enc.fighter;
-    switch (place) {
-      case 'hearth':
-        f.health = PC.maxHealth;
-        f.resolve = PC.maxResolve;
-        this.hud.say('You rest by the hearth a while.', now, 3);
-        return true;
-      case 'note':
-        this.noteRead = true;
-        this.hud.read(NOTE);
-        return false;
-      case 'sword':
-        this.swordTaken = true;
-        this.swordOnSlab.visible = false;
-        f.weapon = 'sword';
-        this.hud.say('Iron from the howe.', now, 4);
-        return false;
-    }
-  }
-
+  /** The Rite or laying a body down, when one is in reach. */
   private promptHere(p: PlayerState): string {
-    if (this.hud.reading) return '';
     const f = this.enc.fighter;
-    if (f.action !== 'free') return '';
-    const place = this.placeHere(p);
-    if (place === 'hearth') return 'E  Rest by the hearth';
-    if (place === 'note') return this.noteRead ? 'E  Read the note again' : 'E  Read the note';
-    if (place === 'sword') return 'E  Take the sword';
     const target = interactTarget(this.enc, p);
     if (target?.rite) return f.resolve >= PC.rite.cost ? 'E  The Rite' : 'Not enough Resolve for the Rite';
     if (target) return f.resolve >= PC.layFallen.cost ? `E  Lay the body down (${PC.layFallen.cost} Resolve)` : '';

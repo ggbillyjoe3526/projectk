@@ -5,7 +5,7 @@ import type { PlayerCommand, PlayerState } from '../player';
 import { loadLevel } from '../../content/level';
 import { HAUGSAY } from '../../content/levels/haugsay';
 import type { WorldDef } from '../world/types';
-import { createEncounter, deadCanStand, type Encounter, type FightContext, type FighterInput, interactTarget, perfectWindow, stepEncounter } from './encounter';
+import { createEncounter, deadCanStand, passTime, type Encounter, type FightContext, type FighterInput, interactTarget, perfectWindow, stepEncounter } from './encounter';
 
 /** Open flat shore with no walls. */
 const flat: WorldDef = {
@@ -353,5 +353,22 @@ describe('the dead', () => {
       return JSON.stringify([enc.dead, enc.fighter, p]);
     };
     expect(play()).toBe(play());
+  });
+});
+
+describe('time passing', () => {
+  it('sends the dead home whole, raises the downed stronger, and leaves the rested at rest', () => {
+    const enc = createEncounter(7, 'sword', [{ x: 1, z: 1, facing: 0 }, { x: 5, z: 5, facing: 1 }, { x: 9, z: 9, facing: 2 }]);
+    const [stalker, downed, rested] = enc.dead as [typeof enc.dead[0], typeof enc.dead[0], typeof enc.dead[0]];
+    Object.assign(stalker, { state: 'stalk', x: 3, z: 4, health: 10, break: 50 });
+    Object.assign(downed, { state: 'downed', health: 0 });
+    Object.assign(rested, { state: 'rested' });
+    enc.fighter.action = 'hurt';
+    passTime(enc);
+    expect(stalker).toMatchObject({ state: 'idle', x: 1, z: 1, health: UT.health, break: 0, rises: 0 });
+    expect(downed).toMatchObject({ state: 'idle', x: 5, z: 5, rises: 1, maxHealth: Math.round(UT.health * UT.riseHealthGain) });
+    expect(downed.health).toBe(downed.maxHealth);
+    expect(rested.state).toBe('rested');
+    expect(enc.fighter.action).toBe('free');
   });
 });

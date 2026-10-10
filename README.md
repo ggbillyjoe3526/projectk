@@ -31,14 +31,20 @@ npm run build        # static site in dist/ (relative paths; any static host)
 Controls: WASD to walk (relative to the camera), the mouse to aim the torch, hold F to kneel and listen to the island
 (the hum's strength and beat tell the tide), Q for the torch. Left click attacks (hold it with the sword for a sained
 strike, which costs Resolve), right click or Left Shift deflects (as the blow lands; a glint in the attacker's hand
-comes just before it), Space steps aside, and E reads, takes, rests
-at the hearth (where a death reloads to) and gives a kneeling body the Rite. Press `` ` `` or F3 for the debug overlay (frame rate,
+comes just before it), Space steps aside, and E reads (the notebook, the tide table by the cottage door), takes, opens
+a gate from its barred side, rests at the hearth or waits out the tide in the kirk vestry (both save the game, and are
+where a death returns to), and gives a kneeling body the Rite. Press `` ` `` or F3 for the debug overlay (frame rate,
 renderer, draw calls, GPU time, simulation tick, seed, tide, player, camera zone, hum) and `]` to run island time
 ×4, ×16 or ×64. F4 hides or shows the deflect timing readout (early, late or perfect, in milliseconds).
 
 URL flags: `?seed=N` plays seed N; `?forceWebGL` draws with the renderer's WebGL2 back end without asking for WebGPU
 (automated browsers in containers have no WebGPU adapter); `?at=x,z` starts the player at that point and `?tide=f` at
-fraction f of the tide's cycle (0 low water, 0.5 high water); `?weapon=sword` starts with the sword in hand.
+fraction f of the tide's cycle (0 low water, 0.5 high water); `?weapon=sword` starts with the sword in hand. Any of
+`at`, `tide` and `weapon` sets up a test visit that neither loads nor overwrites the saved game.
+
+The game saves in the browser: the sword, documents read and gates opened as soon as they happen, and the checkpoint
+when you rest. A new build that changes the level's layout keeps that progress but starts you at the cottage. The start
+pane offers to start over.
 
 ## How it starts
 

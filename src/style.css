@@ -130,6 +130,22 @@ body {
   animation: start-gate-pulse 2.4s ease-in-out infinite;
 }
 
+.start-gate-over {
+  margin: 1.25rem 0 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #8a9295;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.start-gate-over:hover,
+.start-gate-over:focus-visible {
+  color: #e8e6e1;
+}
+
 @keyframes start-gate-pulse {
   50% {
     opacity: 0.45;

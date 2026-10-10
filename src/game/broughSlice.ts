@@ -1,10 +1,10 @@
 import { PerspectiveCamera, Plane, Raycaster, type RenderPipeline, type Scene, Vector2, Vector3, type WebGPURenderer } from 'three/webgpu';
 import { IslandHum } from '../audio/islandHum';
 import { type CameraPose, HeldMoveBasis, selectZone, zoneMoveYaw, zonePose } from '../camera/authoredCamera';
-import type { WeaponId } from '../config/combat';
+import { PLAYER_COMBAT } from '../config/combat';
 import { RETRO_LOOK } from '../config/render';
 import { DEFAULT_TIDE } from '../config/tide';
-import { inRefuge, isIndoors, type Level, loadLevel } from '../content/level';
+import { inRefuge, isIndoors, type Level, levelLayout, loadLevel, type Thing } from '../content/level';
 import { HAUGSAY } from '../content/levels/haugsay';
 import { buildGreybox, type GreyboxScene } from '../render/greyboxScene';
 import { Rain } from '../render/rain';
@@ -14,9 +14,12 @@ import { createRetroPipeline, type RetroControls } from '../render/retro/retroPi
 import type { FighterInput } from '../sim/combat/encounter';
 import { HumClock, listeningClarity } from '../sim/humClock';
 import { createPlayer, type PlayerCommand, type PlayerState } from '../sim/player';
-import { causewayPassable, humParams, tideLevel, tidePhase } from '../sim/tide';
+import { causewayPassable, humParams, nextCausewayOpen, tideLevel, tidePhase } from '../sim/tide';
+import type { WorldDef } from '../sim/world/types';
+import { type Checkpoint, readSavedGame, writeSavedGame } from '../save/progress';
 import { CombatHud } from '../ui/combatHud';
-import { BroughFight, type FightSnapshot } from './broughFight';
+import { BroughFight } from './broughFight';
+import { freshProgress, onGateSide, type Progress, thingHere, thingPrompt, tideTableLines } from './things';
 
 /**
  * The playable slice: the father's cottage, the Brough and the tidal causeway in greybox, under the authored cameras
@@ -41,11 +44,10 @@ const TIME_SCALES = [1, 4, 16, 64] as const;
 /** Where a visit starts in the tide's cycle: just after the causeway closes, so it reopens within minutes. */
 const START_TIDE = 0.82;
 
-/** What a death reloads: everything as it was when the player last rested at the hearth. */
-interface Checkpoint {
-  readonly fight: FightSnapshot;
-  readonly player: PlayerState;
-  readonly tideClock: number;
+/** Interface for the browser storage the game saves to. */
+interface SaveStore {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
 }
 
 export class BroughSlice {
@@ -61,7 +63,14 @@ export class BroughSlice {
   private audio: IslandHum | null = null;
   private readonly hud: CombatHud;
   private readonly fight: BroughFight;
+  /** The world as the simulation sees it now: the level, less any gates opened. */
+  private world: WorldDef;
+  private readonly layout = levelLayout(this.level);
+  /** What has changed for good (saved at once), and where a death or a reload returns to (saved on resting). */
+  private progress: Progress = freshProgress();
   private checkpoint: Checkpoint;
+  /** Off when a debug flag (`at`, `tide`, `weapon`) set the visit up: then nothing is written over the player's save. */
+  private readonly persist: boolean;
   /** The time of the last drawn frame (performance.now()), for the HUD's captions. */
   private now = 0;
 
@@ -92,16 +101,19 @@ export class BroughSlice {
 
   /**
    * `params`: `at=x,z` starts the player there, `tide=f` at fraction f of the tide's cycle (0 low, 0.5 high),
-   * `weapon=sword` with the sword already in hand. `seed` seeds the fight; `hudParent` holds the on-screen readouts.
+   * `weapon=sword` with the sword already in hand; any of them leaves the saved game alone. `seed` seeds the fight;
+   * `hudParent` holds the on-screen readouts; `storage` is where the game is saved (null: not saved).
    */
-  constructor(params: URLSearchParams, seed: number, hudParent: HTMLElement) {
+  constructor(params: URLSearchParams, seed: number, hudParent: HTMLElement, private readonly storage: SaveStore | null) {
     const world = this.level.sim;
+    this.world = world;
     this.g = buildGreybox(this.level);
     this.scene = this.g.scene;
     this.scene.add(this.rain.object);
     this.hud = new CombatHud(hudParent);
-    const weapon: WeaponId = params.get('weapon') === 'sword' ? 'sword' : 'knife';
-    this.fight = new BroughFight(this.scene, this.g, this.hud, this.level.places, seed, weapon);
+    const sword = this.level.things.find((t) => t.kind === 'sword');
+    this.fight = new BroughFight(this.scene, this.g, this.hud, sword ?? null, this.level.dead, seed);
+    this.persist = !['at', 'tide', 'weapon'].some((flag) => params.has(flag));
 
     this.player = createPlayer(world);
     const at = params.get('at')?.split(',').map(Number);
@@ -112,9 +124,36 @@ export class BroughSlice {
     }
     const tide = Number(params.get('tide') ?? Number.NaN);
     this.tideClock = DEFAULT_TIDE.cycleSeconds * (Number.isFinite(tide) ? tide : START_TIDE);
+    this.checkpoint = this.save();
+
+    const saved = this.persist ? readSavedGame(storage, this.layout, this.level.dead.length) : null;
+    if (saved) {
+      this.progress = saved.progress;
+      if (saved.checkpoint) this.load(saved.checkpoint);
+    }
+    if (params.get('weapon') === 'sword') this.progress.swordTaken = true;
+    this.applyProgress();
+    this.checkpoint = this.save();
     this.copyPrev();
     this.zone = selectZone(this.level.cameras, -1, this.player.x, this.player.z);
+  }
+
+  /** There is a saved game to continue (the start pane offers to start over). */
+  get continuing(): boolean {
+    return this.persist && readSavedGame(this.storage, this.layout, this.level.dead.length) !== null;
+  }
+
+  /** Forget the saved game and start again from the cottage, as on a first visit. */
+  startOver(): void {
+    this.progress = freshProgress();
+    this.fight.reset();
+    Object.assign(this.player, createPlayer(this.level.sim));
+    this.tideClock = DEFAULT_TIDE.cycleSeconds * START_TIDE;
+    this.applyProgress();
     this.checkpoint = this.save();
+    this.writeGame();
+    this.copyPrev();
+    this.snapCamera = true;
   }
 
   /** Draw with this renderer (the first one, or the one replacing a lost device). */
@@ -192,24 +231,109 @@ export class BroughSlice {
       }
     }
 
+    // E: put down what's being read, or use what's in reach, before the fight sees the press.
+    if (this.hud.reading) {
+      if (intent.interactPressed) this.hud.closeReader();
+      this.cmd.moveX = this.cmd.moveZ = 0;
+      intent.interactPressed = intent.attackPressed = intent.deflectPressed = intent.stepPressed = false;
+    } else if (intent.interactPressed && this.fight.free) {
+      const thing = thingHere(this.level.things, this.progress, this.player.x, this.player.z);
+      if (thing) {
+        intent.interactPressed = false;
+        this.use(thing);
+      }
+    }
+
     this.copyPrev();
     this.tideClock += dt * TIME_SCALES[this.timeScale]!;
     const { x, z } = this.player;
     const ctx = { lit: this.torchOn, dark: !this.torchOn && !isIndoors(this.level, x, z), inRefuge: inRefuge(this.level, x, z) };
-    const rested = this.fight.tick(intent, this.cmd, this.player, this.level.sim, tideLevel(this.tideClock), ctx, dt, this.now);
-    if (rested) this.checkpoint = this.save();
+    this.fight.tick(intent, this.cmd, this.player, this.world, tideLevel(this.tideClock), ctx, dt);
     if (this.fight.wantsWake) {
       this.load(this.checkpoint);
-      this.hud.say('You wake by the hearth.', this.now, 3.5);
+      this.hud.say('You come to where you last rested.', this.now, 3.5);
     }
   }
 
+  private use(thing: Thing): void {
+    const now = this.now;
+    switch (thing.kind) {
+      case 'hearth': {
+        this.fight.recover(true);
+        const waited = this.waitForCauseway();
+        this.hud.say(waited ? 'You rest by the hearth until the causeway clears.' : 'You rest by the hearth a while.', now, 3.5);
+        this.rest();
+        break;
+      }
+      case 'refuge': {
+        const waited = this.waitForCauseway();
+        if (waited) this.fight.wear(PLAYER_COMBAT.refugeWait.resolveCost);
+        this.hud.say(waited ? 'You wait out the tide. The hours wear on you.' : 'You sit a while, and catch your breath.', now, 4);
+        this.rest();
+        break;
+      }
+      case 'document':
+        this.hud.read(thing.lines);
+        if (!this.progress.read.includes(thing.id)) {
+          this.progress.read.push(thing.id);
+          this.writeGame();
+        }
+        break;
+      case 'tideTable':
+        this.hud.read(tideTableLines(this.tideClock));
+        break;
+      case 'sword':
+        this.progress.swordTaken = true;
+        this.fight.takeSword();
+        this.hud.say('Iron from the howe.', now, 4);
+        this.writeGame();
+        break;
+      case 'gate':
+        if (!onGateSide(thing, this.player.x, this.player.z)) {
+          this.hud.say('It’s barred from the other side.', now, 3);
+          break;
+        }
+        this.progress.opened.push(thing.wall);
+        this.applyProgress();
+        this.hud.say('You lift the bar. The gate swings out over the steps to the shore.', now, 4);
+        this.writeGame();
+        break;
+    }
+  }
+
+  /** If the causeway is under water, let the hours pass until it clears. True if any time passed. */
+  private waitForCauseway(): boolean {
+    if (causewayPassable(this.tideClock)) return false;
+    // A second past the moment it opens, so it's open beyond rounding.
+    this.tideClock = nextCausewayOpen(this.tideClock) + 1;
+    this.fight.passTime();
+    return true;
+  }
+
+  /** A save point: this is where a death or the next visit returns to. */
+  private rest(): void {
+    this.checkpoint = this.save();
+    this.writeGame();
+  }
+
+  /** The sword in hand and the gates open, as the progress says, in the fight, the world and the scene. */
+  private applyProgress(): void {
+    if (this.progress.swordTaken && !this.fight.swordTaken) this.fight.takeSword();
+    const opened = this.progress.opened;
+    this.world = { ...this.level.sim, walls: this.level.sim.walls.filter((w) => w.id === undefined || !opened.includes(w.id)) };
+    for (const [id, mesh] of this.g.wallMeshes) mesh.visible = !opened.includes(id);
+  }
+
+  private writeGame(): void {
+    if (this.persist) writeSavedGame(this.storage, this.layout, { progress: this.progress, checkpoint: this.checkpoint });
+  }
+
   private save(): Checkpoint {
-    return { fight: this.fight.snapshot(), player: { ...this.player, listening: false }, tideClock: this.tideClock };
+    return { encounter: this.fight.snapshot(), player: { ...this.player, listening: false }, tideClock: this.tideClock };
   }
 
   private load(c: Checkpoint): void {
-    this.fight.restore(c.fight);
+    this.fight.restore(c.encounter);
     Object.assign(this.player, c.player);
     this.tideClock = c.tideClock;
     this.copyPrev();
@@ -292,7 +416,8 @@ export class BroughSlice {
 
     this.audio?.update(hum, beat, this.humClock.hiss(hum), clarity, p.listening, indoors);
 
-    const fx = this.fight.present(p, alpha, frameDt, now / 1000, now);
+    const thing = this.fight.free && !this.hud.reading ? thingHere(this.level.things, this.progress, p.x, p.z) : null;
+    const fx = this.fight.present(p, alpha, frameDt, now / 1000, now, thing ? thingPrompt(thing, this.progress, p.x, p.z) : null);
     this.camera.position.x += (Math.random() - 0.5) * fx.shake;
     this.camera.position.y += (Math.random() - 0.5) * fx.shake;
     if (this.look) this.look.squeeze.value += (fx.squeeze - this.look.squeeze.value) * Math.min(1, frameDt * 3);

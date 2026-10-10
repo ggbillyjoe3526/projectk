@@ -75,7 +75,7 @@ async function main(): Promise<void> {
   facts.backend = node.kind;
   facts.adapter = start.adapterName;
 
-  const slice = new BroughSlice(params, deriveSeed(facts.seed, 0x9e3779b1, 0x2545f491), container);
+  const slice = new BroughSlice(params, deriveSeed(facts.seed, 0x9e3779b1, 0x2545f491), container, browserStorage());
   const { scene, camera } = slice;
   slice.attach(node.renderer);
   const fit = (): void => slice.fit(window.innerWidth, Math.max(1, window.innerHeight));
@@ -203,11 +203,11 @@ async function main(): Promise<void> {
     [`${key('attack')}`, 'attack (hold with the sword: sained strike)'],
     [keyboard.keysName('deflect'), 'deflect as the blow lands (a glint in its hand warns you)'],
     [`${key('step')}`, 'step aside'],
-    [key('interact'), 'read, take, rest, the Rite'],
+    [key('interact'), 'read, take, open, rest, the Rite'],
     [`${key('listen')} (hold)`, 'kneel and listen to the island'],
     [key('swapOffHand'), 'torch on or off'],
     [`${key('debugOverlay')} / ${key('debugTimeScale')} / ${key('debugFightReadout')}`, 'debug readout / faster island time / deflect timing'],
-  ]);
+  ], slice.continuing ? () => slice.startOver() : undefined);
   slice.startAudio();
   playing = true;
 }

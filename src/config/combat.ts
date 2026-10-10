@@ -65,6 +65,8 @@ export const PLAYER_COMBAT = {
   brokenSpeed: 0.45,
   recoverResolve: 20,
   rite: { ticks: 72, cost: 10, restore: 35, reach: 1.8 },
+  /** Waiting out the tide in a refuge: the hours wear on you (concept 3.1, "Caught out"). */
+  refugeWait: { resolveCost: 15 },
   /** Laying a fallen (not broken) body down afterwards: expensive. */
   layFallen: { ticks: 72, cost: 40, reach: 1.8 },
   /** Resolve a second drained by darkness (torch off, out of doors). */

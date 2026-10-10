@@ -99,6 +99,25 @@ export const BROUGH_AREA: LevelArea = {
       lookOffset: [0.5, 0.4, -0.8],
     },
   ],
+  things: [
+    { id: 'hearth', kind: 'hearth', x: -27, z: -2.2 },
+    {
+      id: 'fathers-notebook',
+      kind: 'document',
+      x: -24.5,
+      z: -0.5,
+      title: 'Your father’s notebook',
+      lines: [
+        'From your father’s notebook, the last page written:',
+        'The knife won’t do it. Nothing will that wasn’t in the ground with them.',
+        'Iron from the howe. Nothing else will lay them.',
+        'When one goes down on its knees, say the words over it, and it stays down for good.',
+        'The old blade is in the kirk, on the slab where they opened the howe. Go at low water.',
+      ],
+    },
+    // Pinned by the door.
+    { id: 'tide-table', kind: 'tideTable', x: -20.6, z: -1.8 },
+  ],
   dead: [
     { x: 18, z: 7, facing: -Math.PI / 2 },
     { x: 23, z: -9, facing: -Math.PI / 2 },
