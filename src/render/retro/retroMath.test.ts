@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bayer4, internalResolution, quantizeChannel } from './retroMath';
+import { bayer4, haarGrade, internalResolution, quantizeChannel } from './retroMath';
 
 describe('retro maths', () => {
   it('bayer4 covers 16 distinct thresholds in each 4×4 tile and repeats', () => {
@@ -27,5 +27,17 @@ describe('retro maths', () => {
     expect(internalResolution(1920, 1080, 270)).toEqual({ width: 480, height: 270 });
     expect(internalResolution(2560, 1080, 270)).toEqual({ width: 640, height: 270 });
     expect(internalResolution(0, 0, 270)).toEqual({ width: 480, height: 270 });
+  });
+
+  it('the low-Resolve grade drains everything to grey but red', () => {
+    const grey = (c: number[]) => Math.max(...c) - Math.min(...c) < 0.05;
+    // Untouched at zero.
+    expect(haarGrade(0.2, 0.6, 0.3, 0)).toEqual([0.2, 0.6, 0.3]);
+    // Moss, sea, a sodium lamp and skin all go grey.
+    for (const c of [[0.2, 0.45, 0.2], [0.15, 0.3, 0.4], [0.95, 0.6, 0.2], [0.8, 0.6, 0.5]] as const) expect(grey(haarGrade(c[0], c[1], c[2], 1))).toBe(true);
+    // Blood stays red.
+    const [r, g, b] = haarGrade(0.6, 0.08, 0.07, 1);
+    expect(r).toBeGreaterThan(0.6);
+    expect(Math.max(g, b)).toBeLessThan(0.1);
   });
 });
