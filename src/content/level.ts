@@ -49,6 +49,8 @@ export interface CottageDressing {
   readonly table: Box2;
   readonly dresser: Box2;
   readonly bier: Box2;
+  /** The bedroom off the west gable: its room, the doorway's z range in the cottage's west wall, its walls' height. */
+  readonly bedroom?: { readonly room: Box2; readonly door: readonly [number, number]; readonly height: number; readonly bed: Box2; readonly drawers: Box2 };
   /** Things shown by a mesh in the set while they're there to use, by the thing's id. */
   readonly notebook: string;
   /**

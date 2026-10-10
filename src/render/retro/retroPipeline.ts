@@ -9,8 +9,8 @@ import { RETRO_LOOK } from '../../config/render';
  * upscales it with hard pixels), then each channel is quantised with a 4×4
  * ordered dither. Mirrors retroMath.ts exactly.
  *
- * Listening (William, 2026-10-10): while the player kneels to feel the island, the screen's edges move like water,
- * a gentle swell at low tide and an unsteady, shuddering one at high water, pulsing with the beat.
+ * Listening (William, 2026-10-10; made subtler the same day): while the player kneels to feel the island, the
+ * screen's edges move faintly like water, a gentle swell at low tide and an unsteady one at high water, with the beat.
  */
 
 type N = Node<'vec2'>;
@@ -66,10 +66,10 @@ export function createRetroPipeline(renderer: WebGPURenderer, scene: Scene, came
     const fromCentre = screenUV.sub(0.5);
     const r = fromCentre.length();
     const angle = atan(fromCentre.y, fromCentre.x);
-    const rim = smoothstep(0.2, 0.6, r).mul(listen);
+    const rim = smoothstep(0.3, 0.68, r).mul(listen);
     const swell = sin(r.mul(mix(9, 22, unrest)).sub(time.mul(mix(1.1, 3.2, unrest))));
     const shudder = sin(angle.mul(9).add(time.mul(7.3))).mul(sin(time.mul(23.0).add(angle.mul(3)))).mul(unrest.mul(unrest));
-    const amount = mix(0.009, 0.024, unrest).mul(pulse.mul(0.6).add(0.4));
+    const amount = mix(0.004, 0.012, unrest).mul(pulse.mul(0.6).add(0.4));
     const warped = screenUV.add(fromCentre.normalize().mul(swell.add(shudder.mul(1.4)).mul(amount).mul(rim)));
     // Tone-map and convert to sRGB first, so quantisation steps are perceptual.
     const color = renderOutput(sceneTexture.sample(warped));
@@ -90,8 +90,8 @@ export function createRetroPipeline(renderer: WebGPURenderer, scene: Scene, came
     const squeezed = mix(c, mix(haar, keepRed, red), squeeze).mul(edge.mul(squeeze).oneMinus());
     // A cold sheen on the moving edge, brighter on the beat.
     const crest = smoothstep(0.55, 0.95, swell.add(shudder.mul(0.8)));
-    const sheen = rim.mul(crest.mul(0.75).add(0.25)).mul(mix(0.1, 0.18, unrest)).mul(pulse.mul(0.6).add(0.4));
-    const listened = squeezed.mul(rim.mul(0.25).oneMinus()).add(vec3(0.5, 0.72, 0.9).mul(sheen));
+    const sheen = rim.mul(crest.mul(0.75).add(0.25)).mul(mix(0.035, 0.075, unrest)).mul(pulse.mul(0.6).add(0.4));
+    const listened = squeezed.mul(rim.mul(0.1).oneMinus()).add(vec3(0.5, 0.72, 0.9).mul(sheen));
     const q = floor(listened.mul(steps).add(threshold)).div(steps);
     return vec4(q.clamp(0, 1), 1);
   })();

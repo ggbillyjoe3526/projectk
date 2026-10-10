@@ -11,15 +11,15 @@ import { releaseName } from '../../config/release';
 import { RETRO_LOOK } from '../../config/render';
 import { TORCH } from '../../config/torch';
 import {
-  DEPARTURE_SECONDS, FERRY_START_TIDE, LINES, type Message, MESSAGES, MESSAGES_AT_START, MESSAGES_ON_FERRY, MORNING_TIDE, VOYAGE_SECONDS,
+  DEPART_DELAY_SECONDS, DEPARTURE_SECONDS, DOCKING_CALL_SECONDS, FERRY_START_TIDE, LINES, type Message, MESSAGES, MESSAGES_AT_START, MESSAGES_ON_FERRY, MORNING_TIDE, VOYAGE_SECONDS,
 } from '../../content/crossing/chapter';
-import { CROSSING_TIDE, dayName, daylight, tideTableText, tideWords, timeText } from '../../content/crossing/clock';
+import { clockOf, CROSSING_TIDE, dayName, daylight, tideTableText, tideWords, timeText } from '../../content/crossing/clock';
 import { FLAGS, MORAG_AT_INN, MORAG_WAY_HOME, PEOPLE, type Person } from '../../content/crossing/people';
-import { COFFIN, type Custom, FUNERAL_LETTER, PILLS, READABLES, type Spot, SPOTS, vigilLines } from '../../content/crossing/places';
+import { BAG, BED_LINES, COFFIN, type Custom, FUNERAL_LETTER, PILLS, READABLES, type Spot, SPOTS, VIGIL_STAY, vigilLines } from '../../content/crossing/places';
 import { hasPower, isIndoors, type Level, levelLayout, loadLevel, VIGIL_MESHES } from '../../content/level';
 import { ARRIVAL, PIER_HEAD } from '../../content/levels/arrival';
 import { INN, INN_DOOR } from '../../content/levels/village';
-import { COTTAGE, CAUSEWAY } from '../../content/levels/brough';
+import { BIER, COTTAGE, CAUSEWAY } from '../../content/levels/brough';
 import { FERRY, FERRY_GANGWAY } from '../../content/levels/ferry';
 import { PIER } from '../../content/levels/pier';
 import { buildGreybox, type GreyboxScene } from '../../render/greyboxScene';
@@ -28,13 +28,14 @@ import { Rain } from '../../render/rain';
 import { ps1Snap } from '../../render/retro/ps1Snap';
 import { internalResolution } from '../../render/retro/retroMath';
 import { createRetroPipeline, type RetroControls, updateListenCue } from '../../render/retro/retroPipeline';
-import { buildArrival, type ArrivalSet, wornBackpack } from '../../render/sets/arrival';
+import { buildArrival, type ArrivalSet, INN_DOOR_OPEN, wornBackpack } from '../../render/sets/arrival';
 import { buildFerry, type FerrySet } from '../../render/sets/ferry';
 import { HumClock, listeningClarity } from '../../sim/humClock';
 import { createPlayer, type PlayerCommand, type PlayerState, stepPlayer } from '../../sim/player';
 import { causewayPassable, humParams, nextCausewayOpen, tideLevel, tidePhase } from '../../sim/tide';
 import { createTorch, stepTorch, switchTorch, torchBrightness, type TorchState } from '../../sim/torch';
 import { inBox } from '../../sim/world/ground';
+import { clearSight } from '../../sim/world/sight';
 import type { Wall, WorldDef } from '../../sim/world/types';
 import { CombatHud } from '../../ui/combatHud';
 import { DayEnd } from '../../ui/dayEnd';
@@ -81,19 +82,33 @@ const MORAG_PACE = 1.05;
 const MORAG_WAITS_WITHIN = 2.8;
 /** How far off the player has to be after meeting her before she sets off home. */
 const MORAG_LEAVES_BEYOND = 9;
+/** The inn door's middle, and how near someone comes before it swings open for them (William, 2026-10-10). */
+const INN_DOORWAY = { x: (INN.door[0] + INN.door[1]) / 2, z: INN.maxZ - INN.wall / 2, opensWithin: 2.1 } as const;
 /** Just inside the inn door, facing in: where a yes to Morag's room cuts to. */
 const INN_INSIDE = { x: (INN.door[0] + INN.door[1]) / 2, z: INN.maxZ - 1.4, facing: Math.PI } as const;
 
-/** The tablet, asked as a choice (places.ts PILLS). */
-const PILL_TALK: Dialogue = {
-  id: 'pills',
-  hub: 'ask',
-  nodes: {
-    ask: { lines: [{ text: PILLS.ask }], options: [{ label: PILLS.take, to: 'taken' }, { label: PILLS.skip, to: 'skipped' }] },
-    taken: { lines: [{ text: PILLS.taken }], effect: 'takePill', end: true },
-    skipped: { lines: [{ text: PILLS.skipped }], effect: 'skipPill', end: true },
-  },
-};
+/** His backpack, set down in the bedroom: the night's tablet (places.ts PILLS) until that's decided, or back on. */
+function bagTalk(pillDecided: boolean): Dialogue {
+  const back = [{ label: BAG.pickUp, to: 'pickUp' }, { label: BAG.leave, to: 'leave' }];
+  return {
+    id: 'bag',
+    hub: 'ask',
+    nodes: {
+      ask: pillDecided
+        ? { lines: [{ text: PILLS.decided }], options: back }
+        : { lines: [{ text: PILLS.ask }], options: [{ label: PILLS.take, to: 'taken' }, { label: PILLS.skip, to: 'skipped' }, ...back] },
+      taken: { lines: [{ text: PILLS.taken }], effect: 'takePill', end: true },
+      skipped: { lines: [{ text: PILLS.skipped }], effect: 'skipPill', end: true },
+      pickUp: { lines: [{ text: BAG.pickedUp }], effect: 'pickUpBag', end: true },
+      leave: { lines: [], end: true },
+    },
+  };
+}
+
+/** Where the coffin lies, for keeping it in sight on the vigil night. */
+const COFFIN_AT = { x: (BIER.minX + BIER.maxX) / 2, z: (BIER.minZ + BIER.maxZ) / 2 } as const;
+/** When the vigil night begins: Thursday, as the light goes (William, 2026-10-10: by his father until morning). */
+const VIGIL_FROM_MINUTES = 15 * 60 + 30;
 
 type Mutable<T> = { -readonly [K in keyof T]: T[K] };
 
@@ -132,6 +147,11 @@ export class CrossingChapter {
   private worldOpen: WorldDef;
   private worldShut: WorldDef;
   private readonly personWalls = new Map<string, Mutable<Wall>>();
+  private readonly cottageWalls: readonly Wall[];
+  /** On the vigil night, the last place he stood with the coffin in sight (null: not yet in sight tonight). */
+  private lastInSight: { x: number; z: number } | null = null;
+  /** Until when (ms) the too-deep warning waits before it's said again. */
+  private deepToldUntil = 0;
   /** Where Morag is: at the pier, on her way home (along MORAG_WAY_HOME, `moragLeg` the point she's making for), or home. */
   private moragAt: 'pier' | 'walking' | 'inn' = 'pier';
   private moragLeg = 0;
@@ -150,6 +170,8 @@ export class CrossingChapter {
   /** Seconds since the ferry left (it docks at VOYAGE_SECONDS), and since it pulled away again (-1: it hasn't). */
   private voyage = 0;
   private departure = -1;
+  /** Seconds left before the ferry casts off once he's up the pier (-1: not counting). */
+  private departIn = -1;
   private readonly ship: ShipPose = { dx: 0, dz: 0, yaw: 0 };
   private conversation: Conversation | null = null;
   private talkingTo: string | null = null;
@@ -213,6 +235,7 @@ export class CrossingChapter {
     const walls = [...this.level.sim.walls.filter((w) => w.id !== INN_DOOR), ...this.personWalls.values()];
     this.worldShut = { ...this.level.sim, walls };
     this.worldOpen = { ...this.level.sim, walls: walls.filter((w) => w.id !== FERRY_GANGWAY) };
+    this.cottageWalls = this.level.sim.walls.filter((w) => w.kind === 'cottage');
     this.hud = new CombatHud(hudParent);
     this.hud.setCalm(true);
     this.talk = new DialogueBox(hudParent);
@@ -380,6 +403,17 @@ export class CrossingChapter {
     return causewayPassable(this.tideClock, CROSSING_TIDE);
   }
 
+  /** The vigil night: from Thursday's dusk until the chapter ends, he keeps his father in sight (William, 2026-10-10). */
+  private get vigilNight(): boolean {
+    const { day, minutes } = clockOf(this.tideClock);
+    return this.progress.phase !== 'done' && (day > 1 || (day === 1 && minutes >= VIGIL_FROM_MINUTES));
+  }
+
+  /** Whether the coffin can be seen from where the player stands (only the cottage's walls block it). */
+  private seesCoffin(x: number, z: number): boolean {
+    return clearSight(this.cottageWalls, x, z, COFFIN_AT.x, COFFIN_AT.z);
+  }
+
   private get seaLevel(): number {
     return tideLevel(this.tideClock, CROSSING_TIDE);
   }
@@ -493,11 +527,44 @@ export class CrossingChapter {
     const scale = TIME_SCALES[this.timeScale]!;
     this.tideClock += dt * scale;
     this.walkMorag(dt);
+    const fromX = p.x;
+    const fromZ = p.z;
     stepPlayer(p, this.cmd, this.world, this.seaLevel, dt);
+    this.keepVigil();
+    this.warnDeep(fromX, fromZ, dt);
     const torchNews = stepTorch(this.torch, hasPower(this.level, p.x, p.z), dt);
     if (torchNews === 'low') this.say('Your phone’s battery is getting low.', 3);
     else if (torchNews === 'dead') this.say('The torch goes out. The phone needs charging.', 3.5);
     this.story(dt * scale);
+  }
+
+  /** On the vigil night, once he has his father in sight he doesn't go out of it: stepped back with a word. */
+  private keepVigil(): void {
+    const p = this.player;
+    if (!this.vigilNight) {
+      this.lastInSight = null;
+      return;
+    }
+    if (this.seesCoffin(p.x, p.z)) {
+      this.lastInSight = { x: p.x, z: p.z };
+      return;
+    }
+    if (!this.lastInSight) return;
+    p.x = this.lastInSight.x;
+    p.z = this.lastInSight.z;
+    if (this.now >= this.captionUntil) this.say(VIGIL_STAY, 4);
+  }
+
+  /** Walking into water too deep to wade: say so (William, 2026-10-10: a warning at high tide), now and then. */
+  private warnDeep(fromX: number, fromZ: number, dt: number): void {
+    const p = this.player;
+    if ((this.cmd.moveX === 0 && this.cmd.moveZ === 0) || this.aboard(p.x, p.z)) return;
+    if (Math.hypot(p.x - fromX, p.z - fromZ) > PLAYER_TUNING.walkSpeed * dt * 0.3 || this.now < this.deepToldUntil) return;
+    const ahead = this.level.sim.groundAt(p.x + this.cmd.moveX * 0.7, p.z + this.cmd.moveZ * 0.7);
+    // Only water the tide has brought in: ground he could walk at low water.
+    if (this.seaLevel - ahead.height <= PLAYER_TUNING.maxWadeDepth || CROSSING_TIDE.lowLevel - ahead.height > PLAYER_TUNING.maxWadeDepth) return;
+    this.deepToldUntil = this.now + 8000;
+    this.say(ahead.kind === 'causeway' || this.level.sim.groundAt(p.x, p.z).kind === 'causeway' ? LINES.tooDeepCauseway : LINES.tooDeep, 5);
   }
 
   /** E and the box's clicks and keys, moving the conversation on. */
@@ -551,6 +618,9 @@ export class CrossingChapter {
         this.progress.pill = 'skipped';
         this.write();
         break;
+      case 'pickUpBag':
+        this.flags.delete(FLAGS.bagDown);
+        break;
     }
   }
 
@@ -574,10 +644,14 @@ export class CrossingChapter {
       case 'tideTable':
         this.hud.read(tideTableText(this.tideClock));
         break;
-      case 'custom':
-        this.progress.customs.push(spot.custom);
-        this.say(spot.text, 7);
+      case 'custom': {
+        // Done, or undone again (William, 2026-10-10: open the window, close it again).
+        const at = this.progress.customs.indexOf(spot.custom);
+        if (at >= 0) this.progress.customs.splice(at, 1);
+        else this.progress.customs.push(spot.custom);
+        this.say(at >= 0 ? spot.undoText : spot.text, 6);
         break;
+      }
       case 'coffin': {
         const looked = lookedFlag(spot.id);
         if (!this.flags.has(looked)) {
@@ -592,9 +666,14 @@ export class CrossingChapter {
         }
         break;
       }
-      case 'pills':
-        if (this.progress.pill) this.say(PILLS.decided, 4);
-        else this.startTalk(PILL_TALK, null);
+      case 'bag':
+        if (!this.flags.has(FLAGS.bagDown)) {
+          this.flags.add(FLAGS.bagDown);
+          this.say(BAG.setDown, 5);
+        } else this.startTalk(bagTalk(Boolean(this.progress.pill)), null);
+        break;
+      case 'bed':
+        this.say(this.vigilNight ? BED_LINES.vigil : BED_LINES.day, 6);
         break;
       case 'wait':
         this.waitForTide();
@@ -657,6 +736,7 @@ export class CrossingChapter {
       const before = this.voyage;
       this.voyage = Math.min(VOYAGE_SECONDS, this.voyage + dt);
       for (const { at, message } of MESSAGES_ON_FERRY) if (before < at && this.voyage >= at) this.receive(message, true);
+      if (before < DOCKING_CALL_SECONDS && this.voyage >= DOCKING_CALL_SECONDS) this.queued.unshift({ text: LINES.docking, seconds: 6 });
       if (before < VOYAGE_SECONDS && this.voyage >= VOYAGE_SECONDS) {
         this.ferrySounds?.horn();
         this.say(`${LINES.docked} ${LINES.gangway}`, 5);
@@ -667,10 +747,18 @@ export class CrossingChapter {
         this.progress.phase = 'island';
         this.rest();
       }
-    } else if (this.departure < 0 && !this.aboard(p.x, p.z) && p.z < PIER.maxZ - 12) {
-      this.departure = 0;
-      this.ferrySounds?.horn();
-      this.say(LINES.departing, 5);
+    } else if (this.departure < 0 && this.departIn < 0 && !this.aboard(p.x, p.z) && p.z < PIER.maxZ - 12) {
+      this.departIn = DEPART_DELAY_SECONDS;
+    } else if (this.departure < 0 && this.departIn >= 0) {
+      this.departIn -= dt;
+      // Back aboard before it casts off: it waits for him to go ashore again.
+      if (this.aboard(p.x, p.z)) this.departIn = -1;
+      else if (this.departIn <= 0) {
+        this.departIn = -1;
+        this.departure = 0;
+        this.ferrySounds?.horn();
+        this.say(LINES.departing, 5);
+      }
     } else if (this.departure >= 0 && this.departure < DEPARTURE_SECONDS) {
       this.departure = Math.min(DEPARTURE_SECONDS, this.departure + dt);
     }
@@ -679,6 +767,8 @@ export class CrossingChapter {
     if (next) this.say(next.text, next.seconds);
     for (const person of PEOPLE) {
       if (!person.notice || now < this.captionUntil || this.noticed.has(person.id) || this.flags.has(`met:${person.id}`)) continue;
+      // Only someone in the same place: nobody outside is noticed through the inn's walls (William, 2026-10-10).
+      if (isIndoors(this.level, person.x, person.z) !== isIndoors(this.level, p.x, p.z)) continue;
       if (Math.hypot(person.x - p.x, person.z - p.z) < NOTICE_RANGE) {
         this.noticed.add(person.id);
         this.say(person.notice, 6);
@@ -762,7 +852,7 @@ export class CrossingChapter {
     this.write();
     const done = new Set<Custom>(this.progress.customs);
     this.dayEnd.end(
-      vigilLines(done),
+      vigilLines(done, this.progress.read.includes('letters')),
       'END OF CHAPTER 1',
       'The Crossing',
       releaseName(),
@@ -908,8 +998,15 @@ export class CrossingChapter {
     show(VIGIL_MESHES.saltOnCoffin, customs.includes('salt'));
     show(VIGIL_MESHES.mirrorTurned, customs.includes('mirror'));
     show(VIGIL_MESHES.windowOpen, customs.includes('window'));
-    this.arrival.bag.visible = this.flags.has('atCottage');
-    this.backpack.visible = !this.flags.has('atCottage');
+    this.arrival.bag.visible = this.flags.has(FLAGS.bagDown);
+    this.backpack.visible = !this.flags.has(FLAGS.bagDown);
+
+    // The inn door: shut, swinging open as the player or Morag comes to it, and shut again behind them.
+    const nearDoor = (x: number, z: number): boolean => Math.hypot(x - INN_DOORWAY.x, z - INN_DOORWAY.z) < INN_DOORWAY.opensWithin;
+    const wantOpen = nearDoor(px, pz) || (this.moragAt === 'walking' && nearDoor(this.morag.x, this.morag.z)) ? INN_DOOR_OPEN : 0;
+    const swing = this.arrival.innDoor.rotation.y;
+    this.arrival.innDoor.rotation.y = swing + (wantOpen - swing) * (1 - Math.exp(-frameDt * (wantOpen > swing ? 6 : 3.5)));
+    this.arrival.innSpill.visible = this.arrival.innDoor.rotation.y > 0.3;
 
     // The ferry: in, alongside, away; gone once it's out of sight.
     const underWay = this.voyage < VOYAGE_SECONDS ? 1 - Math.pow(this.voyage / VOYAGE_SECONDS, 3) : this.departure >= 0 ? Math.min(1, this.departure / 12) : 0;

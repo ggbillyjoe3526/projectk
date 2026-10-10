@@ -1,14 +1,15 @@
 import { BoxGeometry, Group, Mesh, MeshStandardNodeMaterial, type Object3D, PointLight, type Scene } from 'three/webgpu';
 import { SPOTS } from '../../content/crossing/places';
 import { KIRK } from '../../content/levels/kirk';
-import { INN, KIRKYARD_TOP, STREET } from '../../content/levels/village';
+import { BAG_SPOT } from '../../content/levels/brough';
+import { BUILDINGS, INN, KIRKYARD_TOP, SHOP, STREET } from '../../content/levels/village';
 import { applyPs1Snap } from '../retro/ps1Snap';
 
 /**
  * The small strange things of chapter 1's evening, and what the island has ready for tomorrow: a line of salt across a
- * doorstep, rowan and red thread over another door, the inn's door standing open by its lit window, the boards on the
- * high street's buildings, the notice on the locked kirk door, the grave dug by the kirkyard wall, Morag's bench at the
- * top of the pier, and William's backpack: on his back, then set down inside his father's door.
+ * doorstep, rowan and red thread over another door, the inn's door (shut, swinging open as someone comes to it) by
+ * its lit window, the doors, windows and boards of the high street's buildings, the notice on the locked kirk door, the
+ * grave dug by the kirkyard wall, and William's backpack: on his back, or set down in his father's spare room.
  */
 
 function mat(color: number, roughness = 0.85, emissive = 0, emissiveIntensity = 1): MeshStandardNodeMaterial {
@@ -16,9 +17,16 @@ function mat(color: number, roughness = 0.85, emissive = 0, emissiveIntensity = 
 }
 
 export interface ArrivalSet {
-  /** The backpack inside the cottage door, shown once William has brought it. */
+  /** The backpack set down in the cottage's bedroom, shown while it's there. */
   readonly bag: Object3D;
+  /** The inn's door on its hinge: `rotation.y` 0 is shut, INN_DOOR_OPEN wide open (into the room). */
+  readonly innDoor: Object3D;
+  /** The light falling out of the inn door onto the street, shown while it's open. */
+  readonly innSpill: Object3D;
 }
+
+/** How far the inn door swings open, radians. */
+export const INN_DOOR_OPEN = 1.45;
 
 /** The backpack William wears, his only luggage (William, 2026-10-10), on the player figure's back. */
 export function wornBackpack(player: Object3D): Object3D {
@@ -68,17 +76,81 @@ export function buildArrival(scene: Scene): ArrivalSet {
   for (const x of [45.25, 45.5, 45.72]) put(mat(0xa8201a, 0.6), x - 0.04, x + 0.04, top + 2.12, top + 2.2, STREET.maxZ - 0.1, STREET.maxZ - 0.04);
   put(mat(0xb01c18, 0.6), 45.48, 45.52, top + 2.0, top + 2.22, STREET.maxZ - 0.07, STREET.maxZ - 0.05);
 
-  // The inn: its door standing open into the light (the chapter takes the door's wall away), and a window lit behind
-  // the card.
+  // The inn: its door, shut until someone comes to it (the chapter takes the door's wall away and swings this), and
+  // windows lit behind the card.
   const [d0, d1] = INN.door;
   put(frame, d0 - 0.15, d0, top, top + 2.45, INN.maxZ - 0.02, INN.maxZ + 0.06);
   put(frame, d1, d1 + 0.15, top, top + 2.45, INN.maxZ - 0.02, INN.maxZ + 0.06);
   put(frame, d0 - 0.15, d1 + 0.15, top + 2.3, top + 2.45, INN.maxZ - 0.02, INN.maxZ + 0.06);
-  put(door, d0 + 0.02, d0 + 0.08, top, top + 2.25, INN.maxZ - INN.wall - 1.5, INN.maxZ - INN.wall);
-  put(mat(0x2a2214, 0.3, 0xffb860, 1.2), 73.6, 75.2, top + 0.9, top + 1.9, STREET.minZ - 0.02, STREET.minZ + 0.02);
+  const innDoor = new Group();
+  innDoor.position.set(d0 + 0.02, top, INN.maxZ - INN.wall / 2);
+  const leaf = new Mesh(new BoxGeometry(d1 - d0 - 0.04, 2.25, 0.06), door);
+  leaf.position.set((d1 - d0 - 0.04) / 2, 1.125, 0);
+  leaf.castShadow = true;
+  const handle = new Mesh(new BoxGeometry(0.05, 0.05, 0.14), mat(0x8a7a4a, 0.3));
+  handle.position.set(d1 - d0 - 0.2, 1.0, 0);
+  innDoor.add(leaf, handle);
+  group.add(innDoor);
+  for (const [x0, x1] of [[70.6, 72.0], [73.6, 75.2]] as const) put(mat(0x2a2214, 0.3, 0xffb860, 1.2), x0, x1, top + 0.9, top + 1.9, STREET.minZ - 0.02, STREET.minZ + 0.02);
   put(mat(0xe8e2d0, 0.9), 74.2, 74.6, top + 1.1, top + 1.4, STREET.minZ + 0.02, STREET.minZ + 0.03);
   // The light falling out of the open door on to the street.
-  put(mat(0x2a2214, 0.3, 0xffb860, 0.5), d0, d1, top + 0.005, top + 0.01, STREET.minZ, STREET.minZ + 1.2);
+  const innSpill = put(mat(0x2a2214, 0.3, 0xffb860, 0.5), d0, d1, top + 0.005, top + 0.01, STREET.minZ, STREET.minZ + 1.2);
+  innSpill.visible = false;
+
+  // Every building on the street has a door and windows (William, 2026-10-10), none of them to be gone into yet. Doors
+  // under the boards where the street's existing doors (the salted step, the rowan) aren't; windows either side, and
+  // upstairs on the taller houses. All dark: everyone is in bed.
+  const glass = mat(0x0c1218, 0.15, 0x101820, 0.4);
+  const sill = mat(0x8a8478, 0.8);
+  const frontage = (b: { minX: number; maxX: number; minZ: number; height: number }, opts: { door?: number | null; wide?: boolean; drawn?: boolean } = {}): void => {
+    const north = b.minZ < 0;
+    const face = north ? STREET.minZ : STREET.maxZ;
+    const out = north ? 1 : -1;
+    const zs = (a: number, c: number): [number, number] => [Math.min(face + out * a, face + out * c), Math.max(face + out * a, face + out * c)];
+    const mid = (b.minX + b.maxX) / 2;
+    const doorX = opts.door === undefined ? mid : opts.door;
+    if (doorX !== null && opts.drawn !== false) {
+      const half = opts.wide ? 1.4 : 0.5;
+      const height = opts.wide ? 2.3 : 2.0;
+      put(frame, doorX - half - 0.12, doorX + half + 0.12, top, top + height + 0.12, ...zs(-0.02, 0.05));
+      put(opts.wide ? mat(0x4a4e50, 0.6) : door, doorX - half, doorX + half, top, top + height, ...zs(0.03, 0.07));
+      if (!opts.wide) put(sill, doorX - half - 0.1, doorX + half + 0.1, top, top + 0.1, ...zs(0, 0.3));
+    }
+    const windowAt = (x: number, y0: number): void => {
+      put(frame, x - 0.55, x + 0.55, y0 - 0.06, y0 + 0.96, ...zs(-0.02, 0.04));
+      put(glass, x - 0.47, x + 0.47, y0, y0 + 0.9, ...zs(0.04, 0.05));
+      put(frame, x - 0.03, x + 0.03, y0, y0 + 0.9, ...zs(0.04, 0.06));
+      put(sill, x - 0.6, x + 0.6, y0 - 0.08, y0 - 0.02, ...zs(0, 0.12));
+    };
+    const centre = doorX ?? mid;
+    for (const dx of [-1.8, 1.8, -3.6, 3.6]) {
+      const x = centre + dx;
+      if (x - 0.6 < b.minX + 0.3 || x + 0.6 > b.maxX - 0.3) continue;
+      if (doorX !== null && Math.abs(x - doorX) < (opts.wide ? 2.2 : 1.3)) continue;
+      windowAt(x, top + 0.95);
+      if (b.height >= 3.8) windowAt(x, top + 2.35);
+    }
+  };
+  const B = BUILDINGS;
+  frontage(B.postOffice);
+  frontage(B.fletts, { door: 47, drawn: false });
+  frontage(B.heritage);
+  frontage(B.garage, { wide: true });
+  frontage(B.taits);
+  frontage(B.surgery, { door: 45.5, drawn: false });
+  frontage(B.bakery);
+  frontage(B.manse);
+  frontage(B.crafts);
+  frontage(B.isbisters);
+  frontage(B.hall);
+  // The shop's windows either side of its locked door (the door is the level's own).
+  frontage({ minX: SHOP.minX, maxX: SHOP.door[0] + 0.2, minZ: SHOP.minZ, height: 3 }, { door: null });
+  frontage({ minX: SHOP.door[1] - 0.2, maxX: SHOP.maxX, minZ: SHOP.minZ, height: 3 }, { door: null });
+  // The kirk: tall windows either side of its door, up on the mound.
+  for (const x of [KIRK.minX + 2.5, KIRK.door[0] - 2.2, KIRK.door[1] + 2.2, KIRK.maxX - 2.5]) {
+    put(frame, x - 0.5, x + 0.5, KIRKYARD_TOP + 1.3, KIRKYARD_TOP + 3.6, KIRK.maxZ - 0.02, KIRK.maxZ + 0.05);
+    put(glass, x - 0.4, x + 0.4, KIRKYARD_TOP + 1.4, KIRKYARD_TOP + 3.5, KIRK.maxZ + 0.05, KIRK.maxZ + 0.06);
+  }
   const innLight = new PointLight(0xffb060, 3, 7, 1.6);
   innLight.position.set(74.4, top + 1.4, STREET.minZ + 0.8);
   group.add(innLight);
@@ -89,9 +161,11 @@ export function buildArrival(scene: Scene): ArrivalSet {
   for (const spot of SPOTS) {
     if (!spot.board) continue;
     if (spot.id === 'sign-kirk-lane') {
-      put(frame, spot.x - 0.06, spot.x + 0.06, top, top + 2.2, STREET.minZ - 0.36, STREET.minZ - 0.24, true);
-      put(board, spot.x - 0.05, spot.x + 1.1, top + 1.85, top + 2.1, STREET.minZ - 0.33, STREET.minZ - 0.27);
-      put(lettering, spot.x + 0.2, spot.x + 0.9, top + 1.94, top + 2.01, STREET.minZ - 0.345, STREET.minZ - 0.255);
+      // On the street at the foot of the lane, its arm pointing up it (William, 2026-10-10: not on the steps).
+      const z = STREET.minZ + 0.25;
+      put(frame, spot.x - 0.06, spot.x + 0.06, top, top + 2.2, z - 0.06, z + 0.06, true);
+      put(board, spot.x - 0.05, spot.x + 1.1, top + 1.85, top + 2.1, z - 0.03, z + 0.03);
+      put(lettering, spot.x + 0.2, spot.x + 0.9, top + 1.94, top + 2.01, z - 0.045, z + 0.045);
       continue;
     }
     const face = spot.board === 'north' ? STREET.minZ : STREET.maxZ;
@@ -112,16 +186,20 @@ export function buildArrival(scene: Scene): ArrivalSet {
   put(mat(0x24332c, 0.6), 52.3, 54.1, k + 0.01, k + 0.04, -16.8, -15.9);
   for (const [x, z] of [[52.4, -16.7], [54.0, -16.7], [52.4, -16.0], [54.0, -16.0]] as const) put(mat(0x5a5a54), x - 0.1, x + 0.1, k, k + 0.12, z - 0.08, z + 0.08, true);
 
-  // Morag's bench at the top of the pier.
-  const wood = mat(0x4a3a2a, 0.9);
-  put(wood, 29.7, 31.3, top + 0.42, top + 0.48, 14.85, 15.3, true);
-  put(wood, 29.7, 31.3, top + 0.48, top + 0.9, 15.25, 15.3, true);
-  for (const x of [29.85, 31.15]) put(wood, x - 0.04, x + 0.04, top, top + 0.42, 14.9, 15.25);
-
-  // William's backpack, set down inside his father's door.
-  const bag = put(mat(0x2a3440, 0.9), -21.0, -20.45, top, top + 0.3, 2.2, 2.6, true);
+  // William's backpack, set down in the bedroom by the bed's foot.
+  const bag = new Group();
+  const cloth = mat(0x2a3440, 0.9);
+  const body = new Mesh(new BoxGeometry(0.38, 0.46, 0.2), cloth);
+  body.position.y = 0.23;
+  body.rotation.x = -0.18;
+  const flap = new Mesh(new BoxGeometry(0.39, 0.08, 0.22), mat(0x1f262f, 0.9));
+  flap.position.set(0, 0.45, -0.04);
+  bag.add(body, flap);
+  bag.position.set(BAG_SPOT.x, top, BAG_SPOT.z);
+  bag.rotation.y = 0.3;
   bag.visible = false;
+  group.add(bag);
 
   scene.add(group);
-  return { bag };
+  return { bag, innDoor, innSpill };
 }

@@ -136,6 +136,8 @@ made for the project. Section 8 of the concept document describes this look.
 - **Story:** which in-game choices count toward the ending (the five proposed in section 10 of the story summary); the
   true cause of Alan's death; whether the pill gets consequences later; whether texts from his mother and the coastguard
   stay.
+- **The vigil:** what happens if the ritual is performed correctly. For now it always fails, since he doesn't know
+  the rite (William, 2026-10-10).
 - **Art:** the final look, as above, and the protagonist's face.
 - **Combat:** how fast the dead are, and whether three at once is too many. (The deflect is settled for now: see
   [Playtest feedback](#playtest-feedback).)
@@ -319,6 +321,32 @@ What changed:
 
 The version was left at 0.1 Dev 1: William decides versions and tags them on GitHub.
 
+### Chapter 1, second playtest, 2026-10-10
+
+William played the reworked chapter and sent thirteen points (in the "Story summary and beats" thread). What changed:
+
+- **People stay put.** Islanders no longer turn to follow him; they only face him while he's talking to them.
+  Magnus calls out as the ferry comes in to dock, and the ferry waits a little longer before it leaves.
+- **The street.** The bench beside Morag is gone. The kirk's fingerpost stands on the street just before the steps.
+  Every building now has a door and windows (drawn, not opened). The inn door is closed and swings open as he comes
+  up to it and shut behind him, with light spilling out while it's open. The line about Tam kneeling outside only
+  shows while he's outside near Tam, not on walking into the inn.
+- **Listening is subtler.** The edge ripple and its cold sheen are about half as strong.
+- **High water warns.** Walking down into water the tide has covered (the causeway, mostly) says the tide is in and
+  to wait for low water, instead of silently stopping him.
+- **The cottage's things** can only be used from close by, and each custom can be undone: the window closed again,
+  the clock restarted, the mirror turned back, the salt lifted, the candle put out.
+- **A bedroom.** A lean-to off the cottage's west gable, through a doorway beside the coffin, with a bed and a chest
+  of drawers. He can set his backpack down by the bed and pick it up again (the pill choice is in the backpack).
+- **The first night.** From 15:30 on the Thursday until the chapter ends, once he has the coffin in sight he can't go
+  out of sight of it: he is turned back with a line. The bed is refused that night ("Someone sits up with them the
+  night before"); sitting with the coffin still ends the day.
+- **The ritual always fails for now.** However many customs he does, the vigil fails: he doesn't know the rite.
+  What a correct ritual would change is William's to decide later (see [Open questions](#open-questions)). The
+  closing lines only mention his father's unsent letters if he read them.
+
+The version was left at 0.1 Dev 1: William decides versions and tags them on GitHub.
+
 ## Process
 
 ### Pull requests
@@ -393,3 +421,4 @@ the routine was deleted. Don't set it up again unless he asks.
 | 2026-10-10 | Chapter 1, "The Crossing", built and released as 0.1 Dev 1 (PR #27). William settled the opening's order: the retreat is the daylight flight from the funeral, the knife fails the next day, and the sword's hints are in the kirk, not in a note that appears. |
 | 2026-10-10 | William stopped the Airsoft sync for good: the routine was deleted and nothing more is pulled from Airsoft. |
 | 2026-10-10 | Chapter 1 reworked after William's playtest: a 23:45 arrival with a night at Morag's inn, the funeral on Friday, a shut island, signs and gravestones, sprint as a toggle, a larger HUD, time and tide on the phone, and a listening cue. Still 0.1 Dev 1: William decides versions. |
+| 2026-10-10 | Second chapter 1 playtest: people stay put, the docking call, doors and windows on every building, an animated inn door, a high-water warning, close-range and undoable customs, a bedroom, the first night within sight of the coffin, and the ritual always failing for now. Still 0.1 Dev 1. |

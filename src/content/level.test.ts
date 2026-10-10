@@ -96,6 +96,6 @@ describe('level validation', () => {
   });
 
   it('catches a camera zone defined twice', () => {
-    expect(broken((d) => ({ ...d, cameras: [...d.cameras, d.cameras[0]!] }))).toEqual(['Camera zone "cottage" is defined twice.']);
+    expect(broken((d) => ({ ...d, cameras: [...d.cameras, d.cameras[0]!] }))).toEqual(['Camera zone "bedroom" is defined twice.']);
   });
 });

@@ -1,4 +1,5 @@
 import type { Point } from '../level';
+import { BAG_SPOT, BED } from '../levels/brough';
 import { BUILDINGS, INN, INN_STAIR, SHOP, STREET } from '../levels/village';
 import { KIRK } from '../levels/kirk';
 import { FLAGS } from './people';
@@ -6,7 +7,10 @@ import { FLAGS } from './people';
 /**
  * Chapter 1's things to look at and use, by place: what the prompt says (E), and what using it shows. Short looks are
  * a caption; letters and notices open in the reader and stay in the phone's notes. In the cottage are the vigil's
- * five customs, which nothing explains: each is done once, and recorded for the ending (chapter 1 plan, beat 6).
+ * five customs, which nothing explains: each can be done and undone again (William, 2026-10-10: open the window, close
+ * it again), and what stands at the end is recorded. Whatever William does, the vigil fails for now (William,
+ * 2026-10-10: he doesn't know the rites; what a right vigil would change is undecided). The cottage's things are used
+ * from close by only.
  */
 
 /** The vigil's customs. */
@@ -22,13 +26,16 @@ export type Spot = Point & {
   readonly whileShut?: boolean;
   /** A sign board drawn on the building front at this spot, on the street's north or south side. */
   readonly board?: 'north' | 'south';
+  /** How near (from the spot to the player's middle) it can be used from, if nearer than usual. */
+  readonly reach?: number;
 } & (
     | { readonly kind: 'look'; readonly text: string }
     | { readonly kind: 'read'; readonly title: string; readonly lines: readonly string[] }
     | { readonly kind: 'tideTable' }
-    | { readonly kind: 'custom'; readonly custom: Custom; readonly text: string }
+    | { readonly kind: 'custom'; readonly custom: Custom; readonly text: string; readonly undoPrompt: string; readonly undoText: string }
     | { readonly kind: 'coffin' }
-    | { readonly kind: 'pills' }
+    | { readonly kind: 'bag' }
+    | { readonly kind: 'bed' }
     | { readonly kind: 'wait' }
     | { readonly kind: 'sleep' }
   );
@@ -194,16 +201,22 @@ function GRAVES(): Spot[] {
   return stones.map(([x, z, text], i) => ({ id: `grave-${i}`, kind: 'look', x, z: z + 0.45, prompt: 'E  Read the gravestone', text }));
 }
 
+/** In the cottage the things stand close together, so each is used from nearer than out of doors. */
+const CLOSE = 1.25;
+
 export const COTTAGE_SPOTS: readonly Spot[] = [
-  { id: 'coffin', kind: 'coffin', x: -26.7, z: 1.5, prompt: 'E  The coffin' },
+  { id: 'coffin', kind: 'coffin', x: -26.7, z: 1.5, prompt: 'E  The coffin', reach: CLOSE },
   {
     id: 'candle',
     kind: 'custom',
     custom: 'candle',
     x: -25.25,
     z: 1.6,
+    reach: CLOSE,
     prompt: 'E  The candle',
     text: 'There are matches on the stool. You light the candle at his head, and the room draws in around it.',
+    undoPrompt: 'E  Put out the candle',
+    undoText: 'You pinch the wick. A thread of smoke, and the room gets bigger again.',
   },
   {
     id: 'salt',
@@ -211,8 +224,11 @@ export const COTTAGE_SPOTS: readonly Spot[] = [
     custom: 'salt',
     x: -24.5,
     z: 0.35,
+    reach: CLOSE,
     prompt: 'E  The saucer of salt',
     text: 'A saucer of salt on the table, put out for something. You set it on the coffin lid, over his heart. It seems to belong there. You couldn’t say why.',
+    undoPrompt: 'E  Take the salt off the lid',
+    undoText: 'You lift the saucer off the lid and put it back on the table. It feels wrong to have touched it at all.',
   },
   {
     id: 'mirror',
@@ -220,8 +236,11 @@ export const COTTAGE_SPOTS: readonly Spot[] = [
     custom: 'mirror',
     x: -27.65,
     z: -1.875,
+    reach: CLOSE,
     prompt: 'E  The mirror',
     text: 'Your face in his mirror. You have his jaw; you can see it now. You turn the mirror to face the wall, and feel better for it.',
+    undoPrompt: 'E  Turn the mirror back',
+    undoText: 'You turn the mirror round again. Your face, and behind it the room, and the coffin.',
   },
   {
     id: 'clock',
@@ -229,8 +248,11 @@ export const COTTAGE_SPOTS: readonly Spot[] = [
     custom: 'clock',
     x: -26.65,
     z: -2.2,
+    reach: CLOSE,
     prompt: 'E  The clock on the mantel',
     text: 'His clock, ticking. It’s very loud in here. You open the little glass door and hold the hands until it stops. The quiet is better.',
+    undoPrompt: 'E  Start the clock again',
+    undoText: 'You give the pendulum a push. The ticking comes back, too loud, counting.',
   },
   {
     id: 'window',
@@ -238,14 +260,18 @@ export const COTTAGE_SPOTS: readonly Spot[] = [
     custom: 'window',
     x: -23,
     z: -2.5,
+    reach: CLOSE,
     prompt: 'E  The window',
     text: 'The room is close with the fire. You push the sash up a few inches. Cold air, and the sound of the sea.',
+    undoPrompt: 'E  Close the window',
+    undoText: 'You pull the sash down against the cold. The sea goes quiet behind the glass.',
   },
   {
     id: 'letters',
     kind: 'read',
     x: -24.6,
     z: 2.05,
+    reach: CLOSE,
     prompt: 'E  The dresser drawer',
     title: 'Your letters, in his drawer',
     lines: [
@@ -262,6 +288,7 @@ export const COTTAGE_SPOTS: readonly Spot[] = [
     kind: 'look',
     x: -23.6,
     z: -0.9,
+    reach: CLOSE,
     prompt: 'E  The bottle on the table',
     text: 'A bottle of whisky, the seal unbroken, dust on its shoulders. Whatever else he did last summer, he didn’t open this.',
   },
@@ -270,11 +297,13 @@ export const COTTAGE_SPOTS: readonly Spot[] = [
     kind: 'look',
     x: -25.5,
     z: -1.65,
+    reach: CLOSE,
     prompt: 'E  His chair',
     text: 'His chair by the fire. The cushion has worn to the shape of him.',
   },
-  { id: 'tide-table', kind: 'tideTable', x: -20.6, z: -1.8, prompt: 'E  Read the tide table' },
-  { id: 'pills', kind: 'pills', x: -20.8, z: 1.6, prompt: 'E  Your backpack' },
+  { id: 'tide-table', kind: 'tideTable', x: -20.6, z: -1.8, reach: CLOSE, prompt: 'E  Read the tide table' },
+  { id: 'bag', kind: 'bag', x: BAG_SPOT.x, z: BAG_SPOT.z - 0.55, reach: CLOSE, prompt: 'E  Set your backpack down here' },
+  { id: 'bed', kind: 'bed', x: (BED.minX + BED.maxX) / 2 + 0.75, z: (BED.minZ + BED.maxZ) / 2, reach: CLOSE, prompt: 'E  The bed' },
 ];
 
 export const SPOTS: readonly Spot[] = [...FERRY_SPOTS, ...ISLAND_SPOTS, ...COTTAGE_SPOTS];
@@ -292,6 +321,24 @@ export const COFFIN = {
   confirm: 'Sit with him until morning? This ends the chapter. Press E again to sit down.',
 } as const;
 
+/** His backpack, set down in the bedroom and picked up again (William, 2026-10-10). */
+export const BAG = {
+  setDown: 'You set your backpack down at the foot of the bed. You won’t need it tonight.',
+  prompt: 'E  Your backpack',
+  pickUp: 'Put it back on',
+  leave: 'Leave it',
+  pickedUp: 'You swing the backpack onto your shoulder.',
+} as const;
+
+/** The bed: not to sleep in on the first night, when he sits up with his father (William, 2026-10-10). */
+export const BED_LINES = {
+  day: 'The spare bed, made up with clean sheets. Someone has been in to air the room for you. You aren’t tired yet.',
+  vigil: 'Not tonight. Someone sits up with them the night before, and there’s nobody else. Sit with him.',
+} as const;
+
+/** At night on the vigil he keeps his father in sight (William, 2026-10-10). */
+export const VIGIL_STAY = 'You can’t leave him on his own. Not tonight. You go back to where you can see him.';
+
 /** The pill, a free choice every night (William, 2026-10-10: no consequence for now). */
 export const PILLS = {
   ask: 'Your tablets, in the side pocket. One a night, the same time, the same glass of water. You haven’t missed one in two years.',
@@ -302,13 +349,16 @@ export const PILLS = {
   decided: 'Your bag. There’s nothing else you need from it tonight.',
 } as const;
 
-/** The vigil's end: what the black screen says, by what William did (chapter 1 plan, beat 6). */
-export function vigilLines(done: ReadonlySet<Custom>): string[] {
+/**
+ * The vigil's end: what the black screen says. The customs are always the failed rite for now (William, 2026-10-10: he
+ * doesn't know how it's done); what a right one would change is undecided, so nothing here says it was done right. The
+ * letters are only thought of if he found them.
+ */
+export function vigilLines(done: ReadonlySet<Custom>, readLetters: boolean): string[] {
   const lines = ['You pull his chair over to the coffin and sit down beside him. The day goes, and the light with it.'];
   if (done.size === 0) lines.push('You don’t know what you’re meant to do, so you do nothing. You just sit with him.');
-  else if (done.size < CUSTOMS.length) lines.push('You did what felt right. You hope it was enough.');
-  else lines.push('You did everything the room seemed to ask for. You couldn’t have said why, any of it.');
-  lines.push('The fire settles. The sea goes on outside. You think about the letters in the drawer, every one of them read.');
+  else lines.push('You did what the room seemed to want, without knowing why. Nobody ever told you how this is done.');
+  lines.push(readLetters ? 'The fire settles. The sea goes on outside. You think about the letters in the drawer, every one of them read.' : 'The fire settles. The sea goes on outside.');
   lines.push(done.has('candle') ? 'Somewhere near dawn, the candle gutters out.' : 'The fire burns down to embers, and the room goes dark around him.');
   lines.push('You don’t remember falling asleep.');
   return lines;

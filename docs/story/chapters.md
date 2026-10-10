@@ -80,6 +80,12 @@ Chapters 5 to 8 can be reordered or made partly open, so the player picks their 
 - **Listening** now shows on screen: the edges move like water, gently at low tide and unsteadily at high water, and pebbles and puddles near him react.
 - The phone shows the time, the day and the tide; there is no clock on the HUD.
 
+**After William's second playtest (2026-10-10, still 0.1 Dev 1):**
+- **A bedroom** off the cottage's west gable, through a doorway beside the coffin. He can leave his backpack by the bed and pick it up again.
+- **The first night** (from 15:30 on the Thursday): once he has his father's coffin in sight he stays within sight of it until morning. The bed is refused that night; sitting with the coffin ends the day as before.
+- **The ritual always fails for now:** he doesn't know the rite, so whatever he does, the vigil fails. What a correct ritual changes is for William to decide. The closing lines mention the unsent letters only if he read them.
+- The customs can be undone (close the window again, restart the clock), and the cottage's things are used from close by.
+
 **For chapter 2 (proposal, from William's note that the dead won't follow him to the Brough):** a lore reason could be that the dead don't cross running salt water. The causeway is the sea's twice a day, and even at low water its stones are wet with it; Alan kept a line of salt across the Brough end. Not settled.
 
 ---

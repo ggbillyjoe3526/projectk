@@ -12,6 +12,16 @@ export const SHORE = { minX: 12, maxX: 40, minZ: -16, maxZ: 16, top: 3.2 } as co
 export const CHANNEL_FLOOR = -2.5;
 
 export const COTTAGE = { minX: -28, maxX: -20, minZ: -3, maxZ: 3, wall: 0.3, height: 2.6, door: 0.8 } as const;
+/**
+ * His bedroom, a lean-to off the cottage's west gable through a doorway beside the bier (William, 2026-10-10: a
+ * bedroom, where William leaves his bag and sleeps). `door` is the doorway's z range in the cottage's west wall.
+ */
+export const BEDROOM = { minX: -31.4, maxX: COTTAGE.minX - COTTAGE.wall, minZ: -1.2, maxZ: COTTAGE.maxZ, height: 2.4, door: [0.1, 1.3] } as const;
+/** The bed, head to the south wall, and the chest of drawers. */
+export const BED = { minX: -31.35, maxX: -30.35, minZ: 0.85, maxZ: BEDROOM.maxZ } as const;
+const DRAWERS = { minX: -31.35, maxX: -30.55, minZ: BEDROOM.minZ, maxZ: -0.7 } as const;
+/** Where his backpack sits once set down: on the floor by the bed's foot, against the south wall. */
+export const BAG_SPOT = { x: -29.0, z: 2.6 } as const;
 
 /** Where the cottage's furniture stands: each blocks the way, and the cottage set draws it. */
 const FURNITURE = {
@@ -22,6 +32,9 @@ const FURNITURE = {
   shelf: { minX: -28, maxX: -27.68, minZ: -1.0, maxZ: -0.1 },
 } as const;
 
+/** The trestles the coffin rests on for the vigil. */
+export const BIER = FURNITURE.bier;
+
 function cottageWalls(): Wall[] {
   const c = COTTAGE;
   const t = c.wall;
@@ -29,15 +42,29 @@ function cottageWalls(): Wall[] {
   return [
     { minX: c.minX - t, maxX: c.maxX + t, minZ: c.minZ - t, maxZ: c.minZ, height: c.height, kind },
     { minX: c.minX - t, maxX: c.maxX + t, minZ: c.maxZ, maxZ: c.maxZ + t, height: c.height, kind },
-    { minX: c.minX - t, maxX: c.minX, minZ: c.minZ, maxZ: c.maxZ, height: c.height, kind },
+    // West wall, with the doorway through to the bedroom.
+    { minX: c.minX - t, maxX: c.minX, minZ: c.minZ, maxZ: BEDROOM.door[0], height: c.height, kind },
+    { minX: c.minX - t, maxX: c.minX, minZ: BEDROOM.door[1], maxZ: c.maxZ, height: c.height, kind },
     // East wall, with the door facing the causeway.
     { minX: c.maxX, maxX: c.maxX + t, minZ: c.minZ, maxZ: -c.door, height: c.height, kind },
     { minX: c.maxX, maxX: c.maxX + t, minZ: c.door, maxZ: c.maxZ, height: c.height, kind },
   ];
 }
 
+function bedroomWalls(): Wall[] {
+  const b = BEDROOM;
+  const t = COTTAGE.wall;
+  const kind = 'cottage' as const;
+  return [
+    { minX: b.minX - t, maxX: b.maxX, minZ: b.minZ - t, maxZ: b.minZ, height: b.height, kind },
+    { minX: b.minX - t, maxX: b.maxX, minZ: b.maxZ, maxZ: b.maxZ + t, height: b.height, kind },
+    { minX: b.minX - t, maxX: b.minX, minZ: b.minZ, maxZ: b.maxZ, height: b.height, kind },
+  ];
+}
+
 const WALLS: Wall[] = [
   ...cottageWalls(),
+  ...bedroomWalls(),
   { minX: -31.2, maxX: -28.8, minZ: -9.2, maxZ: -6.8, height: 9, kind: 'lighthouse' },
   { minX: 17.6, maxX: 18.4, minZ: -4.25, maxZ: -3.75, height: 3.2, kind: 'standingStone' },
   { minX: 22, maxX: 23.4, minZ: 5, maxZ: 6.2, height: 1.1, kind: 'boulder' },
@@ -45,7 +72,7 @@ const WALLS: Wall[] = [
   { minX: 26, maxX: 26.6, minZ: -16, maxZ: -5, height: 1.2, kind: 'dyke' },
   { minX: 26, maxX: 26.6, minZ: -2, maxZ: 16, height: 1.2, kind: 'dyke' },
   // The cottage's furniture, drawn by its set (render/sets/cottage.ts).
-  ...Object.values(FURNITURE).map((f) => ({ ...f, height: 1, kind: 'furniture' as const })),
+  ...[...Object.values(FURNITURE), BED, DRAWERS].map((f) => ({ ...f, height: 1, kind: 'furniture' as const })),
 ];
 
 const PROPS: Prop[] = [
@@ -75,8 +102,20 @@ export const BROUGH_AREA: LevelArea = {
     { x: 18, z: -4, radius: 1.6 },
     { x: -12.4, z: 1.2, radius: 1.2 },
   ],
-  interiors: [{ minX: COTTAGE.minX, maxX: COTTAGE.maxX, minZ: COTTAGE.minZ, maxZ: COTTAGE.maxZ, refuge: true, power: true }],
+  interiors: [
+    { minX: COTTAGE.minX, maxX: COTTAGE.maxX, minZ: COTTAGE.minZ, maxZ: COTTAGE.maxZ, refuge: true, power: true },
+    { minX: BEDROOM.minX, maxX: COTTAGE.minX, minZ: BEDROOM.minZ, maxZ: BEDROOM.maxZ, refuge: true, power: true },
+  ],
   cameras: [
+    {
+      // From high in the corner over the chest of drawers (where nobody stands), looking across to the doorway and the bed.
+      id: 'bedroom',
+      indoors: true,
+      bounds: { minX: BEDROOM.minX, maxX: COTTAGE.minX - 0.1, minZ: BEDROOM.minZ, maxZ: BEDROOM.maxZ },
+      rig: { type: 'fixed', position: [BEDROOM.minX + 0.3, ISLET.top + 2.15, BEDROOM.minZ + 0.3] },
+      fov: 66,
+      lookOffset: [0, 0.5, 0],
+    },
     {
       id: 'cottage',
       indoors: true,
@@ -147,6 +186,7 @@ export const BROUGH_AREA: LevelArea = {
       wall: COTTAGE.wall,
       door: COTTAGE.door,
       ...FURNITURE,
+      bedroom: { room: BEDROOM, door: BEDROOM.door, height: BEDROOM.height, bed: BED, drawers: DRAWERS },
       notebook: 'fathers-notebook',
     },
     { kind: 'beam', x: -30, y: ISLET.top + 8.6, z: -8 },

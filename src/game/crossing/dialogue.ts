@@ -15,7 +15,7 @@ export interface Line {
 }
 
 /** What a node asks the game to do once it's shown. */
-export type Effect = 'waitForCauseway' | 'teachListen' | 'takePill' | 'skipPill' | 'goToInn';
+export type Effect = 'waitForCauseway' | 'teachListen' | 'takePill' | 'skipPill' | 'goToInn' | 'pickUpBag';
 
 export interface Condition {
   readonly flag?: string;
