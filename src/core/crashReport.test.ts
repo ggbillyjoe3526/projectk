@@ -11,7 +11,7 @@ function thrownWithStack(lines: number): Error {
 describe('crash report', () => {
   it('holds the build, the browser, every field in order, the error and its stack', () => {
     const text = crashReport({
-      title: 'ProjectK crash report',
+      title: 'Project Outbound crash report',
       build: '0.1 Dev 3+4 · abc1234',
       userAgent: 'Mozilla/5.0 Test',
       fields: [
@@ -25,7 +25,7 @@ describe('crash report', () => {
       error: thrownWithStack(3),
     });
     expect(text.split('\n')).toEqual([
-      'ProjectK crash report',
+      'Project Outbound crash report',
       'Build: 0.1 Dev 3+4 · abc1234',
       'Browser: Mozilla/5.0 Test',
       'Seed: 42',
@@ -53,8 +53,8 @@ describe('crash report', () => {
     expect(errorLine({ code: 7 })).toBe('{"code":7}');
     expect(errorLine(undefined)).toBe('undefined');
     expect(stackLines('no stack')).toBe('');
-    const diagnostics = crashReport({ title: 'ProjectK diagnostics', build: 'dev build', userAgent: 'UA', fields: [['FPS', 60]] });
-    expect(diagnostics).toBe('ProjectK diagnostics\nBuild: dev build\nBrowser: UA\nFPS: 60');
+    const diagnostics = crashReport({ title: 'Project Outbound diagnostics', build: 'dev build', userAgent: 'UA', fields: [['FPS', 60]] });
+    expect(diagnostics).toBe('Project Outbound diagnostics\nBuild: dev build\nBrowser: UA\nFPS: 60');
     // A firefox-style stack (no "Name: message" first line) keeps every frame.
     const e = new Error('boom');
     e.stack = 'frameA@index.js:1:1\nframeB@index.js:1:2\n';

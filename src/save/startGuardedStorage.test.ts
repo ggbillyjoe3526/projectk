@@ -32,10 +32,10 @@ describe('the visit\'s guarded storage', () => {
     // What the stores write through browserStorage lands in localStorage and is noticed; the probe key is gone.
     const heard: string[] = [];
     g.onWrite((k) => heard.push(k));
-    settings.browserStorage()!.setItem('projectk.progress', '{}');
-    expect(local.getItem('projectk.progress')).toBe('{}');
-    expect(heard).toEqual(['projectk.progress']);
-    expect(local.getItem('projectk.probe')).toBeNull();
+    settings.browserStorage()!.setItem('outbound.progress', '{}');
+    expect(local.getItem('outbound.progress')).toBe('{}');
+    expect(heard).toEqual(['outbound.progress']);
+    expect(local.getItem('outbound.probe')).toBeNull();
     expect(g.keeping).toBe(true);
   });
 
@@ -53,8 +53,8 @@ describe('the visit\'s guarded storage', () => {
       expect(g.keeping).toBe(false);
       const store = settings.browserStorage()!;
       expect(store).toBe(g);
-      store.setItem('projectk.notes', 'r');
-      expect(store.getItem('projectk.notes')).toBe('r');
+      store.setItem('outbound.notes', 'r');
+      expect(store.getItem('outbound.notes')).toBe('r');
     } finally {
       Reflect.deleteProperty(globalThis, 'localStorage');
     }
@@ -62,7 +62,7 @@ describe('the visit\'s guarded storage', () => {
 
   it('a localStorage that reads but refuses writes is found at start-up and kept in memory', async () => {
     const local = new MemoryStorage();
-    local.setItem('projectk.settings', 'saved');
+    local.setItem('outbound.settings', 'saved');
     local.setItem = () => {
       throw new DOMException('full', 'QuotaExceededError');
     };
@@ -71,9 +71,45 @@ describe('the visit\'s guarded storage', () => {
     const g = guarded.startGuardedStorage();
     expect(g.blocked).toBe(true);
     expect(g.keeping).toBe(false);
-    expect(g.getItem('projectk.settings')).toBe('saved');
-    g.setItem('projectk.settings', 'newer');
-    expect(g.getItem('projectk.settings')).toBe('newer');
-    expect(local.getItem('projectk.settings')).toBe('saved');
+    expect(g.getItem('outbound.settings')).toBe('saved');
+    g.setItem('outbound.settings', 'newer');
+    expect(g.getItem('outbound.settings')).toBe('newer');
+    expect(local.getItem('outbound.settings')).toBe('saved');
+  });
+
+  it('moves keys written under the first working title to the new prefix once, keeping any newer key', async () => {
+    const local = new MemoryStorage();
+    local.setItem('projectk.settings', 'old settings');
+    local.setItem('projectk.save.meta', 'old meta');
+    local.setItem('outbound.save.meta', 'newer meta');
+    local.setItem('elsewhere.thing', 'kept');
+    vi.stubGlobal('localStorage', local);
+    const { guarded } = await modules();
+    const g = guarded.startGuardedStorage();
+    expect(g.getItem('outbound.settings')).toBe('old settings');
+    expect(g.getItem('outbound.save.meta')).toBe('newer meta');
+    expect(local.getItem('projectk.settings')).toBeNull();
+    expect(local.getItem('projectk.save.meta')).toBeNull();
+    expect(local.getItem('elsewhere.thing')).toBe('kept');
+  });
+
+  it('a move the browser refuses part-way leaves the rest for the next visit', async () => {
+    const local = new MemoryStorage();
+    local.setItem('projectk.a', '1');
+    local.setItem('projectk.b', '2');
+    const setItem = local.setItem.bind(local);
+    let moves = 0;
+    local.setItem = (key: string, value: string) => {
+      if (key.startsWith('outbound.') && key !== 'outbound.probe' && ++moves > 1) throw new DOMException('full', 'QuotaExceededError');
+      setItem(key, value);
+    };
+    vi.stubGlobal('localStorage', local);
+    const { guarded } = await modules();
+    guarded.startGuardedStorage();
+    const moved = ['a', 'b'].filter((k) => local.getItem(`outbound.${k}`) !== null);
+    const left = ['a', 'b'].filter((k) => local.getItem(`projectk.${k}`) !== null);
+    expect(moved).toHaveLength(1);
+    expect(left).toHaveLength(1);
+    expect(moved[0]).not.toBe(left[0]);
   });
 });

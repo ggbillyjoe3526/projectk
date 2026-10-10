@@ -1,5 +1,5 @@
 /**
- * The player's saved settings: one versioned object in the browser (`projectk.settings`), so new settings and later
+ * The player's saved settings: one versioned object in the browser (`outbound.settings`), so new settings and later
  * format changes have one place to go. Key bindings keep their own key (input/keyBindings.ts). Every read and write
  * tolerates blocked storage and garbage.
  *

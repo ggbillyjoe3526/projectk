@@ -24,9 +24,9 @@ describe('save file', () => {
 
   it('is readable JSON naming the game, format, version and date', () => {
     const file = JSON.parse(saveFileText(save));
-    expect(file).toMatchObject({ game: 'ProjectK', format: SAVE_FORMAT, build: save.build, savedAt: save.savedAt });
+    expect(file).toMatchObject({ game: 'Project Outbound', format: SAVE_FORMAT, build: save.build, savedAt: save.savedAt });
     expect(file.checksum).toMatch(/^sha256:[0-9a-f]{64}$/);
-    expect(saveFileText(save)).toContain('\n  "game": "ProjectK"');
+    expect(saveFileText(save)).toContain('\n  "game": "Project Outbound"');
   });
 
   it('keeps a reformatted file valid (keys reordered, spacing changed)', () => {
@@ -52,13 +52,18 @@ describe('save file', () => {
     expect(parseSaveText(saveFileText(save).slice(0, 200))).toEqual({ ok: false, error: 'notJson' });
     expect(parseSaveText('{"hello": 1}')).toEqual({ ok: false, error: 'notSave' });
     expect(parseSaveText('[1,2]')).toEqual({ ok: false, error: 'notSave' });
-    expect(parseSaveText(JSON.stringify({ game: 'ProjectK', format: 'one', stores: {} }))).toEqual({ ok: false, error: 'notSave' });
-    expect(parseSaveText(JSON.stringify({ game: 'ProjectK', format: 1 }))).toEqual({ ok: false, error: 'notSave' });
-    expect(parseSaveText(JSON.stringify({ game: 'ProjectK', format: SAVE_FORMAT + 1, build: 'v0.3', stores: {} }))).toEqual({ ok: false, error: 'newer', build: 'v0.3' });
+    expect(parseSaveText(JSON.stringify({ game: 'Project Outbound', format: 'one', stores: {} }))).toEqual({ ok: false, error: 'notSave' });
+    expect(parseSaveText(JSON.stringify({ game: 'Project Outbound', format: 1 }))).toEqual({ ok: false, error: 'notSave' });
+    expect(parseSaveText(JSON.stringify({ game: 'Project Outbound', format: SAVE_FORMAT + 1, build: 'v0.3', stores: {} }))).toEqual({ ok: false, error: 'newer', build: 'v0.3' });
+  });
+
+  it('reads a save written under the first working title', () => {
+    const parsed = parseSaveText(JSON.stringify({ game: 'ProjectK', format: 1, stores: { settings: { version: 1 } } }));
+    expect(parsed.ok).toBe(true);
   });
 
   it('reads stores that are missing or not objects as nothing saved (their defaults)', () => {
-    const parsed = parseSaveText(JSON.stringify({ game: 'ProjectK', format: 1, stores: { settings: { version: 1 }, keyBindings: 'junk', mystery: { a: 1 } } }));
+    const parsed = parseSaveText(JSON.stringify({ game: 'Project Outbound', format: 1, stores: { settings: { version: 1 }, keyBindings: 'junk', mystery: { a: 1 } } }));
     expect(parsed.ok).toBe(true);
     if (parsed.ok) expect(parsed.save.stores).toEqual({ settings: { version: 1 }, keyBindings: null });
   });
@@ -68,7 +73,7 @@ describe('save file', () => {
       1: (s: Record<string, unknown>) => ({ ...s, settings: { ...(s.settings as object), step1: true } }),
       2: (s: Record<string, unknown>) => ({ ...s, settings: { ...(s.settings as object), step2: true } }),
     };
-    const v1 = JSON.stringify({ game: 'ProjectK', format: 1, stores: { settings: { version: 1 } } });
+    const v1 = JSON.stringify({ game: 'Project Outbound', format: 1, stores: { settings: { version: 1 } } });
     const parsed = parseSaveText(v1, steps, 3);
     expect(parsed.ok).toBe(true);
     if (parsed.ok) {
@@ -93,8 +98,8 @@ describe('save file', () => {
 
   it('writes canonical JSON (sorted keys, no spaces) and names the file by the date', () => {
     expect(canonicalJson({ b: 1, a: [true, null, { d: 'x', c: 2 }], u: undefined })).toBe('{"a":[true,null,{"c":2,"d":"x"}],"b":1}');
-    expect(saveFileName(new Date(2026, 9, 9, 23, 59))).toBe('projectk-save-2026-10-09.json');
-    expect(saveFileName(new Date(2027, 0, 9))).toBe('projectk-save-2027-01-09.json');
+    expect(saveFileName(new Date(2026, 9, 9, 23, 59))).toBe('project-outbound-save-2026-10-09.json');
+    expect(saveFileName(new Date(2027, 0, 9))).toBe('project-outbound-save-2027-01-09.json');
   });
 
   it('tells a save with nothing in any store (a new player, or a deleted save) from one with something', () => {

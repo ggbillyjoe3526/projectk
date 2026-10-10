@@ -47,7 +47,7 @@ function reportFields(): ReportField[] {
 
 /** Shows the crash pane (once; later errors join its report). */
 function fail(error: unknown): void {
-  const report = crashReport({ title: 'ProjectK crash report', build: __BUILD_VERSION__, userAgent: navigator.userAgent, fields: reportFields(), error });
+  const report = crashReport({ title: 'Project Outbound crash report', build: __BUILD_VERSION__, userAgent: navigator.userAgent, fields: reportFields(), error });
   if (crash) {
     crash.append(report);
     return;
@@ -196,7 +196,7 @@ async function main(): Promise<void> {
   requestAnimationFrame(frame);
 
   const key = (action: Action): string => keyboard.keyName(action);
-  await startGate(container, 'UNBURIED', [
+  await startGate(container, 'PROJECT OUTBOUND', [
     [`${key('forward')} ${key('left')} ${key('back')} ${key('right')}`, 'walk'],
     ['Mouse', 'aim'],
     [`${key('attack')}`, 'attack (hold with the sword: sained strike)'],
