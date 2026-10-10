@@ -1,0 +1,267 @@
+import {
+  type BufferGeometry, CylinderGeometry, Group, LatheGeometry, type Material, Mesh, MeshStandardNodeMaterial, type Object3D, PointLight,
+  type Scene, Vector2,
+} from 'three/webgpu';
+import type { CottageDressing } from '../../content/level';
+import { applyPs1Snap } from '../retro/ps1Snap';
+import type { StaticBatch } from '../staticBatch';
+import { surface, tiledBox, tileOf } from '../textures/surfaces';
+
+/**
+ * The father's cottage on the Brough, the first space built to the round 3 standard (art direction, approved
+ * 2026-10-10): flagstone floor, lime-washed walls, a rubble hearth with a peat fire, the dresser, the table where the
+ * notebook turns up, the empty bier where the coffin lay for the vigil, a candle and the plate of salt, under a boarded
+ * ceiling and, outside, a slate roof and a chimney. Everything is made here or by render/textures: nothing scanned or
+ * licensed. Static pieces go into the level's static batch, so the room costs a few draw calls.
+ */
+
+const plainCache = new Map<string, MeshStandardNodeMaterial>();
+
+/** An untextured material, shared by colour and finish. */
+function plain(color: number, roughness = 0.8, emissive = 0, emissiveIntensity = 1): MeshStandardNodeMaterial {
+  const key = `${color}/${roughness}/${emissive}/${emissiveIntensity}`;
+  let m = plainCache.get(key);
+  if (!m) {
+    m = applyPs1Snap(new MeshStandardNodeMaterial({ color, roughness, metalness: 0, emissive, emissiveIntensity })) as MeshStandardNodeMaterial;
+    plainCache.set(key, m);
+  }
+  return m;
+}
+
+const lathe = (points: [number, number][], segments = 12): LatheGeometry => new LatheGeometry(points.map(([x, y]) => new Vector2(x, y)), segments);
+
+export interface CottageSet {
+  readonly flames: { light: PointLight; base: number }[];
+  readonly thingMeshes: Map<string, Object3D>;
+}
+
+export function buildCottage(d: CottageDressing, batch: StaticBatch, scene: Scene): CottageSet {
+  const F = d.floor;
+  const R = d.room;
+  const H = d.height;
+  const T = d.wall;
+  const flames: { light: PointLight; base: number }[] = [];
+  const thingMeshes = new Map<string, Object3D>();
+
+  const wood = surface('boards');
+  const darkWood = surface('darkBoards');
+  const rubble = surface('rubble');
+  const plaster = surface('plaster');
+
+  /** A box from its extents, textured at the material's scale. */
+  const box = (m: Material, minX: number, maxX: number, y0: number, y1: number, minZ: number, maxZ: number, cast = true): void => {
+    batch.put(tiledBox(maxX - minX, y1 - y0, maxZ - minZ, tileOf(m)), m, (minX + maxX) / 2, (y0 + y1) / 2, (minZ + maxZ) / 2, cast);
+  };
+  const piece = (g: BufferGeometry, m: Material, x: number, y: number, z: number, cast = true, rotY = 0): void => {
+    if (rotY) g.rotateY(rotY);
+    batch.put(g, m, x, y, z, cast);
+  };
+
+  // --- the room ---
+  // Flagstones, and a worn rug under the table.
+  box(surface('flagstones'), R.minX, R.maxX, F, F + 0.03, R.minZ, R.maxZ, false);
+  box(surface('rug'), d.table.minX - 0.9, d.table.maxX + 0.9, F + 0.03, F + 0.04, d.table.minZ - 0.5, d.table.maxZ + 0.6, false);
+  // Lime plaster lining the walls inside (the walls themselves are harled outside), split round the door.
+  const lining = 0.03;
+  box(plaster, R.minX, R.maxX, F, F + H, R.minZ, R.minZ + lining, false);
+  box(plaster, R.minX, R.maxX, F, F + H, R.maxZ - lining, R.maxZ, false);
+  box(plaster, R.minX, R.minX + lining, F, F + H, R.minZ, R.maxZ, false);
+  box(plaster, R.maxX - lining, R.maxX, F, F + H, R.minZ, -d.door, false);
+  box(plaster, R.maxX - lining, R.maxX, F, F + H, d.door, R.maxZ, false);
+  // Skirting.
+  box(darkWood, R.minX, R.maxX, F, F + 0.14, R.minZ + lining, R.minZ + lining + 0.025, false);
+  box(darkWood, R.minX + lining, R.minX + lining + 0.025, F, F + 0.14, R.minZ, R.maxZ, false);
+  // A boarded ceiling on heavy beams, just under the wall heads.
+  box(wood, R.minX, R.maxX, F + H - 0.04, F + H, R.minZ, R.maxZ, false);
+  for (let x = R.minX + 0.9; x < R.maxX - 0.3; x += 1.6) box(darkWood, x - 0.09, x + 0.09, F + H - 0.24, F + H - 0.04, R.minZ, R.maxZ, false);
+
+  // --- the doorway: a painted frame, the door standing open against the wall ---
+  const doorGreen = plain(0x2c3a30, 0.6);
+  const frameWhite = plain(0xbfb8a6, 0.6);
+  for (const z of [-d.door, d.door]) box(frameWhite, R.maxX - 0.08, R.maxX + T, F, F + 2.05, z - 0.05, z + 0.05);
+  box(frameWhite, R.maxX - 0.08, R.maxX + T, F + 2.0, F + 2.1, -d.door, d.door);
+  box(frameWhite, R.maxX, R.maxX + T, F + 2.1, F + H, -d.door, d.door);
+  const leaf = R.maxX - lining;
+  box(doorGreen, leaf - 0.05, leaf, F + 0.02, F + 2.0, d.door + 0.04, d.door + 1.44);
+  box(plain(0x8a7a4a, 0.3), leaf - 0.1, leaf - 0.05, F + 1.0, F + 1.06, d.door + 1.28, d.door + 1.34);
+
+  // --- the window in the north wall: sash bars over dark glass, a cold glow from outside ---
+  const wx = (d.table.minX + d.table.maxX) / 2 + 1.5;
+  const wy0 = F + 1.0;
+  const wy1 = F + 1.9;
+  const glass = plain(0x0e1620, 0.1, 0x1a2638, 0.6);
+  box(glass, wx - 0.5, wx + 0.5, wy0, wy1, R.minZ + lining, R.minZ + lining + 0.01, false);
+  for (const x of [wx - 0.5, wx, wx + 0.5]) box(frameWhite, x - 0.03, x + 0.03, wy0, wy1, R.minZ + lining, R.minZ + 0.08, false);
+  for (const y of [wy0, (wy0 + wy1) / 2, wy1]) box(frameWhite, wx - 0.53, wx + 0.53, y - 0.03, y + 0.03, R.minZ + lining, R.minZ + 0.08, false);
+  box(wood, wx - 0.6, wx + 0.6, wy0 - 0.05, wy0, R.minZ, R.minZ + 0.18);
+
+  // --- the hearth: rubble surround and chimney breast, a timber mantel, the peat fire ---
+  const h = d.hearth;
+  const hx = (h.minX + h.maxX) / 2;
+  const open = 0.45;
+  box(rubble, h.minX, hx - open, F, F + 1.3, h.minZ, h.maxZ);
+  box(rubble, hx + open, h.maxX, F, F + 1.3, h.minZ, h.maxZ);
+  box(rubble, hx - open, hx + open, F + 0.8, F + 1.3, h.minZ, h.maxZ);
+  box(rubble, h.minX + 0.15, h.maxX - 0.15, F + 1.3, F + H, h.minZ, h.maxZ - 0.12);
+  box(plain(0x0a0807, 1), hx - open, hx + open, F, F + 0.8, h.minZ, h.minZ + 0.1, false);
+  box(plain(0x1a1714, 1), hx - open, hx + open, F, F + 0.02, h.minZ, h.maxZ, false);
+  box(darkWood, h.minX - 0.08, h.maxX + 0.08, F + 1.3, F + 1.38, h.minZ, h.maxZ + 0.1);
+  // Peat: dark bricks, some with the glow in their cracks.
+  const embers = plain(0x2a1a12, 0.9, 0xff5a18, 1.6);
+  const peat = plain(0x1c120c, 1, 0xff4010, 0.3);
+  for (let i = 0; i < 8; i++) {
+    const g = tiledBox(0.16, 0.07, 0.1, 1);
+    g.rotateZ(((i * 37) % 10) * 0.04 - 0.2);
+    piece(g, i % 3 === 0 ? embers : peat, hx - 0.25 + (i % 4) * 0.16, F + 0.06 + Math.floor(i / 4) * 0.06, h.minZ + 0.2 + (i % 2) * 0.08, false, (i * 0.7) % 1.2);
+  }
+  const fire = new PointLight(0xff8a3c, 7, 9, 1.6);
+  fire.position.set(hx, F + 0.55, h.maxZ + 0.35);
+  scene.add(fire);
+  flames.push({ light: fire, base: fire.intensity });
+  // On the mantel: the clock nobody stopped, two photographs.
+  piece(tiledBox(0.24, 0.3, 0.14, 1), plain(0x3a2418, 0.5), hx + 0.35, F + 1.53, h.maxZ - 0.05);
+  const face = new CylinderGeometry(0.075, 0.075, 0.01, 16);
+  face.rotateX(Math.PI / 2);
+  piece(face, plain(0xd8d0b8, 0.4), hx + 0.35, F + 1.56, h.maxZ + 0.025);
+  for (const [x, ht] of [[-0.45, 0.2], [-0.15, 0.15]] as const) piece(tiledBox(ht * 0.8, ht, 0.02, 1), plain(0x8a7040, 0.35), hx + x, F + 1.38 + ht / 2, h.maxZ - 0.1);
+  // His chair by the fire.
+  const tweed = plain(0x4a4232, 0.95);
+  const cx = hx + 1.5;
+  const cz = h.maxZ + 0.9;
+  box(tweed, cx - 0.35, cx + 0.35, F + 0.1, F + 0.42, cz - 0.32, cz + 0.32);
+  box(tweed, cx - 0.35, cx + 0.35, F + 0.42, F + 1.0, cz + 0.18, cz + 0.34);
+  for (const s of [-1, 1]) box(tweed, cx + s * 0.35 - 0.07, cx + s * 0.35 + 0.07, F + 0.1, F + 0.62, cz - 0.32, cz + 0.32);
+
+  // --- the table, the notebook on it once it's been looked for ---
+  const t = d.table;
+  const top = F + 0.78;
+  box(wood, t.minX, t.maxX, top - 0.05, top, t.minZ, t.maxZ);
+  for (const [x, z] of [[t.minX + 0.08, t.minZ + 0.08], [t.maxX - 0.08, t.minZ + 0.08], [t.minX + 0.08, t.maxZ - 0.08], [t.maxX - 0.08, t.maxZ - 0.08]] as const) {
+    box(darkWood, x - 0.04, x + 0.04, F, top - 0.05, z - 0.04, z + 0.04);
+  }
+  for (const [x, z, turn] of [[(t.minX + t.maxX) / 2, t.maxZ + 0.4, 0], [t.minX - 0.4, (t.minZ + t.maxZ) / 2, 1]] as const) {
+    box(darkWood, x - 0.2, x + 0.2, F + 0.42, F + 0.46, z - 0.2, z + 0.2);
+    for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const) box(darkWood, x + a * 0.17 - 0.02, x + a * 0.17 + 0.02, F, F + 0.42, z + b * 0.17 - 0.02, z + b * 0.17 + 0.02);
+    if (turn) box(darkWood, x - 0.2, x - 0.17, F + 0.46, F + 0.95, z - 0.2, z + 0.2);
+    else box(darkWood, x - 0.2, x + 0.2, F + 0.46, F + 0.95, z + 0.17, z + 0.2);
+  }
+  // A mug and the whisky left from the night.
+  piece(lathe([[0, 0], [0.04, 0], [0.042, 0.1], [0.038, 0.1], [0.036, 0.008], [0, 0.008]]), plain(0xd8d2c0, 0.3), t.minX + 0.35, top, t.minZ + 0.35);
+  piece(lathe([[0, 0], [0.042, 0], [0.044, 0.18], [0.03, 0.22], [0.014, 0.24], [0.014, 0.3], [0, 0.3]]), plain(0x1e3018, 0.1, 0x050a04), t.maxX - 0.3, top, t.minZ + 0.3);
+  const notebook = new Group();
+  const cover = new Mesh(tiledBox(0.17, 0.025, 0.23, 1), plain(0x3a2a1c, 0.7));
+  const pages = new Mesh(tiledBox(0.16, 0.018, 0.22, 1), plain(0xd8ceb4, 0.9));
+  pages.position.set(0.004, 0.012, 0);
+  notebook.add(cover, pages);
+  notebook.position.set((t.minX + t.maxX) / 2 - 0.1, top + 0.0125, (t.minZ + t.maxZ) / 2 + 0.15);
+  notebook.rotation.y = 0.35;
+  notebook.visible = false;
+  scene.add(notebook);
+  thingMeshes.set(d.notebook, notebook);
+
+  // --- the dresser: drawers below (the kitchen knife in one), a rack of plates above ---
+  const dr = d.dresser;
+  box(wood, dr.minX, dr.maxX, F, F + 0.86, dr.minZ, dr.maxZ);
+  box(darkWood, dr.minX - 0.03, dr.maxX + 0.03, F + 0.86, F + 0.9, dr.minZ - 0.04, dr.maxZ);
+  for (const x of [dr.minX + (dr.maxX - dr.minX) / 4, dr.maxX - (dr.maxX - dr.minX) / 4]) {
+    box(darkWood, x - 0.32, x + 0.32, F + 0.66, F + 0.8, dr.minZ - 0.015, dr.minZ, false);
+    box(plain(0x8a7a4a, 0.3), x - 0.05, x + 0.05, F + 0.71, F + 0.75, dr.minZ - 0.04, dr.minZ - 0.015, false);
+  }
+  box(wood, dr.minX, dr.maxX, F + 0.9, F + 2.0, dr.maxZ - 0.04, dr.maxZ);
+  for (const y of [F + 1.3, F + 1.66, F + 2.0]) box(wood, dr.minX, dr.maxX, y - 0.03, y, dr.maxZ - 0.24, dr.maxZ);
+  for (const x of [dr.minX, dr.maxX - 0.03]) box(wood, x, x + 0.03, F + 0.9, F + 2.0, dr.maxZ - 0.24, dr.maxZ);
+  const willow = plain(0xc8ccd0, 0.25);
+  const blue = plain(0x3a5070, 0.3);
+  for (const [row, y] of [[0, F + 1.3], [1, F + 1.66]] as const) {
+    for (let i = 0; i < 5; i++) {
+      const plate = new CylinderGeometry(0.13, 0.13, 0.015, 16);
+      plate.rotateX(Math.PI / 2 - 0.2);
+      piece(plate, (i + row) % 3 === 0 ? blue : willow, dr.minX + 0.18 + i * 0.3, y + 0.14, dr.maxZ - 0.12, false);
+    }
+  }
+  for (let i = 0; i < 3; i++) piece(lathe([[0, 0], [0.05, 0], [0.06, 0.08], [0.045, 0.14], [0.05, 0.16], [0, 0.16]]), willow, dr.minX + 0.3 + i * 0.5, F + 0.9, dr.minZ + 0.25);
+
+  // --- the bier: two trestles where the coffin lay, a sheet left folded on them ---
+  const b = d.bier;
+  const bz = (b.minZ + b.maxZ) / 2;
+  for (const x of [b.minX + 0.35, b.maxX - 0.35]) {
+    box(darkWood, x - 0.05, x + 0.05, F + 0.58, F + 0.66, b.minZ, b.maxZ);
+    for (const z of [b.minZ + 0.06, b.maxZ - 0.06]) box(darkWood, x - 0.03, x + 0.03, F, F + 0.58, z - 0.03, z + 0.03);
+  }
+  box(plain(0xd8d4c8, 0.95), b.minX + 0.2, b.minX + 0.75, F + 0.66, F + 0.74, bz - 0.3, bz + 0.3);
+  // The candle at its head, on a stool, and the plate of salt beside it.
+  const sx = b.maxX + 0.45;
+  const sz = bz;
+  piece(new CylinderGeometry(0.2, 0.2, 0.05, 14), darkWood, sx, F + 0.62, sz);
+  for (let i = 0; i < 3; i++) {
+    const a = (i / 3) * Math.PI * 2;
+    piece(new CylinderGeometry(0.022, 0.026, 0.6, 6), darkWood, sx + Math.cos(a) * 0.13, F + 0.3, sz + Math.sin(a) * 0.13);
+  }
+  const brass = plain(0x9a7a3a, 0.35);
+  piece(lathe([[0, 0], [0.06, 0], [0.065, 0.008], [0.02, 0.015], [0.018, 0.04], [0.03, 0.045], [0, 0.046]]), brass, sx, F + 0.645, sz);
+  piece(new CylinderGeometry(0.018, 0.018, 0.18, 8), plain(0xe8e0c8, 0.6), sx, F + 0.78, sz);
+  const flame = new Mesh(new CylinderGeometry(0.004, 0.012, 0.035, 6), plain(0xffc070, 1, 0xffb050, 3));
+  flame.position.set(sx, F + 0.89, sz);
+  scene.add(flame);
+  const candle = new PointLight(0xffb060, 1.6, 5, 1.8);
+  candle.position.set(sx, F + 0.95, sz);
+  scene.add(candle);
+  flames.push({ light: candle, base: candle.intensity });
+  piece(lathe([[0, 0], [0.09, 0], [0.1, 0.012], [0.095, 0.014], [0.07, 0.006], [0, 0.006]], 16), plain(0xe8e6dc, 0.25), sx + 0.08, F + 0.645, sz + 0.09);
+  const salt = new CylinderGeometry(0, 0.055, 0.035, 12);
+  piece(salt, plain(0xf2f2ee, 0.9), sx + 0.08, F + 0.668, sz + 0.09);
+
+  // --- the west wall: a mirror nobody covered, a shelf of his books ---
+  const mirrorZ = (h.maxZ + d.table.minZ) / 2;
+  box(plain(0x3a2418, 0.5), R.minX, R.minX + 0.05, F + 1.1, F + 1.9, mirrorZ - 0.32, mirrorZ + 0.32, false);
+  box(plain(0x8a9094, 0.08), R.minX + 0.05, R.minX + 0.055, F + 1.16, F + 1.84, mirrorZ - 0.26, mirrorZ + 0.26, false);
+  const shelfZ0 = d.table.minZ + 0.2;
+  const shelfZ1 = shelfZ0 + 0.9;
+  box(wood, R.minX, R.minX + 0.32, F, F + 0.03, shelfZ0, shelfZ1);
+  for (const z of [shelfZ0, shelfZ1 - 0.03]) box(wood, R.minX, R.minX + 0.32, F, F + 1.8, z, z + 0.03);
+  const spines = [0x5a2a22, 0x2a3a4a, 0x4a4a2a, 0x6a5a40, 0x2a2a2a, 0x3a2a3a, 0x7a6a50].map((c) => plain(c, 0.7));
+  for (let s = 0; s < 4; s++) {
+    const y = F + 0.1 + s * 0.44;
+    box(wood, R.minX, R.minX + 0.32, y - 0.03, y, shelfZ0, shelfZ1);
+    let z = shelfZ0 + 0.05;
+    let n = s * 7;
+    while (z < shelfZ1 - 0.08) {
+      const w = 0.03 + ((n * 13) % 5) * 0.008;
+      const ht = 0.22 + ((n * 7) % 6) * 0.025;
+      box(spines[n % spines.length]!, R.minX + 0.04, R.minX + 0.26, y, y + ht, z, z + w, false);
+      z += w + 0.004;
+      n++;
+    }
+  }
+
+  // --- by the door: the tide table pinned to the wall ---
+  box(plain(0xd8d0b8, 0.9), R.maxX - lining - 0.005, R.maxX - lining, F + 1.25, F + 1.6, -1.95, -1.65, false);
+
+  // --- outside: gables, a slate roof and the chimney ---
+  const eaves = F + H;
+  const ridge = eaves + 1.7;
+  const harl = surface('harl');
+  const slates = surface('slates');
+  const halfSpan = (R.maxZ - R.minZ) / 2 + T + 0.3;
+  const midZ = (R.minZ + R.maxZ) / 2;
+  const slope = Math.hypot(halfSpan, ridge - eaves);
+  const pitch = Math.atan2(ridge - eaves, halfSpan);
+  for (const side of [-1, 1]) {
+    const g = tiledBox(R.maxX - R.minX + 2 * T + 0.4, 0.08, slope, tileOf(slates));
+    g.rotateX(-side * pitch);
+    piece(g, slates, (R.minX + R.maxX) / 2, (eaves + ridge) / 2 + 0.04, midZ - (side * halfSpan) / 2);
+  }
+  for (const x of [R.minX - T, R.maxX]) {
+    // Each gable as stacked courses narrowing to the ridge.
+    const courses = 8;
+    for (let i = 0; i < courses; i++) {
+      const k = 1 - i / courses;
+      const half = (halfSpan - 0.3) * k;
+      box(harl, x, x + T, eaves + (i * (ridge - eaves)) / courses, eaves + ((i + 1) * (ridge - eaves)) / courses, midZ - half, midZ + half);
+    }
+  }
+  box(rubble, hx - 0.45, hx + 0.45, eaves, ridge + 0.7, R.minZ - T, R.minZ + 0.5);
+  for (const x of [hx - 0.18, hx + 0.18]) piece(new CylinderGeometry(0.1, 0.12, 0.35, 8), plain(0x8a5a3a, 0.8), x, ridge + 0.87, R.minZ + 0.1);
+
+  return { flames, thingMeshes };
+}

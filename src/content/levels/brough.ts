@@ -13,6 +13,15 @@ export const CHANNEL_FLOOR = -2.5;
 
 export const COTTAGE = { minX: -28, maxX: -20, minZ: -3, maxZ: 3, wall: 0.3, height: 2.6, door: 0.8 } as const;
 
+/** Where the cottage's furniture stands: each blocks the way, and the cottage set draws it. */
+const FURNITURE = {
+  hearth: { minX: -27.9, maxX: -26.1, minZ: -3, maxZ: -2.55 },
+  table: { minX: -25.2, maxX: -23.8, minZ: -1.2, maxZ: 0.2 },
+  dresser: { minX: -25.4, maxX: -23.8, minZ: 2.4, maxZ: 3 },
+  bier: { minX: -27.7, maxX: -25.7, minZ: 1.6, maxZ: 2.4 },
+  shelf: { minX: -28, maxX: -27.68, minZ: -1.0, maxZ: -0.1 },
+} as const;
+
 function cottageWalls(): Wall[] {
   const c = COTTAGE;
   const t = c.wall;
@@ -35,10 +44,8 @@ const WALLS: Wall[] = [
   { minX: 15, maxX: 16, minZ: 7.5, maxZ: 8.3, height: 0.8, kind: 'boulder' },
   { minX: 26, maxX: 26.6, minZ: -16, maxZ: -5, height: 1.2, kind: 'dyke' },
   { minX: 26, maxX: 26.6, minZ: -2, maxZ: 16, height: 1.2, kind: 'dyke' },
-  // A table, the dresser and the bier in the cottage (low, still solid).
-  { minX: -25.2, maxX: -23.8, minZ: -1.2, maxZ: 0.2, height: 0.8, kind: 'stone' },
-  { minX: -23.8, maxX: -22.2, minZ: 2.4, maxZ: 3, height: 0.9, kind: 'stone' },
-  { minX: -27.6, maxX: -26.2, minZ: 1.2, maxZ: 2.6, height: 0.9, kind: 'stone' },
+  // The cottage's furniture, drawn by its set (render/sets/cottage.ts).
+  ...Object.values(FURNITURE).map((f) => ({ ...f, height: 1, kind: 'furniture' as const })),
 ];
 
 const PROPS: Prop[] = [
@@ -74,8 +81,9 @@ export const BROUGH_AREA: LevelArea = {
       id: 'cottage',
       indoors: true,
       bounds: { minX: -28, maxX: -20, minZ: -3, maxZ: 3 },
-      rig: { type: 'fixed', position: [-27.5, 8.0, -2.6] },
-      fov: 62,
+      // In the doorway's corner, under the beams, looking across the room to the hearth.
+      rig: { type: 'fixed', position: [-20.4, ISLET.top + 2.25, 2.6] },
+      fov: 60,
       lookOffset: [0, 0.6, 0],
     },
     {
@@ -101,9 +109,9 @@ export const BROUGH_AREA: LevelArea = {
     },
   ],
   things: [
-    { id: 'hearth', kind: 'hearth', x: -27, z: -2.2 },
+    { id: 'hearth', kind: 'hearth', x: -27, z: -2.0 },
     // Only thought of once the dead have been seen.
-    { id: 'kitchen-knife', kind: 'knife', x: -23, z: 1.9, after: 'sawDead', nudge: 'The kitchen knife. It’s in the dresser drawer.' },
+    { id: 'kitchen-knife', kind: 'knife', x: -24.6, z: 1.9, after: 'sawDead', nudge: 'The kitchen knife. It’s in the dresser drawer.' },
     // Only looked for once the knife has failed.
     {
       id: 'fathers-notebook',
@@ -130,10 +138,17 @@ export const BROUGH_AREA: LevelArea = {
     { x: 31, z: 5, facing: -Math.PI / 2 },
   ],
   dressing: [
-    // The cottage floor (no roof, so the authored camera can see in), the stove and its glow.
-    { kind: 'block', box: COTTAGE, bottom: ISLET.top, top: ISLET.top + 0.03, material: 'floor' },
-    { kind: 'block', box: { minX: -27.7, maxX: -26.5, minZ: -2.8, maxZ: -1.8 }, bottom: ISLET.top, top: ISLET.top + 0.9, material: 'stone', castShadow: true },
-    { kind: 'light', x: -27, y: ISLET.top + 1.1, z: -2.2, color: 0xff8a3c, intensity: 6, distance: 9, decay: 1.6 },
+    // The cottage, inside and out, in the round 3 look.
+    {
+      kind: 'cottage',
+      room: COTTAGE,
+      floor: ISLET.top,
+      height: COTTAGE.height,
+      wall: COTTAGE.wall,
+      door: COTTAGE.door,
+      ...FURNITURE,
+      notebook: 'fathers-notebook',
+    },
     { kind: 'beam', x: -30, y: ISLET.top + 8.6, z: -8 },
   ],
 };

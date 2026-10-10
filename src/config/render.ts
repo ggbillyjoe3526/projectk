@@ -41,8 +41,9 @@ export const FRAME_PACING = { slackMs: 1, resetFrames: 2 } as const;
 export const FRAME_TIMING = { smoothing: 0.1 } as const;
 
 /**
- * The low-resolution look (concept v0.6 section 8): the scene draws at `internalHeight` pixels tall (the width follows
- * the window's shape) and the browser scales the canvas up with hard pixels; each colour channel is cut to
- * `colourLevels` steps with a 4×4 ordered dither (render/retro). It is the game's art style, not a quality setting.
+ * The low-resolution look (concept v0.6 section 8, art direction round 3): the scene draws at `internalHeight` pixels
+ * tall, 640x360 on a 16:9 window (the width follows the window's shape), and the browser scales the canvas up with hard
+ * pixels; each colour channel is cut to `colourLevels` steps with a 4×4 ordered dither (render/retro), and vertices snap
+ * to a grid `snapScale` as fine as the pixels (480x270 at 640x360). It is the game's art style, not a quality setting.
  */
-export const RETRO_LOOK = { internalHeight: 270, colourLevels: 32 } as const;
+export const RETRO_LOOK = { internalHeight: 360, colourLevels: 32, snapScale: 0.75 } as const;

@@ -30,7 +30,28 @@ export type Dressing =
   | { readonly kind: 'block'; readonly box: Box2; readonly bottom: number; readonly top: number; readonly material: DressingMaterial; readonly castShadow?: boolean }
   | { readonly kind: 'light'; readonly x: number; readonly y: number; readonly z: number; readonly color: number; readonly intensity: number; readonly distance: number; readonly decay: number }
   /** A lighthouse's slow sweep of light, turning about this point. */
-  | { readonly kind: 'beam'; readonly x: number; readonly y: number; readonly z: number };
+  | { readonly kind: 'beam'; readonly x: number; readonly y: number; readonly z: number }
+  /** The father's cottage dressed in the round 3 look (render/sets/cottage.ts). */
+  | CottageDressing;
+
+/**
+ * The cottage's room and where its furniture stands (each piece also a `furniture` wall, so it blocks the way).
+ * `floor` is the height of the floor; `height` the walls'; `door` half the doorway's width, in the east wall at z 0.
+ */
+export interface CottageDressing {
+  readonly kind: 'cottage';
+  readonly room: Box2;
+  readonly floor: number;
+  readonly height: number;
+  readonly wall: number;
+  readonly door: number;
+  readonly hearth: Box2;
+  readonly table: Box2;
+  readonly dresser: Box2;
+  readonly bier: Box2;
+  /** Things shown by a mesh in the set while they're there to use, by the thing's id. */
+  readonly notebook: string;
+}
 
 /**
  * An indoor space: the dark doesn't drain Resolve here. A refuge (the cottage, the kirk vestry) is one the dead won't

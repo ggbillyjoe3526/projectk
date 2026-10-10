@@ -159,6 +159,8 @@ The game code is in this repository. See the [main README](../README.md) to run 
 | The opening's beats | Empty-handed first trip and retreat, the knife from the dresser, the rise that sends you to the notebook, the sword brought home. | #17 |
 | CI | A GitHub workflow runs the tests, type check and build on every pull request, then starts the game in headless Chromium on the WebGL2 path. | #18 |
 | Low-Resolve grade | As Resolve runs low the view takes the round 3 haar grade: a cold, harder grey where only red keeps its colour. | #19 |
+| Pointer controls | The player faces the pointer and WASD walks relative to it; the sword lays the dead to rest; a perfect deflect staggers and the next hit does double. | #20 |
+| The cottage | The father's cottage built to the round 3 standard in-engine at 640x360: flagstones, lime wash, beams, the peat fire, the dresser, the bier, his books, a slate roof. Every texture is generated in code; nothing is licensed. | #21 |
 
 Playable builds and the camera lab were published as claude.ai artifacts, which only William's account can open:
 [camera lab](https://claude.ai/artifact/AeiT4iTYDFGWtLZhDpbzBU),

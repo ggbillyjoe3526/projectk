@@ -9,7 +9,7 @@ has every decision, what's still open and how the project got here, and [docs/](
 the concept versions, the story, the art direction shots and their tools, and the camera lab.
 
 The engine skeleton (the loop, saving, input, renderer start-up and diagnostics) runs the first playable slice, M0:
-the father's cottage, the Brough and the tidal causeway in greybox, under authored tracking cameras (concept camera A),
+the father's cottage (now fully dressed), the Brough and the tidal causeway in greybox, under authored tracking cameras (concept camera A),
 in the low-resolution dithered look, with the tide and the island's hum; and M1, the fight: the dead on the shore,
 the kitchen knife that cuts them down but can't keep them down, the note on the cottage table, and the sword, with
 deflect, Resolve, Break and the Rite. The first stage of the vertical slice adds the village street and its shop, the

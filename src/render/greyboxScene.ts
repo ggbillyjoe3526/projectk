@@ -1,14 +1,16 @@
 import {
-  AdditiveBlending, type BufferGeometry, BoxGeometry, CapsuleGeometry, CircleGeometry, Color, ConeGeometry, CylinderGeometry, DirectionalLight,
+  AdditiveBlending, BoxGeometry, CapsuleGeometry, CircleGeometry, Color, ConeGeometry, CylinderGeometry, DirectionalLight,
   FogExp2, Group, HemisphereLight, Mesh, MeshBasicNodeMaterial, MeshLambertNodeMaterial, Object3D, PlaneGeometry, PointLight,
   Scene, SpotLight,
 } from 'three/webgpu';
 import { float, length, mix, sin, uniform, uv, vec3 } from 'three/tsl';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { Dressing, DressingMaterial, Level } from '../content/level';
 import { type GroundRegion, regionHeight } from '../sim/world/ground';
 import type { Wall } from '../sim/world/types';
 import { applyPs1Snap } from './retro/ps1Snap';
+import { buildCottage } from './sets/cottage';
+import { StaticBatch } from './staticBatch';
+import { surface, tiledBox, tileOf } from './textures/surfaces';
 import { createSea } from './water';
 
 /** Everything the M0 frame needs to animate. */
@@ -25,6 +27,10 @@ export interface GreyboxScene {
   readonly wallMeshes: ReadonlyMap<string, Mesh>;
   /** Lighthouse beams, each turning about its own origin. */
   readonly beams: readonly Object3D[];
+  /** Candle and fire light, to flicker, each with the intensity it flickers about. */
+  readonly flames: readonly { light: PointLight; base: number }[];
+  /** What shows a thing the player can use (the notebook on the table), by the thing's id, to show only while it's there. */
+  readonly thingMeshes: ReadonlyMap<string, Object3D>;
   readonly fog: FogExp2;
 }
 
@@ -70,39 +76,6 @@ function add(scene: Scene, geometry: BoxGeometry | CylinderGeometry, material: M
 
 function block(scene: Scene, minX: number, maxX: number, bottom: number, top: number, minZ: number, maxZ: number, material: MeshLambertNodeMaterial, cast = false): Mesh {
   return add(scene, new BoxGeometry(maxX - minX, top - bottom, maxZ - minZ), material, (minX + maxX) / 2, (bottom + top) / 2, (minZ + maxZ) / 2, cast);
-}
-
-/**
- * Everything that never moves or changes, merged into one mesh per material (and per whether it casts shadows), so the
- * whole static greybox costs a handful of draw calls however many walls and gravestones the level has.
- */
-class StaticBatch {
-  private readonly groups = new Map<MeshLambertNodeMaterial, { cast: BufferGeometry[]; still: BufferGeometry[] }>();
-
-  put(geometry: BufferGeometry, material: MeshLambertNodeMaterial, x: number, y: number, z: number, cast: boolean): void {
-    geometry.translate(x, y, z);
-    let group = this.groups.get(material);
-    if (!group) this.groups.set(material, (group = { cast: [], still: [] }));
-    (cast ? group.cast : group.still).push(geometry);
-  }
-
-  block(minX: number, maxX: number, bottom: number, top: number, minZ: number, maxZ: number, material: MeshLambertNodeMaterial, cast = false): void {
-    this.put(new BoxGeometry(maxX - minX, top - bottom, maxZ - minZ), material, (minX + maxX) / 2, (bottom + top) / 2, (minZ + maxZ) / 2, cast);
-  }
-
-  addTo(scene: Scene): void {
-    for (const [material, group] of this.groups) {
-      for (const [geometries, cast] of [[group.cast, true], [group.still, false]] as const) {
-        if (geometries.length === 0) continue;
-        const merged = mergeGeometries(geometries);
-        for (const g of geometries) g.dispose();
-        const mesh = new Mesh(merged, material);
-        mesh.castShadow = cast;
-        mesh.receiveShadow = true;
-        scene.add(mesh);
-      }
-    }
-  }
 }
 
 /** Ramps are drawn as steps this long, each topped at the walkable height. */
@@ -195,13 +168,28 @@ export function buildGreybox(level: Level): GreyboxScene {
       batch.put(new CylinderGeometry(1.0, 1.25, w.height, 10), MAT.lighthouse, (w.minX + w.maxX) / 2, base + w.height / 2, (w.minZ + w.maxZ) / 2, true);
       continue;
     }
+    // Furniture is drawn by its set; the wall is only what the player bumps into.
+    if (w.kind === 'furniture') continue;
+    if (w.kind === 'cottage') {
+      const harl = surface('harl');
+      batch.put(tiledBox(w.maxX - w.minX, w.height, w.maxZ - w.minZ, tileOf(harl)), harl, (w.minX + w.maxX) / 2, base + w.height / 2, (w.minZ + w.maxZ) / 2, true);
+      continue;
+    }
     // A wall with an id can be opened, so it stays a mesh of its own.
     if (w.id) wallMeshes.set(w.id, block(scene, w.minX, w.maxX, base, base + w.height, w.minZ, w.maxZ, wallMaterial(w), true));
     else batch.block(w.minX, w.maxX, base, base + w.height, w.minZ, w.maxZ, wallMaterial(w), true);
   }
   // Set dressing: what the simulation never touches.
   const beams: Object3D[] = [];
+  const flames: { light: PointLight; base: number }[] = [];
+  const thingMeshes = new Map<string, Object3D>();
   for (const d of level.dressing) {
+    if (d.kind === 'cottage') {
+      const set = buildCottage(d, batch, scene);
+      flames.push(...set.flames);
+      for (const [id, mesh] of set.thingMeshes) thingMeshes.set(id, mesh);
+      continue;
+    }
     if (d.kind === 'block') {
       const b = d.box;
       batch.block(b.minX, b.maxX, d.bottom, d.top, b.minZ, b.maxZ, DRESSING_MAT[d.material], d.castShadow ?? false);
@@ -265,5 +253,5 @@ export function buildGreybox(level: Level): GreyboxScene {
   const sea = createSea();
   scene.add(sea);
 
-  return { scene, sea, player, playerBody, hand, torch, pebbles, ripple, wallMeshes, beams, fog };
+  return { scene, sea, player, playerBody, hand, torch, pebbles, ripple, wallMeshes, beams, flames, thingMeshes, fog };
 }
