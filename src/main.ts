@@ -198,8 +198,8 @@ async function main(): Promise<void> {
 
   const key = (action: Action): string => keyboard.keyName(action);
   await startGate(container, 'PROJECT OUTBOUND', [
-    [`${key('forward')} ${key('left')} ${key('back')} ${key('right')}`, 'walk'],
-    ['Mouse', 'aim'],
+    [`${key('forward')} ${key('left')} ${key('back')} ${key('right')}`, 'walk (toward the pointer, back, round it)'],
+    ['Mouse', 'face and aim'],
     [`${key('attack')}`, 'attack (hold with the sword: sained strike)'],
     [keyboard.keysName('deflect'), 'deflect as the blow lands (a glint in its hand warns you)'],
     [`${key('step')}`, 'step aside'],

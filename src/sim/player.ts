@@ -51,7 +51,13 @@ export function stepPlayer(s: PlayerState, cmd: PlayerCommand, world: WorldDef, 
   if (cmd.turn && cmd.aimX !== null && cmd.aimZ !== null) {
     const ax = cmd.aimX - s.x;
     const az = cmd.aimZ - s.z;
-    if (ax * ax + az * az > 0.04) s.facing = Math.atan2(ax, az);
+    if (Math.hypot(ax, az) > PLAYER_TUNING.aimDeadZone) {
+      const turn = Math.atan2(ax, az) - s.facing;
+      const by = Math.atan2(Math.sin(turn), Math.cos(turn));
+      const most = PLAYER_TUNING.turnSpeed * dt;
+      s.facing += Math.max(-most, Math.min(most, by));
+      s.facing = Math.atan2(Math.sin(s.facing), Math.cos(s.facing));
+    }
   }
 
   if (!s.listening) {

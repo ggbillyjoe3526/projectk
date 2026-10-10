@@ -216,13 +216,30 @@ What changed (PR #10):
 William, after PR #10: "that feels much better." The deflect timing stands as it is: a 200 ms window and the tell 400 ms
 before the blow.
 
+### Stage 1 opening, 2026-10-10
+
+William: "controls feel awkward. the player should generally face the direction of the pointer. you can still use WASD
+to move but i feel also using the mouse would help smooth movement out. the sword doesn't seem to actually kill the
+islanders? they get back up. deflecting should stagger enemies and deal extra damage if the player follows up with an
+attack."
+
+What changed (PR #20):
+
+- **Movement follows the pointer.** The player turns toward the pointer (quickly, 16 radians a second, not in a snap)
+  and WASD is relative to that facing: W walks toward the pointer, S backs away, A and D step round it. Before, WASD
+  was relative to the camera, so a camera cut or a fixed camera turned the keys round.
+- **The sword kills.** One the sword cuts down is laid to rest for good. Only the knife's get back up. The Rite on one
+  broken by deflects is still there, and gives Resolve back.
+- **Deflect, then punish.** A perfect deflect staggers the enemy for 55 ticks (about 0.9 s, was 40), and blows on one
+  staggered or broken do double damage, with the heavy hit's shake and sound.
+
 ## Process
 
 ### Pull requests
 
 **Settled (William, 2026-10-09):** Claude merges its own pull requests in this repository once the typecheck, build and
 tests pass (`npm run check`), without waiting for William's review, and tells him in the project thread when one is
-merged. A failing PR is never merged. The repository has no GitHub CI yet, so the checks run before merging.
+merged. A failing PR is never merged. GitHub CI (PR #18) runs the checks and a WebGL2 smoke test on every PR.
 
 ### The repository rename
 
