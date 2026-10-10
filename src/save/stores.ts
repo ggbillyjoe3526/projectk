@@ -1,5 +1,6 @@
 import { KEY_BINDINGS_KEY } from '../input/keyBindings';
 import { SETTINGS_KEY, SETTINGS_VERSION } from '../settings/storage';
+import { CROSSING_KEY, CROSSING_VERSION } from '../game/crossing/progress';
 import { PROGRESS_KEY, PROGRESS_VERSION } from './progress';
 
 /**
@@ -11,6 +12,8 @@ export const SAVE_STORES = [
   { id: 'settings', key: SETTINGS_KEY, version: SETTINGS_VERSION },
   { id: 'keyBindings', key: KEY_BINDINGS_KEY, version: 0 },
   { id: 'progress', key: PROGRESS_KEY, version: PROGRESS_VERSION },
+  // Chapter 1's own progress (joined in format 3: a save without it starts chapter 1 fresh).
+  { id: 'crossing', key: CROSSING_KEY, version: CROSSING_VERSION },
 ] as const;
 
 export type StoreId = (typeof SAVE_STORES)[number]['id'];

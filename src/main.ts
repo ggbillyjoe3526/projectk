@@ -11,6 +11,10 @@ import { advanceStepper, createStepper, stepperAlpha } from './core/fixedStepper
 import { FramePacer } from './core/framePacer';
 import { deriveSeed, parseSeed, randomSeed } from './core/seed';
 import { BroughSlice, type SliceIntent } from './game/broughSlice';
+import { CrossingChapter } from './game/crossing/crossingChapter';
+import { readCrossing } from './game/crossing/progress';
+import { levelLayout } from './content/level';
+import { ARRIVAL } from './content/levels/arrival';
 import { KeyBindings } from './input/keyBindings';
 import { Keyboard } from './input/keyboard';
 import { browserKeyboardMap, watchKeyboardLayout } from './input/keyboardLayout';
@@ -27,9 +31,14 @@ import { startGate } from './ui/startGate';
 
 /**
  * The boot shell: starts the save storage, the renderer (WebGPU, else its WebGL2 back end), input and the fixed 60 Hz
- * loop, with the debug overlay (` or F3) and the crash pane. It runs the first playable slice (game/broughSlice.ts):
- * its simulation on the fixed step, its scene drawn at the display rate between ticks.
+ * loop, with the debug overlay (` or F3) and the crash pane. It runs the game a part at a time, each with its
+ * simulation on the fixed step and its scene drawn at the display rate between ticks: chapter 1, The Crossing
+ * (game/crossing/crossingChapter.ts), then the slice's "Low water" (game/broughSlice.ts), the morning after.
+ * `?chapter=1` or `?chapter=lowwater` opens one directly.
  */
+
+/** A part of the game main.ts can run. */
+type Part = BroughSlice | CrossingChapter;
 
 /** The facts every crash report carries, filled in as the boot learns them. */
 const facts: { seed: number | null; backend: string; adapter: string; tick: number } = { seed: null, backend: '', adapter: '', tick: 0 };
@@ -64,8 +73,9 @@ function fail(error: unknown): void {
 }
 
 async function main(): Promise<void> {
-  const container = document.getElementById('app');
-  if (!container) throw new Error('#app container missing');
+  const found = document.getElementById('app');
+  if (!found) throw new Error('#app container missing');
+  const container: HTMLElement = found;
   startGuardedStorage();
   const params = new URLSearchParams(window.location.search);
   facts.seed = parseSeed(params.get('seed')) ?? randomSeed();
@@ -77,19 +87,29 @@ async function main(): Promise<void> {
   facts.backend = node.kind;
   facts.adapter = start.adapterName;
 
-  const slice = new BroughSlice(params, deriveSeed(facts.seed, 0x9e3779b1, 0x2545f491), container, browserStorage());
-  const { scene, camera } = slice;
-  slice.attach(node.renderer);
-  const fit = (): void => slice.fit(window.innerWidth, Math.max(1, window.innerHeight));
-  container.appendChild(node.renderer.domElement);
-  fit();
-  window.addEventListener('resize', fit);
-
   const bindings = new KeyBindings(browserStorage());
   watchKeyboardLayout(browserKeyboardMap(), window, (layout) => bindings.setLayout(layout));
   const keyboard = new Keyboard(window, bindings);
   const pointer = new PointerAim(window, container);
   watchMouseButtons(container, keyboard);
+
+  // Chapter 1 until its day is over, then Low water; a link can ask for either.
+  const seed = deriveSeed(facts.seed, 0x9e3779b1, 0x2545f491);
+  const crossingDone = readCrossing(browserStorage(), levelLayout(ARRIVAL))?.progress.phase === 'done';
+  const asked = params.get('chapter');
+  const lowWater = asked === 'lowwater' || (asked !== '1' && crossingDone);
+  const crossing = (): CrossingChapter => {
+    const c = new CrossingChapter(params, container, browserStorage(), (action) => keyboard.keyName(action));
+    c.onFinished = toLowWater;
+    return c;
+  };
+  let part: Part = lowWater ? new BroughSlice(params, seed, container, browserStorage()) : crossing();
+  part.attach(node.renderer);
+  const fit = (): void => part.fit(window.innerWidth, Math.max(1, window.innerHeight));
+  container.appendChild(node.renderer.domElement);
+  fit();
+  window.addEventListener('resize', fit);
+
   // Looking away (another tab, another window) pauses the game, as well as letting go of every key.
   awayWatch({ doc: document, win: window }, () => {
     keyboard.releaseAll();
@@ -106,7 +126,7 @@ async function main(): Promise<void> {
     'gpu ms': Number.isNaN(node.gpuMs) ? '-' : node.gpuMs.toFixed(2),
     tick: facts.tick,
     seed: facts.seed ?? '-',
-    ...slice.debugStats(),
+    ...part.debugStats(),
   }));
   overlay.setFpsReadout(loadSetting('showFps', (raw) => (typeof raw === 'boolean' ? raw : undefined), false));
   const frameRateCap = loadSetting('frameRateCap', (raw) => FRAME_RATE_CAPS.find((cap) => cap === raw), 0);
@@ -123,10 +143,10 @@ async function main(): Promise<void> {
         current.dispose();
         node = next;
         facts.backend = node.kind;
-        slice.attach(node.renderer);
+        part.attach(node.renderer);
         fit();
         node.setTiming(overlay.visible);
-        node.compile(scene, camera);
+        node.compile(part.scene, part.camera);
         lostAt = performance.now();
         watchLoss(node);
       });
@@ -156,7 +176,7 @@ async function main(): Promise<void> {
     paused = on;
     pauseScreen?.show(on);
     keyboard.releaseAll();
-    slice.setPaused(on);
+    part.setPaused(on);
     // Paused, the browser keeps its own keys (Space scrolls nothing, but menus and shortcuts work as usual).
     keyboard.capturing = !on;
   };
@@ -167,7 +187,7 @@ async function main(): Promise<void> {
   const pacer = new FramePacer();
   let last = performance.now();
   let lastDrawn = last;
-  node.compile(scene, camera);
+  node.compile(part.scene, part.camera);
   started = true;
 
   const frame = (now: number): void => {
@@ -189,13 +209,14 @@ async function main(): Promise<void> {
     intent.stepPressed ||= keyboard.wasPressed('step');
     intent.interactPressed ||= keyboard.wasPressed('interact');
     for (let i = 0; i < ticks; i++) {
-      slice.tick(intent, SIM_DT);
+      part.tick(intent, SIM_DT);
       intent.attackPressed = intent.deflectPressed = intent.stepPressed = intent.interactPressed = false;
     }
     if (keyboard.wasPressed('pause')) setPaused(!paused);
-    if (keyboard.wasPressed('swapOffHand') && !paused) slice.toggleTorch();
-    if (keyboard.wasPressed('debugTimeScale')) slice.cycleTimeScale();
-    if (keyboard.wasPressed('debugFightReadout')) slice.toggleFightReadout();
+    if (keyboard.wasPressed('swapOffHand') && !paused) part.toggleTorch();
+    if (keyboard.wasPressed('phone') && !paused && part instanceof CrossingChapter) part.togglePhone();
+    if (keyboard.wasPressed('debugTimeScale')) part.cycleTimeScale();
+    if (keyboard.wasPressed('debugFightReadout')) part.toggleFightReadout();
     if (keyboard.wasPressed('debugOverlay')) {
       overlay.toggle();
       node.setTiming(overlay.visible);
@@ -203,8 +224,8 @@ async function main(): Promise<void> {
     if (keyboard.wasPressed('fullscreen')) void (document.fullscreenElement ? document.exitFullscreen() : container.requestFullscreen()).catch(() => undefined);
     keyboard.endFrame();
     if (!node.lost && pacer.shouldDraw(now, frameRateCap)) {
-      slice.present(stepperAlpha(stepper), dt, now);
-      slice.render();
+      part.present(stepperAlpha(stepper), dt, now);
+      part.render();
       node.frameDone();
       overlay.frame((now - lastDrawn) / 1000);
       lastDrawn = now;
@@ -215,7 +236,7 @@ async function main(): Promise<void> {
   requestAnimationFrame(frame);
 
   const key = (action: Action): string => keyboard.keyName(action);
-  const controls = (): [string, string][] => [
+  const sliceControls = (): [string, string][] => [
     ['Mouse', 'face and aim (the mark over one of the dead is your target)'],
     [`${key('forward')}`, 'walk toward the pointer'],
     [`${keyboard.keysName('sprint')} (hold)`, 'sprint, while stamina lasts'],
@@ -228,9 +249,40 @@ async function main(): Promise<void> {
     [`Esc / ${key('pause')}`, 'pause'],
     [`${key('debugOverlay')} / ${key('debugTimeScale')} / ${key('debugFightReadout')}`, 'debug readout / faster island time / deflect timing'],
   ];
-  await startGate(container, 'PROJECT OUTBOUND', controls(), slice.continuing ? () => slice.startOver() : undefined, releaseName());
-  pauseScreen = new PauseScreen(container, controls(), 'Click, Esc or P to carry on', () => setPaused(false));
-  slice.startAudio();
+  const crossingControls = (): [string, string][] => [
+    ['Mouse', 'face where you want to go'],
+    [`${key('forward')}`, 'walk toward the pointer'],
+    [`${keyboard.keysName('sprint')} (hold)`, 'walk faster'],
+    [key('interact'), 'talk, look, read, use; go on in a conversation'],
+    ['1–4 or click', 'choose what to say'],
+    [`${key('listen')} (hold)`, 'kneel and listen to the island'],
+    [key('phone'), 'your phone: messages and notes'],
+    [key('swapOffHand'), 'phone torch on or off'],
+    [`Esc / ${key('pause')}`, 'pause'],
+    [`${key('debugOverlay')} / ${key('debugTimeScale')}`, 'debug readout / faster island time'],
+  ];
+  const controls = (): [string, string][] => (part instanceof CrossingChapter ? crossingControls() : sliceControls());
+  const resumeHint = 'Click, Esc or P to carry on';
+
+  /** The day is over: on to Low water, the morning after, from its start. */
+  function toLowWater(): void {
+    if (!(part instanceof CrossingChapter)) return;
+    part.dispose();
+    const slice = new BroughSlice(new URLSearchParams(), seed, container, browserStorage());
+    slice.startOver();
+    part = slice;
+    part.attach(node.renderer);
+    fit();
+    node.compile(part.scene, part.camera);
+    part.startAudio();
+    pauseScreen?.remove();
+    pauseScreen = new PauseScreen(container, controls(), resumeHint, () => setPaused(false));
+    keyboard.releaseAll();
+  }
+
+  await startGate(container, 'PROJECT OUTBOUND', controls(), part.continuing ? () => part.startOver() : undefined, releaseName());
+  pauseScreen = new PauseScreen(container, controls(), resumeHint, () => setPaused(false));
+  part.startAudio();
   playing = true;
 }
 

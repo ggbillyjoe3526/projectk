@@ -60,6 +60,8 @@ export function stepPlayer(s: PlayerState, cmd: PlayerCommand, world: WorldDef, 
     }
   }
 
+  const fromX = s.x;
+  const fromZ = s.z;
   if (!s.listening) {
     let speed = PLAYER_TUNING.walkSpeed * cmd.speedScale;
     if (s.depth > PLAYER_TUNING.wadeDepth) speed *= PLAYER_TUNING.wadeSpeedFactor;
@@ -73,8 +75,14 @@ export function stepPlayer(s: PlayerState, cmd: PlayerCommand, world: WorldDef, 
   probe.x = s.x;
   probe.z = s.z;
   resolveCircleVsBoxes(probe, PLAYER_TUNING.radius, world.walls);
-  s.x = probe.x;
-  s.z = probe.z;
+  // A wall at the water's edge (a bollard on a pier) can shove the player off it: stay where they were instead.
+  if (walkable(world, probe.x, probe.z, waterLevel, s.y)) {
+    s.x = probe.x;
+    s.z = probe.z;
+  } else {
+    s.x = fromX;
+    s.z = fromZ;
+  }
 
   const g = world.groundAt(s.x, s.z);
   s.y = g.height;

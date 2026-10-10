@@ -52,6 +52,16 @@ export class CombatHud {
     this.root.hidden = !on;
   }
 
+  /** Out of danger (chapter 1): health, Resolve and stamina hidden, only the torch's charge shown. */
+  setCalm(on: boolean): void {
+    this.root.classList.toggle('calm', on);
+  }
+
+  /** Take the readouts off the page (the chapter is over). */
+  dispose(): void {
+    this.root.remove();
+  }
+
   /** Fractions 0..1. */
   setGauges(health: number, resolve: number, low: boolean): void {
     this.health.style.width = `${(health * 100).toFixed(1)}%`;

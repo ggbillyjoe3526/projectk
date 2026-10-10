@@ -365,3 +365,278 @@ body {
 .pause-screen[hidden] {
   display: none;
 }
+
+/* Chapter 1: calm readouts, talking, the phone, and the end of the day. */
+
+.hud.calm .hud-health,
+.hud.calm .hud-resolve,
+.hud.calm .hud-stamina {
+  display: none;
+}
+
+.talk {
+  position: fixed;
+  left: 50%;
+  bottom: 56px;
+  z-index: 7;
+  box-sizing: border-box;
+  width: min(40rem, calc(100vw - 32px));
+  transform: translateX(-50%);
+  padding: 14px 18px 10px;
+  background: rgb(6 9 11 / 0.86);
+  border: 1px solid rgb(255 255 255 / 0.08);
+  font: 14px/1.55 ui-monospace, 'SF Mono', Consolas, monospace;
+  color: #e3e0d8;
+  cursor: pointer;
+}
+
+.talk[hidden],
+.phone[hidden] {
+  display: none;
+}
+
+.talk-speaker {
+  margin-bottom: 4px;
+  color: #d9a35a;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-size: 12px;
+}
+
+.talk-text {
+  margin: 0 0 6px;
+}
+
+.talk-text.narration {
+  font: italic 15px/1.55 Georgia, 'Times New Roman', serif;
+  color: #c5ccd0;
+}
+
+.talk-options {
+  margin: 0 0 6px;
+  padding: 0;
+  list-style: none;
+}
+
+.talk-option {
+  display: block;
+  width: 100%;
+  padding: 3px 0;
+  border: 0;
+  background: none;
+  color: #e8e6e1;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.talk-option:hover,
+.talk-option:focus-visible {
+  color: #f0c27a;
+}
+
+.talk-option.said {
+  color: #868d90;
+}
+
+.talk-hint {
+  margin: 0;
+  font-size: 11px;
+  color: #6e7679;
+  text-align: right;
+}
+
+.phone {
+  position: fixed;
+  right: 20px;
+  top: 50%;
+  z-index: 7;
+  box-sizing: border-box;
+  width: min(20rem, calc(100vw - 32px));
+  max-height: min(34rem, calc(100vh - 40px));
+  display: flex;
+  flex-direction: column;
+  transform: translateY(-50%);
+  padding: 10px 12px;
+  background: #0b0f12;
+  border: 2px solid #262c30;
+  border-radius: 14px;
+  font: 13px/1.45 ui-monospace, 'SF Mono', Consolas, monospace;
+  color: #d9dcdc;
+}
+
+.phone-head {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 11px;
+  color: #8a9295;
+}
+
+.phone-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.phone-tab {
+  flex: 1;
+  padding: 4px 0;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: #8a9295;
+  font: inherit;
+  cursor: pointer;
+}
+
+.phone-tab.on {
+  color: #e8e6e1;
+  border-bottom-color: #d9a35a;
+}
+
+.phone-list {
+  overflow-y: auto;
+  min-height: 6rem;
+}
+
+.phone-message {
+  padding: 6px 0;
+  border-bottom: 1px solid rgb(255 255 255 / 0.06);
+}
+
+.phone-message-top {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+}
+
+.phone-from {
+  color: #d9a35a;
+}
+
+.phone-when {
+  color: #6e7679;
+}
+
+.phone-text {
+  margin: 2px 0 0;
+}
+
+.phone-note {
+  display: block;
+  width: 100%;
+  padding: 6px 0;
+  border: 0;
+  border-bottom: 1px solid rgb(255 255 255 / 0.06);
+  background: none;
+  color: #e3dccb;
+  font: italic 14px/1.4 Georgia, 'Times New Roman', serif;
+  text-align: left;
+  cursor: pointer;
+}
+
+.phone-note:hover,
+.phone-note:focus-visible {
+  color: #f0c27a;
+}
+
+.phone-empty {
+  color: #6e7679;
+}
+
+.phone-close {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: #6e7679;
+  text-align: center;
+}
+
+.phone-toast {
+  position: fixed;
+  right: 20px;
+  top: 18px;
+  z-index: 6;
+  max-width: min(24rem, calc(100vw - 32px));
+  padding: 8px 12px;
+  background: rgb(11 15 18 / 0.9);
+  border-left: 2px solid #d9a35a;
+  font: 13px/1.45 ui-monospace, 'SF Mono', Consolas, monospace;
+  color: #d9dcdc;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+  pointer-events: none;
+}
+
+.phone-toast.on {
+  opacity: 1;
+}
+
+.day-end {
+  position: fixed;
+  inset: 0;
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.day-end.on {
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity 2.5s ease;
+}
+
+.day-end-lines {
+  max-width: 32rem;
+  padding: 0 16px;
+  font: italic 17px/1.7 Georgia, 'Times New Roman', serif;
+  color: #d8d2c4;
+}
+
+.day-end-card {
+  max-width: 34rem;
+  padding: 0 16px;
+  text-align: center;
+  font: 14px/1.6 ui-monospace, 'SF Mono', Consolas, monospace;
+  color: #a9b0b3;
+}
+
+.day-end-card[hidden],
+.day-end-lines[hidden] {
+  display: none;
+}
+
+.day-end-card h1 {
+  margin: 0 0 0.5rem;
+  font-size: 1.8rem;
+  letter-spacing: 0.3em;
+  color: #e8e6e1;
+}
+
+.day-end-sub {
+  margin: 0;
+  letter-spacing: 0.12em;
+  color: #d9a35a;
+}
+
+.day-end-version {
+  margin: 0.25rem 0 1.5rem;
+  font-size: 12px;
+  color: #6e7679;
+}
+
+.day-end-actions .button {
+  color: #e8e6e1;
+}
+
+.day-end-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 1.25rem;
+}

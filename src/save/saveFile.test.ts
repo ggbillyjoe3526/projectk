@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SETTINGS_VERSION } from '../settings/storage';
 import { canonicalJson, isEmpty, MIGRATIONS, migrateStores, parseSaveText, SAVE_FORMAT, type SaveData, saveFileName, saveFileText, STORES_BY_FORMAT } from './saveFile';
+import { CROSSING_VERSION } from '../game/crossing/progress';
 import { PROGRESS_VERSION } from './progress';
 import { SAVE_STORES } from './stores';
 
@@ -12,6 +13,7 @@ const save: SaveData = {
     settings: { version: 1, renderer: 'webgl', 'volume.master': 0.8, laterField: 'kept' },
     keyBindings: { attack: ['Mouse0'], interact: ['KeyT'] },
     progress: { version: 1, layout: 'abc', progress: { swordTaken: true, read: ['note'], opened: [] }, checkpoint: null },
+    crossing: { version: 1, layout: 'abc', progress: { phase: 'island', flags: ['met:morag'] }, checkpoint: null },
   },
 };
 
@@ -33,7 +35,7 @@ describe('save file', () => {
 
   it('keeps a reformatted file valid (keys reordered, spacing changed)', () => {
     const file = JSON.parse(saveFileText(save));
-    const reordered = { checksum: file.checksum, stores: { progress: file.stores.progress, keyBindings: file.stores.keyBindings, settings: file.stores.settings }, format: file.format, game: file.game };
+    const reordered = { checksum: file.checksum, stores: { crossing: file.stores.crossing, progress: file.stores.progress, keyBindings: file.stores.keyBindings, settings: file.stores.settings }, format: file.format, game: file.game };
     const parsed = parseSaveText(JSON.stringify(reordered));
     expect(parsed.ok && parsed.checksumOk).toBe(true);
   });
@@ -67,7 +69,7 @@ describe('save file', () => {
   it('reads stores that are missing or not objects as nothing saved (their defaults)', () => {
     const parsed = parseSaveText(JSON.stringify({ game: 'Project Outbound', format: 1, stores: { settings: { version: 1 }, keyBindings: 'junk', mystery: { a: 1 } } }));
     expect(parsed.ok).toBe(true);
-    if (parsed.ok) expect(parsed.save.stores).toEqual({ settings: { version: 1 }, keyBindings: null, progress: null });
+    if (parsed.ok) expect(parsed.save.stores).toEqual({ settings: { version: 1 }, keyBindings: null, progress: null, crossing: null });
   });
 
   it('walks an old format up one step at a time, and refuses a gap', () => {
@@ -90,7 +92,7 @@ describe('save file', () => {
     // Fails when a store's own version goes up (or a store is added) without SAVE_FORMAT and STORES_BY_FORMAT following.
     const now = Object.fromEntries(SAVE_STORES.map((s) => [s.id, s.version]));
     expect(STORES_BY_FORMAT[SAVE_FORMAT]).toEqual(now);
-    expect(now).toEqual({ settings: SETTINGS_VERSION, keyBindings: 0, progress: PROGRESS_VERSION });
+    expect(now).toEqual({ settings: SETTINGS_VERSION, keyBindings: 0, progress: PROGRESS_VERSION, crossing: CROSSING_VERSION });
     // And every format before this one has its migration step.
     for (let f = 1; f < SAVE_FORMAT; f++) {
       expect(STORES_BY_FORMAT[f]).toBeDefined();

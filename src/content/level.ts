@@ -51,7 +51,26 @@ export interface CottageDressing {
   readonly bier: Box2;
   /** Things shown by a mesh in the set while they're there to use, by the thing's id. */
   readonly notebook: string;
+  /**
+   * The night of the vigil (chapter 1): the coffin on the bier, the candle not yet lit, the salt on the table, and the
+   * changes the customs make, each a thing mesh (`VIGIL_MESHES`) for the chapter to show as the player uses them.
+   */
+  readonly vigil?: boolean;
 }
+
+/** The cottage set's meshes for the vigil night, by the id the chapter shows or hides each by. */
+export const VIGIL_MESHES = {
+  coffin: 'vigil-coffin',
+  /** The candle's flame and light, shown once it's lit. */
+  candleFlame: 'vigil-candle-flame',
+  /** The saucer of salt on the table, and moved onto the coffin lid. */
+  saltOnTable: 'vigil-salt-on-table',
+  saltOnCoffin: 'vigil-salt-on-coffin',
+  /** The mirror's back, once it's turned to the wall. */
+  mirrorTurned: 'vigil-mirror-turned',
+  /** The lower sash pushed up. */
+  windowOpen: 'vigil-window-open',
+} as const;
 
 /**
  * An indoor space: the dark doesn't drain Resolve here. A refuge (the cottage, the kirk vestry) is one the dead won't

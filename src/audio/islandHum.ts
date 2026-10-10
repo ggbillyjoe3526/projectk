@@ -82,6 +82,11 @@ export class IslandHum {
     return this.ctx.resume();
   }
 
+  /** Stop the sound for good (the chapter is over and another takes over). */
+  close(): Promise<void> {
+    return this.ctx.close();
+  }
+
   /** Silence everything in the mix (the game is paused) until `resume`. */
   suspend(): Promise<void> {
     return this.ctx.suspend();
