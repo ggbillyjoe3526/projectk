@@ -286,6 +286,17 @@ What changed (PR #25):
 tests pass (`npm run check`), without waiting for William's review, and tells him in the project thread when one is
 merged. A failing PR is never merged. GitHub CI (PR #18) runs the checks and a WebGL2 smoke test on every PR.
 
+### Versions
+
+**Settled (William, 2026-10-10):** each chapter is a minor version: chapter 1 is 0.1, chapter 2 is 0.2, and so on.
+Builds within a chapter are numbered Dev builds: chapter 1's first release is **"0.1 Dev 1"**, then "0.1 Dev 2",
+"0.1 Dev 3" as it is iterated on, and chapter 2 starts again at "0.2 Dev 1". (William's message listed "0.1 Dev 2"
+after "0.2 Dev 1"; that reads as a typo for "0.2 Dev 2".)
+
+In the code the release lives in `src/config/release.ts`: bump `dev` for each build put out to play, and `chapter`
+(with `dev` back to 1) when a new chapter's builds begin. The start screen shows the release name under the title, and
+crash reports carry it next to the exact git version.
+
 ### The repository rename
 
 On 2026-10-10 the game was renamed to Project Outbound (PR #5) and William renamed the GitHub repository from
@@ -336,3 +347,4 @@ just disabled, and can be turned back on when he asks.
 | 2026-10-10 | Still felt off: the blow counted before the arm came down. Fixed in PR #10; William: "that feels much better." |
 | 2026-10-10 | William started the vertical slice and chose to build it in two stages, "Low water" first ([plan](vertical-slice-plan.md)). Levels became data (PR #12). |
 | 2026-10-10 | Stage 1, "Low water", built and played through PR #25 (spaces, expedition loop, the opening's beats, torch battery, CI, the cottage, the low-Resolve grade, and the controls, combat and HUD after William's playtests). William wrapped up the vertical slice there; work moves to the first chapter, in another thread. Stage 2, "The funeral", was not started. |
+| 2026-10-10 | William set the version scheme: a minor version per chapter, numbered Dev builds within it; chapter 1 releases as "0.1 Dev 1". |

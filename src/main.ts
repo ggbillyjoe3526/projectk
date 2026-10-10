@@ -2,6 +2,7 @@ import './style.css';
 import type { Action } from './config/controls';
 import { CRASH_TEXT, GRAPHICS_ERROR } from './config/crash';
 import { FRAME_RATE_CAPS } from './config/render';
+import { releaseName } from './config/release';
 import { DEFAULT_RENDERER, RENDER_BACKEND, RENDERER_IDS } from './config/renderBackend';
 import { SIM, SIM_DT } from './config/sim';
 import { awayWatch } from './core/awayWatch';
@@ -48,7 +49,7 @@ function reportFields(): ReportField[] {
 
 /** Shows the crash pane (once; later errors join its report). */
 function fail(error: unknown): void {
-  const report = crashReport({ title: 'Project Outbound crash report', build: __BUILD_VERSION__, userAgent: navigator.userAgent, fields: reportFields(), error });
+  const report = crashReport({ title: 'Project Outbound crash report', build: `${releaseName()} (${__BUILD_VERSION__})`, userAgent: navigator.userAgent, fields: reportFields(), error });
   if (crash) {
     crash.append(report);
     return;
@@ -227,7 +228,7 @@ async function main(): Promise<void> {
     [`Esc / ${key('pause')}`, 'pause'],
     [`${key('debugOverlay')} / ${key('debugTimeScale')} / ${key('debugFightReadout')}`, 'debug readout / faster island time / deflect timing'],
   ];
-  await startGate(container, 'PROJECT OUTBOUND', controls(), slice.continuing ? () => slice.startOver() : undefined);
+  await startGate(container, 'PROJECT OUTBOUND', controls(), slice.continuing ? () => slice.startOver() : undefined, releaseName());
   pauseScreen = new PauseScreen(container, controls(), 'Click, Esc or P to carry on', () => setPaused(false));
   slice.startAudio();
   playing = true;
