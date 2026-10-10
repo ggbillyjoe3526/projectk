@@ -1,0 +1,522 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Haugsay Camera Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@500;700&family=Alegreya+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a single dark field-station screen — the viewport on the left, the field notes for the active camera on the right; stacks on narrow screens. */
+:root {
+  --bg: #0d1114;          /* night sea */
+  --panel: #151b1f;       /* wet slate */
+  --line: #26313a;        /* dyke stone */
+  --fg: #d9dcd6;          /* haar white */
+  --muted: #8e9a9c;       /* lichen grey */
+  --accent: #e0a458;      /* peat-stove orange */
+  --good: #8fb996;
+  --bad: #d98378;
+  --display: "Alegreya SC", "Iowan Old Style", Georgia, serif;
+  --body: "Alegreya Sans", "Gill Sans", "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 15px; line-height: 1.5; }
+.wrap { padding-block: 20px 28px; padding-inline: 16px; max-width: 1400px; margin: 0 auto; display: grid; gap: 16px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 24px; }
+h1 { font-family: var(--display); font-weight: 700; font-size: clamp(22px, 3vw, 30px); letter-spacing: 0.04em; margin: 0; text-wrap: balance; }
+.sub { color: var(--muted); margin: 0; max-width: 70ch; }
+.modes { display: flex; flex-wrap: wrap; gap: 6px; }
+.modes button { font: 600 13px/1 var(--mono); color: var(--fg); background: var(--panel); border: 1px solid var(--line); padding: 9px 12px; border-radius: 3px; cursor: pointer; }
+.modes button:hover { border-color: var(--muted); }
+.modes button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.modes button[aria-pressed="true"] { background: var(--accent); color: #1a1208; border-color: var(--accent); }
+.modes button .k { opacity: 0.6; margin-right: 6px; }
+.main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; align-items: start; }
+@media (max-width: 980px) { .main { grid-template-columns: minmax(0, 1fr); } }
+.view { position: relative; background: #000; border: 1px solid var(--line); aspect-ratio: 16 / 9; max-width: 100%; overflow: hidden; cursor: crosshair; }
+.view canvas { width: 100%; height: 100%; display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
+.overlay { position: absolute; inset: auto 0 0 0; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 16px; padding: 8px 10px; font: 12px/1.4 var(--mono); color: var(--fg); background: linear-gradient(transparent, rgba(0,0,0,0.75)); pointer-events: none; }
+.overlay b { color: var(--accent); font-weight: 600; }
+.start { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(5,8,10,0.72); text-align: center; padding: 16px; }
+.start div { max-width: 46ch; display: grid; gap: 10px; }
+.start strong { font-family: var(--display); font-size: 22px; letter-spacing: 0.04em; }
+.start p { margin: 0; color: var(--muted); }
+.start[hidden], .err[hidden] { display: none; }
+.start button { justify-self: center; font: 600 14px/1 var(--mono); background: var(--accent); color: #1a1208; border: 0; padding: 12px 18px; border-radius: 3px; cursor: pointer; }
+.start button:focus-visible { outline: 2px solid var(--fg); outline-offset: 3px; }
+aside { background: var(--panel); border: 1px solid var(--line); padding: 16px 18px; display: grid; gap: 12px; min-width: 0; }
+aside h2 { font-family: var(--display); font-size: 21px; margin: 0; letter-spacing: 0.03em; text-wrap: balance; }
+.tag { display: inline-block; font: 600 11px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; padding: 5px 7px; border-radius: 2px; border: 1px solid var(--line); color: var(--muted); }
+.tag.rec { border-color: var(--accent); color: var(--accent); }
+.like { color: var(--muted); margin: 0; }
+aside h3 { font: 600 11px/1 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; margin: 4px 0 0; color: var(--muted); }
+aside ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.pros li::marker { color: var(--good); }
+.cons li::marker { color: var(--bad); }
+.try { border-top: 1px solid var(--line); padding-top: 10px; margin: 0; color: var(--fg); }
+.keys { display: flex; flex-wrap: wrap; gap: 6px 14px; font: 12px/1.6 var(--mono); color: var(--muted); }
+kbd { font: 600 11px/1 var(--mono); color: var(--fg); border: 1px solid var(--line); border-bottom-width: 2px; padding: 3px 5px; border-radius: 3px; background: var(--bg); }
+.note { color: var(--muted); font-size: 13px; margin: 0; }
+.err { color: var(--bad); }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Haugsay Camera Lab</h1>
+      <p class="sub">Walk the same greybox (the cottage, a passage and the kirkyard by the causeway) under five camera styles. The dead shamble toward you; strike one and it falls, then gets back up.</p>
+    </div>
+    <div class="modes" role="group" aria-label="Camera style">
+      <button id="m0" data-mode="0" aria-pressed="true"><span class="k">1</span>A · Authored</button>
+      <button id="m1" data-mode="1" aria-pressed="false"><span class="k">2</span>B · Third person</button>
+      <button id="m2" data-mode="2" aria-pressed="false"><span class="k">3</span>C · Top-down</button>
+      <button id="m3" data-mode="3" aria-pressed="false"><span class="k">4</span>D · Shoulder</button>
+      <button id="m4" data-mode="4" aria-pressed="false"><span class="k">5</span>E · First person</button>
+    </div>
+  </header>
+
+  <div class="main">
+    <div style="display:grid; gap:10px; min-width:0;">
+      <div class="view" id="view" tabindex="0" aria-label="Game view">
+        <canvas id="c" width="480" height="270"></canvas>
+        <div class="overlay"><span id="ov-mode"><b>A</b> Authored tracking camera</span><span id="ov-zone">Zone: cottage</span><span id="ov-tip">Mouse aims your torch</span></div>
+        <div class="start" id="start">
+          <div>
+            <strong>Keyboard and mouse</strong>
+            <p>Click to start. In B, D and E the mouse turns the camera (press Esc to free the cursor). Number keys 1–5 switch camera style at any time.</p>
+            <button id="go">Start walking</button>
+            <p class="err" id="err" hidden></p>
+          </div>
+        </div>
+      </div>
+      <div class="keys">
+        <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move</span>
+        <span><kbd>Mouse</kbd> aim / look</span>
+        <span><kbd>Left click</kbd> strike</span>
+        <span><kbd>Right click</kbd> deflect pose</span>
+        <span><kbd>Space</kbd> step</span>
+        <span><kbd>T</kbd> torch on/off</span>
+        <span><kbd>1</kbd>–<kbd>5</kbd> camera</span>
+      </div>
+      <p class="note">Rendered at 480×270 with ordered dithering, so the comparison happens in roughly the game's intended look. Greybox only: no art, sound or real combat.</p>
+    </div>
+
+    <aside id="notes" aria-live="polite"></aside>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+
+const MODES = [
+  { key: 'A', name: 'Authored tracking camera', rec: true, like: 'Like Resident Evil 1 and Kuon, but tracking instead of cutting.',
+    pros: ['Strongest horror framing: we choose what you can\'t see', 'Mouse sweeps the torch, which makes light a real tool', 'Most PS1/PS2-authentic; hides the low-poly budget', 'Each fight space gets one readable camera'],
+    cons: ['Every space needs hand-placed cameras', 'Some players dislike not steering the camera', 'Wide outdoor areas need careful framing'],
+    tip: 'Walk from the cottage through the passage into the kirkyard and notice the three camera set-ups. Hold W through a cut: your direction is kept until you let go.',
+    ovTip: 'Mouse aims your torch' },
+  { key: 'B', name: 'Free third person', like: 'Like Dark Souls or the Resident Evil remakes, with the mouse orbiting the camera.',
+    pros: ['Familiar to most players', 'Best for an open island and for melee lock-on', 'Lowest camera-authoring cost'],
+    cons: ['Weaker scares: the player can always look', 'Every angle must be dressed (more art)', 'The most common look in the genre', 'The torch can only point where the camera looks'],
+    tip: 'Spin the camera in the kirkyard and see how much is always visible. Compare how the dead read when they come from behind.',
+    ovTip: 'Mouse orbits the camera' },
+  { key: 'C', name: 'Top-down with a vision cone', like: 'Like Signalis, with line-of-sight hiding what your character can\'t see.',
+    pros: ['Clearest combat; the mouse feels natural', 'The tide and causeway read beautifully from above', 'Cheapest art', 'The vision cone brings fear back'],
+    cons: ['Less intimate and claustrophobic', 'Least like your PS1 3D references', 'Further from Kuon and RE1'],
+    tip: 'Turn your back on the dead: they vanish outside your cone and behind walls, and only reappear when close enough to hear.',
+    ovTip: 'Mouse aims your cone' },
+  { key: 'D', name: 'Over the shoulder', like: 'Like the Resident Evil 4 remake or your two lo-fi PS1 shots.',
+    pros: ['Very immersive and tense', 'Matches two of your references', 'Great in torch-lit interiors'],
+    cons: ['Narrow view makes crawling, irregular enemies hard to deflect', 'Closer to Silent Hill: Townfall and many modern games', 'Every angle must be dressed'],
+    tip: 'Let two of the dead approach from different sides and see how much of the fight you can actually read.',
+    ovTip: 'Mouse turns you' },
+  { key: 'E', name: 'First person', like: 'Like Silent Hill: Townfall or Amnesia.',
+    pros: ['Maximum immersion', 'Natural with keyboard and mouse'],
+    cons: ['Deflect-based melee is hard to read', 'Exactly Townfall\'s perspective', 'Crowded space in lo-fi indie horror'],
+    tip: 'Try striking a shambler at the right moment. Then try it in A.',
+    ovTip: 'Mouse looks around' },
+];
+
+const canvas = document.getElementById('c');
+const view = document.getElementById('view');
+const startEl = document.getElementById('start');
+const errEl = document.getElementById('err');
+const notes = document.getElementById('notes');
+const ovMode = document.getElementById('ov-mode');
+const ovZone = document.getElementById('ov-zone');
+const ovTip = document.getElementById('ov-tip');
+
+const W = 480, H = 270;
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: false });
+} catch (e) {
+  errEl.hidden = false; errEl.textContent = 'This browser could not start WebGL, so the lab cannot run here.';
+  throw e;
+}
+renderer.setPixelRatio(1);
+renderer.setSize(W, H, false);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.BasicShadowMap;
+
+// Low-res target + ordered-dither quantise pass
+const rt = new THREE.WebGLRenderTarget(W, H, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter });
+const postScene = new THREE.Scene();
+const postCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+const postMat = new THREE.ShaderMaterial({
+  uniforms: { tex: { value: rt.texture }, res: { value: new THREE.Vector2(W, H) } },
+  vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+  fragmentShader: `
+    uniform sampler2D tex; uniform vec2 res; varying vec2 vUv;
+    float bayer(vec2 p){ int x=int(mod(p.x,4.0)); int y=int(mod(p.y,4.0)); int i=x+y*4;
+      float m[16]; m[0]=0.;m[1]=8.;m[2]=2.;m[3]=10.;m[4]=12.;m[5]=4.;m[6]=14.;m[7]=6.;m[8]=3.;m[9]=11.;m[10]=1.;m[11]=9.;m[12]=15.;m[13]=7.;m[14]=13.;m[15]=5.;
+      for(int k=0;k<16;k++){ if(k==i) return m[k]/16.0; } return 0.0; }
+    void main(){ vec3 c = pow(max(texture2D(tex, vUv).rgb, 0.0), vec3(1.0/2.2));
+      float levels = 24.0; float d = bayer(floor(vUv*res)) - 0.5;
+      c = floor(c*levels + d + 0.5)/levels;
+      gl_FragColor = vec4(c, 1.0); }`,
+  depthTest: false, depthWrite: false,
+});
+postScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), postMat));
+
+// ---------- World ----------
+const scene = new THREE.Scene();
+const fogColor = new THREE.Color(0x0b1216);
+scene.background = fogColor;
+scene.fog = new THREE.FogExp2(fogColor, 0.045);
+scene.add(new THREE.HemisphereLight(0x6a7c88, 0x1a1612, 1.1));
+const moon = new THREE.DirectionalLight(0x9fb6c8, 0.9); moon.position.set(20, 30, 15); scene.add(moon);
+
+const matStone = new THREE.MeshLambertMaterial({ color: 0x6b6a62 });
+const matStoneDark = new THREE.MeshLambertMaterial({ color: 0x4a4b46 });
+const matFloor = new THREE.MeshLambertMaterial({ color: 0x3b3a33 });
+const matGrass = new THREE.MeshLambertMaterial({ color: 0x2f3a2a });
+const matWood = new THREE.MeshLambertMaterial({ color: 0x5a3f2b });
+const matWater = new THREE.MeshLambertMaterial({ color: 0x1d3440, transparent: true, opacity: 0.85 });
+
+const walls = []; // {minX,maxX,minZ,maxZ}
+const wallMeshes = [];
+function box(x, y, z, sx, sy, sz, mat, solid = true, cast = true) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), mat);
+  m.position.set(x, y, z); m.castShadow = cast; m.receiveShadow = true; scene.add(m);
+  if (solid) { walls.push({ minX: x - sx / 2, maxX: x + sx / 2, minZ: z - sz / 2, maxZ: z + sz / 2 }); wallMeshes.push(m); }
+  return m;
+}
+// Floors
+box(0, -0.05, 0, 12, 0.1, 8, matFloor, false, false);
+box(11, -0.05, 0, 10, 0.1, 3, matFloor, false, false);
+box(27, -0.05, 0, 22, 0.1, 22, matGrass, false, false);
+// Cottage walls (door gap on east wall at z in [-1,1])
+box(0, 1.4, -4, 12, 2.8, 0.3, matStone); box(0, 1.4, 4, 12, 2.8, 0.3, matStone);
+box(-6, 1.4, 0, 0.3, 2.8, 8, matStone);
+box(6, 1.4, -2.6, 0.3, 2.8, 2.8, matStone); box(6, 1.4, 2.6, 0.3, 2.8, 2.8, matStone);
+// Cottage furniture
+box(-4.6, 0.5, -3, 1.6, 1.0, 1.4, matStoneDark); // stove
+box(-1, 0.4, 0.5, 2.2, 0.8, 1.0, matWood); // table
+box(3.5, 0.5, 2.9, 2.4, 1.0, 1.0, matWood); // bier with the body
+box(3.5, 1.1, 2.9, 1.8, 0.25, 0.5, new THREE.MeshLambertMaterial({ color: 0xbdb8aa }), false);
+const stove = new THREE.PointLight(0xff8a3a, 2.2, 7, 1.6); stove.position.set(-4.6, 1.3, -2.3); scene.add(stove);
+// Passage
+box(11, 1.4, -1.6, 10, 2.8, 0.3, matStone); box(11, 1.4, 1.6, 10, 2.8, 0.3, matStone);
+// Kirkyard boundary dykes (open on the passage side)
+box(38, 0.6, 0, 0.6, 1.2, 22, matStone);
+box(27, 0.6, -11, 22, 1.2, 0.6, matStone);
+box(27, 0.6, 11, 22, 1.2, 0.6, matStone);
+box(16, 0.6, -6.3, 0.6, 1.2, 9.4, matStone); box(16, 0.6, 6.3, 0.6, 1.2, 9.4, matStone);
+// Kirk gable and gravestones, a mortsafe, a standing stone
+box(33, 2.5, -7.5, 8, 5, 0.8, matStoneDark);
+const rng = (() => { let s = 7; return () => (s = (s * 16807) % 2147483647) / 2147483647; })();
+for (let i = 0; i < 18; i++) {
+  const gx = 20 + (i % 6) * 2.6 + rng() * 0.6, gz = -4 + Math.floor(i / 6) * 3.2 + rng() * 0.8;
+  const g = box(gx, 0.45, gz, 0.6, 0.9 + rng() * 0.4, 0.18, matStone);
+  g.rotation.z = (rng() - 0.5) * 0.25;
+}
+// mortsafe: an iron cage over a grave
+box(30.8, 0.7, 6, 1.4, 1.4, 2.2, new THREE.MeshLambertMaterial({ color: 0x2a2c2e, wireframe: true }), true);
+box(35, 1.8, 6, 0.9, 3.6, 0.5, matStoneDark); // standing stone
+// The causeway and the sea beyond the east dyke
+const sea = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), matWater);
+sea.rotation.x = -Math.PI / 2; sea.position.set(60, -0.3, 0); scene.add(sea);
+box(46, -0.2, 0, 16, 0.2, 2.2, matStoneDark, false, false);
+
+// ---------- Characters ----------
+function figure(color, h = 1.75) {
+  const g = new THREE.Group();
+  const mat = new THREE.MeshLambertMaterial({ color });
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.28, h * 0.62, 6), mat);
+  body.position.y = h * 0.42; body.castShadow = true; g.add(body);
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.28, 0.26), mat);
+  head.position.y = h * 0.85; head.castShadow = true; g.add(head);
+  g.userData.body = body; g.userData.head = head;
+  scene.add(g); return g;
+}
+const player = figure(0x2d3a45);
+player.position.set(-2, 0, -1.5);
+const sword = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.95), new THREE.MeshLambertMaterial({ color: 0x9aa3a6 }));
+sword.position.set(0.3, 1.0, 0.45); player.add(sword);
+const torchBox = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.22), new THREE.MeshLambertMaterial({ color: 0x111111 }));
+torchBox.position.set(-0.3, 1.1, 0.3); player.add(torchBox);
+
+const torch = new THREE.SpotLight(0xfff0d0, 9, 16, Math.PI / 7.5, 0.45, 1.4);
+torch.castShadow = true; torch.shadow.mapSize.set(512, 512); torch.shadow.camera.near = 0.3;
+scene.add(torch); scene.add(torch.target);
+let torchOn = true;
+
+const dead = [];
+[[22, -2], [28, 3], [31, -5], [12.5, 0]].forEach(([x, z], i) => {
+  const d = figure(0x8f8a7c, 1.6 + (i % 2) * 0.12);
+  d.position.set(x, 0, z);
+  d.userData.state = 'idle'; d.userData.t = 0; d.userData.home = new THREE.Vector3(x, 0, z);
+  d.userData.phase = rng() * 6;
+  dead.push(d);
+});
+
+// ---------- Collision ----------
+function collide(pos, r) {
+  for (const w of walls) {
+    const cx = Math.max(w.minX, Math.min(pos.x, w.maxX));
+    const cz = Math.max(w.minZ, Math.min(pos.z, w.maxZ));
+    let dx = pos.x - cx, dz = pos.z - cz; const d2 = dx * dx + dz * dz;
+    if (d2 < r * r) {
+      if (d2 > 1e-8) { const d = Math.sqrt(d2); pos.x = cx + dx / d * r; pos.z = cz + dz / d * r; }
+      else { pos.x += r; }
+    }
+  }
+}
+
+// ---------- Input ----------
+const keys = new Set();
+let mode = 0, started = false;
+const mouseNdc = new THREE.Vector2(0, 0);
+let yaw = Math.PI / 2, pitch = -0.25; // for B/D/E
+let swingT = 0, deflectHeld = false, stepT = 0;
+const stepDir = new THREE.Vector3();
+
+window.addEventListener('keydown', (e) => {
+  if (!started) return;
+  const k = e.key.toLowerCase();
+  if (['w', 'a', 's', 'd', ' '].includes(k)) e.preventDefault();
+  if (k >= '1' && k <= '5') setMode(+k - 1);
+  if (k === 't') torchOn = !torchOn;
+  if (k === ' ' && stepT <= 0) { stepT = 0.18; stepDir.copy(lastMove.lengthSq() > 0 ? lastMove : facingVec()).normalize(); }
+  keys.add(k);
+});
+window.addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
+window.addEventListener('blur', () => keys.clear());
+view.addEventListener('contextmenu', (e) => e.preventDefault());
+view.addEventListener('mousemove', (e) => {
+  const r = canvas.getBoundingClientRect();
+  mouseNdc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  if (mode >= 1 && mode !== 2) {
+    yaw -= e.movementX * 0.0035;
+    pitch = Math.max(-1.1, Math.min(0.6, pitch - e.movementY * 0.003));
+  }
+});
+view.addEventListener('mousedown', (e) => {
+  if (!started) return;
+  if ((mode === 1 || mode === 3 || mode === 4) && document.pointerLockElement !== view) {
+    try { const p = view.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (_) {}
+  }
+  if (e.button === 0 && swingT <= 0) swingT = 0.32;
+  if (e.button === 2) deflectHeld = true;
+});
+window.addEventListener('mouseup', (e) => { if (e.button === 2) deflectHeld = false; });
+
+document.querySelectorAll('.modes button').forEach((b) => b.addEventListener('click', () => { setMode(+b.dataset.mode); view.focus(); }));
+document.getElementById('go').addEventListener('click', () => { started = true; startEl.hidden = true; view.focus(); });
+
+function setMode(m) {
+  mode = m;
+  document.querySelectorAll('.modes button').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.mode === m)));
+  if ((m === 0 || m === 2) && document.pointerLockElement) document.exitPointerLock();
+  if (m >= 1 && m !== 2) { yaw = player.rotation.y; pitch = m === 4 ? 0 : -0.25; }
+  freezeBasis = null;
+  renderNotes();
+}
+function renderNotes() {
+  const d = MODES[mode];
+  const li = (a) => a.map((t) => `<li>${t}</li>`).join('');
+  notes.innerHTML = `
+    <div style="display:flex; gap:8px; flex-wrap:wrap;"><span class="tag">Option ${d.key}</span>${d.rec ? '<span class="tag rec">Recommended</span>' : ''}</div>
+    <h2>${d.name}</h2>
+    <p class="like">${d.like}</p>
+    <h3>Pros</h3><ul class="pros">${li(d.pros)}</ul>
+    <h3>Cons</h3><ul class="cons">${li(d.cons)}</ul>
+    <p class="try"><strong>Try this:</strong> ${d.tip}</p>`;
+  ovMode.innerHTML = `<b>${d.key}</b> ${d.name}`;
+  ovTip.textContent = d.ovTip;
+}
+renderNotes();
+
+// ---------- Cameras ----------
+const cam = new THREE.PerspectiveCamera(50, W / H, 0.1, 120);
+const ZONES = [
+  { name: 'cottage', test: (p) => p.x < 6 },
+  { name: 'passage', test: (p) => p.x >= 6 && p.x < 16 },
+  { name: 'kirkyard', test: (p) => p.x >= 16 },
+];
+let zone = 0, freezeBasis = null;
+const camPos = new THREE.Vector3(), camLook = new THREE.Vector3();
+function authoredCam(p, snap) {
+  let pos, look;
+  if (zone === 0) { pos = new THREE.Vector3(-5.4, 5.6, -3.4); look = p.clone().add(new THREE.Vector3(0, 0.8, 0)); cam.fov = 58; }
+  else if (zone === 1) { pos = new THREE.Vector3(THREE.MathUtils.clamp(p.x - 3.5, 5, 13), 5.5, 3.2); look = p.clone().add(new THREE.Vector3(1.2, 0.8, 0)); cam.fov = 52; }
+  else { pos = new THREE.Vector3(THREE.MathUtils.clamp(p.x - 2, 16, 34), 9.5, THREE.MathUtils.clamp(p.z + 11, 4, 18)); look = p.clone().add(new THREE.Vector3(1, 0.5, -1)); cam.fov = 46; }
+  if (snap) { camPos.copy(pos); camLook.copy(look); } else { camPos.lerp(pos, 0.08); camLook.lerp(look, 0.15); }
+  cam.position.copy(camPos); cam.lookAt(camLook);
+}
+const ray = new THREE.Raycaster();
+const ground = new THREE.Plane(new THREE.Vector3(0, 1, 0), -1.0);
+const aimPoint = new THREE.Vector3();
+function mouseGroundAim() {
+  ray.setFromCamera(mouseNdc, cam);
+  if (ray.ray.intersectPlane(ground, aimPoint)) return aimPoint;
+  return null;
+}
+function facingVec() { return new THREE.Vector3(Math.sin(player.rotation.y), 0, Math.cos(player.rotation.y)); }
+
+// ---------- Loop ----------
+const clock = new THREE.Clock();
+const lastMove = new THREE.Vector3();
+let prevZone = 0, lastHadMove = false;
+const tmp = new THREE.Vector3();
+
+function frame() {
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const t = clock.elapsedTime;
+
+  // zone
+  zone = ZONES.findIndex((z) => z.test(player.position));
+  const zoneChanged = zone !== prevZone;
+  ovZone.textContent = 'Zone: ' + ZONES[zone].name;
+
+  // movement basis
+  let fwd = new THREE.Vector3(), right = new THREE.Vector3();
+  if (mode === 0 || mode === 2) {
+    cam.getWorldDirection(fwd); fwd.y = 0; fwd.normalize();
+    const anyMove = ['w', 'a', 's', 'd'].some((k) => keys.has(k));
+    if (zoneChanged && anyMove && mode === 0) freezeBasis = fwd.clone();
+    if (!anyMove) freezeBasis = null;
+    if (freezeBasis) fwd.copy(freezeBasis);
+  } else {
+    fwd.set(Math.sin(yaw), 0, Math.cos(yaw));
+  }
+  right.crossVectors(fwd, new THREE.Vector3(0, 1, 0)).normalize();
+  const move = new THREE.Vector3();
+  if (started) {
+    if (keys.has('w')) move.add(fwd); if (keys.has('s')) move.sub(fwd);
+    if (keys.has('d')) move.add(right); if (keys.has('a')) move.sub(right);
+  }
+  const speed = deflectHeld ? 1.4 : 3.0;
+  if (move.lengthSq() > 0) { move.normalize(); lastMove.copy(move); }
+  player.position.addScaledVector(move, speed * dt);
+  if (stepT > 0) { player.position.addScaledVector(stepDir, 11 * dt); stepT -= dt; }
+  collide(player.position, 0.35);
+  prevZone = zone;
+
+  // facing
+  if (mode === 0 || mode === 2) {
+    const a = mouseGroundAim();
+    if (a) { tmp.set(a.x - player.position.x, 0, a.z - player.position.z); if (tmp.lengthSq() > 0.04) player.rotation.y = Math.atan2(tmp.x, tmp.z); }
+  } else if (mode === 1) {
+    if (move.lengthSq() > 0) { const target = Math.atan2(move.x, move.z); let d = target - player.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); player.rotation.y += d * Math.min(1, dt * 12); }
+  } else { player.rotation.y = yaw; }
+
+  // swing + deflect pose
+  if (swingT > 0) { swingT -= dt; const k = 1 - swingT / 0.32; sword.rotation.y = -1.4 + k * 2.8; sword.position.x = 0.3 - Math.sin(k * Math.PI) * 0.2; }
+  else { sword.rotation.y = deflectHeld ? 1.2 : 0; sword.position.x = deflectHeld ? 0.1 : 0.3; sword.rotation.x = deflectHeld ? -0.6 : 0; }
+  const bob = move.lengthSq() > 0 ? Math.sin(t * 9) * 0.03 : 0;
+  player.userData.body.position.y = 1.75 * 0.42 + bob;
+
+  // camera
+  if (mode === 0) authoredCam(player.position, zoneChanged);
+  else if (mode === 1) {
+    const dist = 4.6; cam.fov = 55;
+    const p = player.position.clone().add(new THREE.Vector3(0, 1.5, 0));
+    cam.position.set(p.x - Math.sin(yaw) * Math.cos(pitch) * dist, p.y - Math.sin(pitch) * dist, p.z - Math.cos(yaw) * Math.cos(pitch) * dist);
+    cam.position.y = Math.max(0.4, cam.position.y);
+    cam.lookAt(p);
+  } else if (mode === 2) {
+    cam.fov = 40;
+    const target = player.position.clone().add(new THREE.Vector3(0, 13, 7.5));
+    if (zoneChanged) camPos.copy(target); camPos.lerp(target, 0.12);
+    cam.position.copy(camPos); cam.lookAt(player.position.clone().add(new THREE.Vector3(0, 0, -0.5)));
+  } else if (mode === 3) {
+    cam.fov = 60;
+    const head = player.position.clone().add(new THREE.Vector3(0, 1.55, 0));
+    const r = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+    cam.position.copy(head).addScaledVector(r, -0.55).addScaledVector(new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)), -1.9);
+    cam.position.y += 0.1;
+    const look = head.clone().add(new THREE.Vector3(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch)).multiplyScalar(6));
+    cam.lookAt(look);
+  } else {
+    cam.fov = 70;
+    const head = player.position.clone().add(new THREE.Vector3(0, 1.62, 0));
+    cam.position.copy(head);
+    cam.lookAt(head.clone().add(new THREE.Vector3(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch))));
+  }
+  scene.fog.density = mode === 2 ? 0.026 : 0.045;
+  cam.updateProjectionMatrix();
+  player.visible = mode !== 4;
+
+  // torch
+  torch.visible = torchOn;
+  if (mode === 0 || mode === 2) {
+    torch.position.copy(player.position).add(new THREE.Vector3(0, 1.15, 0)).addScaledVector(facingVec(), 0.3);
+    torch.target.position.copy(player.position).addScaledVector(facingVec(), 6); torch.target.position.y = 0.2;
+  } else {
+    const dir = new THREE.Vector3(); cam.getWorldDirection(dir);
+    torch.position.copy(mode === 4 ? cam.position : player.position.clone().add(new THREE.Vector3(0, 1.3, 0)));
+    torch.target.position.copy(torch.position).addScaledVector(dir, 8);
+  }
+  torch.target.updateMatrixWorld();
+
+  // the dead
+  const pf = facingVec();
+  for (const d of dead) {
+    const u = d.userData; u.t += dt;
+    tmp.subVectors(player.position, d.position); tmp.y = 0; const dist = tmp.length();
+    if (u.state === 'down') {
+      d.rotation.x = Math.max(-Math.PI / 2, d.rotation.x - dt * 6);
+      if (u.t > 4.0) { u.state = 'rising'; u.t = 0; }
+    } else if (u.state === 'rising') {
+      d.rotation.x = Math.min(0, d.rotation.x + dt * 0.9);
+      if (d.rotation.x >= 0) { u.state = 'idle'; }
+    } else {
+      if (dist < 10 && dist > 1.1) {
+        const lurch = 0.55 + Math.max(0, Math.sin(t * 2.3 + u.phase)) * 1.1; // irregular rhythm
+        tmp.normalize(); d.position.addScaledVector(tmp, lurch * dt);
+        d.rotation.y = Math.atan2(tmp.x, tmp.z);
+        d.userData.head.rotation.z = Math.sin(t * 3 + u.phase) * 0.35;
+      }
+      collide(d.position, 0.3);
+      if (swingT > 0.12 && swingT < 0.22 && dist < 1.8) {
+        tmp.subVectors(d.position, player.position).normalize();
+        if (tmp.dot(pf) > 0.3) { u.state = 'down'; u.t = 0; }
+      }
+    }
+    // vision cone in mode C
+    if (mode === 2) {
+      tmp.subVectors(d.position, player.position); tmp.y = 0; const dd = tmp.length(); tmp.normalize();
+      let seen = dd < 2.4;
+      if (!seen && torchOn && dd < 14 && tmp.dot(pf) > Math.cos(0.75)) {
+        ray.set(player.position.clone().add(new THREE.Vector3(0, 1.2, 0)), tmp);
+        ray.far = dd; const hit = ray.intersectObjects(wallMeshes, false);
+        seen = hit.length === 0;
+      }
+      d.visible = seen;
+    } else d.visible = true;
+  }
+
+  // the sea breathes
+  sea.position.y = -0.35 + Math.sin(t * 0.25) * 0.18;
+
+  renderer.setRenderTarget(rt); renderer.render(scene, cam);
+  renderer.setRenderTarget(null); renderer.render(postScene, postCam);
+  requestAnimationFrame(frame);
+}
+authoredCam(player.position, true);
+requestAnimationFrame(frame);
+</script>
+
+</body></html>

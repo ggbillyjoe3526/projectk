@@ -56,4 +56,4 @@ These are read, not copied, when a Project Outbound feature reaches them. A chec
 
 Airsoft's gameplay (ballistics, hits, rounds, modes, bot AI, replicas, economy, stats, tutorial), its WebGL renderer
 and node "twins", the `EffectComposer` post stack, procedural art, Rapier physics and the box map format. The full
-reasoning is in the original review in the project's shared files (`reuse/airsoft-review.md`).
+reasoning is in the original review, [reuse/airsoft-review.md](reuse/airsoft-review.md).
