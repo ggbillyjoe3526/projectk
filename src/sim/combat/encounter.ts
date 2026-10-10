@@ -568,8 +568,10 @@ function swingHits(enc: Encounter, p: PlayerState): void {
     if (Math.hypot(u.x - p.x, u.z - p.z) > reach + UT.radius) continue;
     if (Math.abs(angleTo(p.facing, p.x, p.z, u.x, u.z)) > halfArc) continue;
     f.hitMask |= 1 << i;
-    hitUnburied(enc, i, heavy ? PC.sained.damage : w.damage, heavy ? PC.sained.breakPerHit : w.breakPerHit);
-    enc.events.push({ kind: 'hit', enemy: i, heavy, weapon: f.weapon });
+    // A blow on one reeling from a deflect, or on its knees, lands harder: the follow-up.
+    const opened = u.state === 'reel' || u.state === 'broken';
+    enc.events.push({ kind: 'hit', enemy: i, heavy: heavy || opened, weapon: f.weapon });
+    hitUnburied(enc, i, (heavy ? PC.sained.damage : w.damage) * (opened ? UT.openedDamage : 1), heavy ? PC.sained.breakPerHit : w.breakPerHit, w.canLay);
     enc.hitStop = UT.hitStop;
   }
 }
@@ -595,15 +597,19 @@ function range(rng: RngState, r: readonly [number, number]): number {
   return Math.round(r[0] + rngNext(rng) * (r[1] - r[0]));
 }
 
-function hitUnburied(enc: Encounter, i: number, damage: number, breakAmount: number): void {
+/** A blow lands. `lays`: the blade is iron from the howe, so one it cuts down stays down; the knife's get back up. */
+function hitUnburied(enc: Encounter, i: number, damage: number, breakAmount: number, lays: boolean): void {
   const u = enc.dead[i]!;
   const opened = u.state === 'reel' || u.state === 'broken';
   u.health -= damage;
   u.break = Math.min(UT.maxBreak, u.break + breakAmount * (opened ? 1.5 : 1));
   if (u.health <= 0) {
     u.health = 0;
-    setState(u, 'downed', range(enc.rng, UT.downedTicks));
     enc.events.push({ kind: 'enemyDown', enemy: i });
+    if (lays) {
+      setState(u, 'rested');
+      enc.events.push({ kind: 'rested', enemy: i, name: u.name, rite: false });
+    } else setState(u, 'downed', range(enc.rng, UT.downedTicks));
   } else if (u.state !== 'broken' && u.break >= UT.maxBreak) {
     setState(u, 'broken', UT.brokenTicks);
     enc.events.push({ kind: 'enemyBroken', enemy: i });

@@ -44,10 +44,21 @@ describe('player movement', () => {
     expect(p.listening).toBe(true);
   });
 
-  it('faces the aim point', () => {
+  it('turns quickly, not instantly, to face the aim point', () => {
     const p = createPlayer(world);
+    p.facing = 0;
     stepPlayer(p, { ...idle(), aimX: p.x + 5, aimZ: p.z }, world, T.lowLevel, 1 / 60);
+    expect(p.facing).toBeGreaterThan(0);
+    expect(p.facing).toBeLessThan(Math.PI / 2);
+    for (let i = 0; i < 10; i++) stepPlayer(p, { ...idle(), aimX: p.x + 5, aimZ: p.z }, world, T.lowLevel, 1 / 60);
     expect(p.facing).toBeCloseTo(Math.PI / 2, 5);
+  });
+
+  it('ignores an aim point right at its feet', () => {
+    const p = createPlayer(world);
+    p.facing = 0;
+    stepPlayer(p, { ...idle(), aimX: p.x + 0.3, aimZ: p.z }, world, T.lowLevel, 1 / 60);
+    expect(p.facing).toBe(0);
   });
 });
 

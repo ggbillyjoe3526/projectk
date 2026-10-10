@@ -129,6 +129,20 @@ describe('the knife', () => {
 });
 
 describe('deflect', () => {
+  it('a perfect deflect staggers the enemy, and a blow that follows does double damage', () => {
+    const { enc, p } = duel('sword');
+    windup(enc, 3);
+    tick(enc, p, { deflectPressed: true, deflectHeld: true });
+    run(enc, p, 6, { deflectHeld: true });
+    const u = enc.dead[0]!;
+    expect(u.state).toBe('reel');
+    run(enc, p, PC.deflect.minTicks);
+    tick(enc, p, { attackPressed: true });
+    run(enc, p, WEAPONS.sword.windup + WEAPONS.sword.active + 2);
+    expect(u.health).toBe(UT.health - WEAPONS.sword.damage * UT.openedDamage);
+    expect(enc.events.some((e) => e.kind === 'hit' && e.heavy)).toBe(true);
+  });
+
   it('a perfect deflect staggers the enemy, builds Break and restores Resolve', () => {
     const { enc, p } = duel('sword');
     windup(enc, 1);
@@ -308,13 +322,26 @@ describe('Break and the Rite', () => {
     expect(u.state).toBe('rested');
   });
 
-  it('laying a fallen body down costs far more than the Rite', () => {
+  it('the sword lays for good one it cuts down', () => {
     const { enc, p } = duel('sword');
     const u = enc.dead[0]!;
     u.health = 1;
     tick(enc, p, { attackPressed: true });
     run(enc, p, 40);
+    expect(u.state).toBe('rested');
+    expect(enc.events.some((e) => e.kind === 'rested' && !e.rite)).toBe(true);
+    run(enc, p, UT.downedTicks[1] * 2);
+    expect(u.state).toBe('rested');
+  });
+
+  it('laying a body the knife cut down costs far more than the Rite', () => {
+    const { enc, p } = duel('knife');
+    const u = enc.dead[0]!;
+    u.health = 1;
+    tick(enc, p, { attackPressed: true });
+    run(enc, p, 40);
     expect(u.state).toBe('downed');
+    enc.fighter.weapon = 'sword';
     enc.fighter.resolve = 60;
     tick(enc, p, { interactPressed: true });
     run(enc, p, PC.layFallen.ticks + 1);

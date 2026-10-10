@@ -112,8 +112,10 @@ export const UNBURIED_TUNING = {
    */
   tellTicks: 24,
   feintChance: 0.22,
-  /** After a perfect deflect: reeling and open. */
-  reelTicks: 40,
+  /** After a perfect deflect: reeling and open, long enough to follow up with a blow or two. */
+  reelTicks: 55,
+  /** A blow on one reeling or broken does this many times the damage. */
+  openedDamage: 2,
   /** ...and thrown back: this fast (m/s) for this many ticks. */
   reelPushSpeed: 2.6,
   reelPushTicks: 9,

@@ -1,6 +1,6 @@
 import { PerspectiveCamera, Plane, Raycaster, type RenderPipeline, type Scene, Vector2, Vector3, type WebGPURenderer } from 'three/webgpu';
 import { IslandHum } from '../audio/islandHum';
-import { type CameraPose, HeldMoveBasis, selectZone, zoneMoveYaw, zonePose } from '../camera/authoredCamera';
+import { type CameraPose, selectZone, zonePose } from '../camera/authoredCamera';
 import { PLAYER_COMBAT } from '../config/combat';
 import { RETRO_LOOK } from '../config/render';
 import { DEFAULT_TIDE } from '../config/tide';
@@ -59,7 +59,6 @@ interface SaveStore {
 export class BroughSlice {
   readonly scene: Scene;
   private readonly level: Level = loadLevel(HAUGSAY);
-  private readonly moveYaws = this.level.cameras.map(zoneMoveYaw);
   readonly camera = new PerspectiveCamera(50, 16 / 9, 0.1, 220);
   private readonly g: GreyboxScene;
   private readonly rain = new Rain();
@@ -96,10 +95,8 @@ export class BroughSlice {
   /** The torch beam's brightness at full charge. */
   private torchIntensity = 0;
   private readonly cmd: PlayerCommand = { moveX: 0, moveZ: 0, aimX: null, aimZ: null, listen: false, speedScale: 1, turn: true };
-  private moveHeld = false;
 
   private readonly humClock = new HumClock();
-  private readonly basis = new HeldMoveBasis();
   private zone: number;
   private readonly pose: CameraPose = { px: 0, py: 0, pz: 0, lx: 0, ly: 0, lz: 0, fov: 50 };
   private readonly camPos = new Vector3();
@@ -227,22 +224,6 @@ export class BroughSlice {
 
   /** One fixed simulation step. */
   tick(intent: SliceIntent, dt: number): void {
-    // Camera-relative movement, kept on the old camera's axes across a cut while the keys stay held.
-    this.moveHeld = intent.forward || intent.back || intent.left || intent.right;
-    const yaw = this.basis.update(this.moveYaws[this.zone]!, false, this.moveHeld);
-    const fx = Math.sin(yaw);
-    const fz = Math.cos(yaw);
-    let mx = 0;
-    let mz = 0;
-    if (intent.forward) (mx += fx), (mz += fz);
-    if (intent.back) (mx -= fx), (mz -= fz);
-    if (intent.right) (mx -= fz), (mz += fx);
-    if (intent.left) (mx += fz), (mz -= fx);
-    const length = Math.hypot(mx, mz);
-    this.cmd.moveX = length > 0 ? mx / length : 0;
-    this.cmd.moveZ = length > 0 ? mz / length : 0;
-    this.cmd.listen = intent.listen;
-
     // The mouse aims at a level plane at chest height.
     this.cmd.aimX = this.cmd.aimZ = null;
     if (intent.aim) {
@@ -254,6 +235,21 @@ export class BroughSlice {
         this.cmd.aimZ = this.aimHit.z;
       }
     }
+
+    // Movement is relative to where the player faces, which follows the pointer: W walks toward it, S backs away, A
+    // and D step round it. The mouse steers, so walking is smooth, and a camera cut never turns the keys round.
+    const fx = Math.sin(this.player.facing);
+    const fz = Math.cos(this.player.facing);
+    let mx = 0;
+    let mz = 0;
+    if (intent.forward) (mx += fx), (mz += fz);
+    if (intent.back) (mx -= fx), (mz -= fz);
+    if (intent.right) (mx -= fz), (mz += fx);
+    if (intent.left) (mx += fz), (mz -= fx);
+    const length = Math.hypot(mx, mz);
+    this.cmd.moveX = length > 0 ? mx / length : 0;
+    this.cmd.moveZ = length > 0 ? mz / length : 0;
+    this.cmd.listen = intent.listen;
 
     // E: put down what's being read, or use what's in reach, before the fight sees the press.
     if (this.hud.reading) {
@@ -419,7 +415,6 @@ export class BroughSlice {
     const next = selectZone(this.level.cameras, this.zone, px, pz);
     if (next !== this.zone) {
       this.zone = next;
-      this.basis.update(this.moveYaws[next]!, true, this.moveHeld);
       this.snapCamera = true;
     }
     const zone = this.level.cameras[this.zone]!;
@@ -505,7 +500,7 @@ export class BroughSlice {
     return {
       tide: `${tidePhase(this.tideClock)} ${tideLevel(this.tideClock).toFixed(2)} m, causeway ${causewayPassable(this.tideClock) ? 'open' : 'closed'}`,
       'island time': `×${TIME_SCALES[this.timeScale]} (])`,
-      player: `${p.x.toFixed(1)}, ${p.z.toFixed(1)}, water ${p.depth.toFixed(2)} m`,
+      player: `${p.x.toFixed(1)}, ${p.z.toFixed(1)}, facing ${Math.round((p.facing * 180) / Math.PI)}°, water ${p.depth.toFixed(2)} m`,
       camera: this.level.cameras[this.zone]!.id,
       hum: `${(this.shown.hum * 100).toFixed(0)}%, ${this.shown.beatHz.toFixed(2)} beats/s, heard ${(this.shown.clarity * 100).toFixed(0)}%`,
       ...this.fight.debugStats(),
