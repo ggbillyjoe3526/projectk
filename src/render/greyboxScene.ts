@@ -4,8 +4,9 @@ import {
   Scene, SpotLight,
 } from 'three/webgpu';
 import { float, length, mix, sin, uniform, uv, vec3 } from 'three/tsl';
-import { CAUSEWAY, CHANNEL_FLOOR, ISLET, SHORE } from '../sim/world/broughGreybox';
-import type { Wall, WorldDef } from '../sim/world/types';
+import type { Dressing, DressingMaterial, Level } from '../content/level';
+import { type GroundRegion, regionHeight } from '../sim/world/ground';
+import type { Wall } from '../sim/world/types';
 import { applyPs1Snap } from './retro/ps1Snap';
 import { createSea } from './water';
 
@@ -19,7 +20,8 @@ export interface GreyboxScene {
   readonly torch: SpotLight;
   readonly pebbles: readonly { mesh: Mesh; baseY: number }[];
   readonly ripple: { amount: { value: number }; phase: { value: number } };
-  readonly beam: Object3D;
+  /** Lighthouse beams, each turning about its own origin. */
+  readonly beams: readonly Object3D[];
   readonly fog: FogExp2;
 }
 
@@ -59,6 +61,47 @@ function block(scene: Scene, minX: number, maxX: number, bottom: number, top: nu
   return add(scene, new BoxGeometry(maxX - minX, top - bottom, maxZ - minZ), material, (minX + maxX) / 2, (bottom + top) / 2, (minZ + maxZ) / 2, cast);
 }
 
+/** Ramps are drawn as steps this long, each topped at the walkable height. */
+const SLOPE_STEP = 0.5;
+
+function groundMaterial(r: GroundRegion): MeshLambertNodeMaterial {
+  return r.kind === 'causeway' ? MAT.causeway : MAT.grass;
+}
+
+function drawGround(scene: Scene, r: GroundRegion, floor: number): void {
+  const h = r.height;
+  if (typeof h === 'number') {
+    block(scene, r.minX, r.maxX, floor, h, r.minZ, r.maxZ, groundMaterial(r));
+    return;
+  }
+  const len = h.axis === 'x' ? r.maxX - r.minX : r.maxZ - r.minZ;
+  const segs = Math.max(1, Math.ceil(len / SLOPE_STEP));
+  for (let i = 0; i < segs; i++) {
+    const a = (len * i) / segs;
+    const b = (len * (i + 1)) / segs;
+    if (h.axis === 'x') {
+      const top = regionHeight(r, r.minX + (a + b) / 2, r.minZ);
+      block(scene, r.minX + a, r.minX + b, floor, top, r.minZ, r.maxZ, groundMaterial(r));
+    } else {
+      const top = regionHeight(r, r.minX, r.minZ + (a + b) / 2);
+      block(scene, r.minX, r.maxX, floor, top, r.minZ + a, r.minZ + b, groundMaterial(r));
+    }
+  }
+}
+
+const DRESSING_MAT: Readonly<Record<DressingMaterial, MeshLambertNodeMaterial>> = { cliff: MAT.cliff, floor: MAT.floor, stone: MAT.stone };
+
+function beamGroup(d: Extract<Dressing, { kind: 'beam' }>): Group {
+  const beam = new Group();
+  beam.position.set(d.x, d.y, d.z);
+  const beamMat = new MeshBasicNodeMaterial({ color: 0xfff3d6, transparent: true, opacity: 0.07, blending: AdditiveBlending, depthWrite: false });
+  const cone = new Mesh(new ConeGeometry(4.5, 60, 12, 1, true), beamMat);
+  cone.rotation.z = Math.PI / 2;
+  cone.position.x = 30;
+  beam.add(cone);
+  return beam;
+}
+
 function wallMaterial(w: Wall): MeshLambertNodeMaterial {
   switch (w.kind) {
     case 'cottage': return MAT.cottage;
@@ -68,7 +111,8 @@ function wallMaterial(w: Wall): MeshLambertNodeMaterial {
   }
 }
 
-export function buildGreybox(world: WorldDef): GreyboxScene {
+export function buildGreybox(level: Level): GreyboxScene {
+  const world = level.sim;
   const scene = new Scene();
   scene.background = NIGHT;
   const fog = new FogExp2(NIGHT.getHex(), 0.03);
@@ -79,24 +123,13 @@ export function buildGreybox(world: WorldDef): GreyboxScene {
   moon.position.set(-30, 40, 25);
   scene.add(moon);
 
-  // Land: the islet, the main island's edge, and the channel floor beneath the sea.
-  block(scene, ISLET.minX, ISLET.maxX, CHANNEL_FLOOR, ISLET.top, ISLET.minZ, ISLET.maxZ, MAT.grass);
-  block(scene, SHORE.minX, SHORE.maxX, CHANNEL_FLOOR, SHORE.top, SHORE.minZ, SHORE.maxZ, MAT.grass);
-  block(scene, SHORE.maxX, SHORE.maxX + 60, CHANNEL_FLOOR, SHORE.top + 6, -60, 60, MAT.cliff); // rising ground beyond
+  // Land, from the level's ground regions, over the channel floor beneath the sea.
+  const floor = level.world.channelFloor;
+  for (const r of level.world.ground) drawGround(scene, r, floor);
   const bed = new Mesh(new PlaneGeometry(400, 400), MAT.seabed);
   bed.rotation.x = -Math.PI / 2;
-  bed.position.y = CHANNEL_FLOOR;
+  bed.position.y = floor;
   scene.add(bed);
-
-  // The causeway: a stone spine whose top follows the walkable height.
-  const segs = 48;
-  const len = CAUSEWAY.maxX - CAUSEWAY.minX;
-  for (let i = 0; i < segs; i++) {
-    const x0 = CAUSEWAY.minX + (len * i) / segs;
-    const x1 = x0 + len / segs;
-    const h = world.groundAt((x0 + x1) / 2, 0).height;
-    block(scene, x0, x1, CHANNEL_FLOOR, h, -CAUSEWAY.halfWidth, CAUSEWAY.halfWidth, MAT.causeway);
-  }
 
   // Walls and props.
   for (const w of world.walls) {
@@ -107,12 +140,22 @@ export function buildGreybox(world: WorldDef): GreyboxScene {
     }
     block(scene, w.minX, w.maxX, base, base + w.height, w.minZ, w.maxZ, wallMaterial(w), true);
   }
-  // Cottage floor (no roof in M0, so the authored camera can see in).
-  block(scene, -28, -20, ISLET.top, ISLET.top + 0.03, -3, 3, MAT.floor);
-  const stove = new PointLight(0xff8a3c, 6, 9, 1.6);
-  stove.position.set(-27, ISLET.top + 1.1, -2.2);
-  scene.add(stove);
-  block(scene, -27.7, -26.5, ISLET.top, ISLET.top + 0.9, -2.8, -1.8, MAT.stone, true);
+  // Set dressing: what the simulation never touches.
+  const beams: Object3D[] = [];
+  for (const d of level.dressing) {
+    if (d.kind === 'block') {
+      const b = d.box;
+      block(scene, b.minX, b.maxX, d.bottom, d.top, b.minZ, b.maxZ, DRESSING_MAT[d.material], d.castShadow ?? false);
+    } else if (d.kind === 'light') {
+      const light = new PointLight(d.color, d.intensity, d.distance, d.decay);
+      light.position.set(d.x, d.y, d.z);
+      scene.add(light);
+    } else {
+      const beam = beamGroup(d);
+      scene.add(beam);
+      beams.push(beam);
+    }
+  }
 
   // Pebbles that tremble with the hum, and puddles that ripple.
   const pebbles: { mesh: Mesh; baseY: number }[] = [];
@@ -135,16 +178,6 @@ export function buildGreybox(world: WorldDef): GreyboxScene {
       scene.add(m);
     }
   }
-
-  // The lighthouse beam: a slow sweep through the haar.
-  const beam = new Group();
-  beam.position.set(-30, ISLET.top + 8.6, -8);
-  const beamMat = new MeshBasicNodeMaterial({ color: 0xfff3d6, transparent: true, opacity: 0.07, blending: AdditiveBlending, depthWrite: false });
-  const cone = new Mesh(new ConeGeometry(4.5, 60, 12, 1, true), beamMat);
-  cone.rotation.z = Math.PI / 2;
-  cone.position.x = 30;
-  beam.add(cone);
-  scene.add(beam);
 
   // The player: greybox figure with a hand torch.
   const player = new Group();
@@ -171,5 +204,5 @@ export function buildGreybox(world: WorldDef): GreyboxScene {
   const sea = createSea();
   scene.add(sea);
 
-  return { scene, sea, player, playerBody, hand, torch, pebbles, ripple, beam, fog };
+  return { scene, sea, player, playerBody, hand, torch, pebbles, ripple, beams, fog };
 }
