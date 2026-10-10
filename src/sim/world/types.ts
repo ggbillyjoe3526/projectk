@@ -16,9 +16,10 @@ export interface Wall extends Box2 {
 }
 
 /**
- * What the ground is. The islet is the Brough, where the dead never set foot; `channel` is deep water and never walkable.
+ * What the ground is. The islet is the Brough, where the dead never set foot; `deck` is a ship's, drawn by its own set
+ * (render/sets/ferry.ts) rather than as land; `channel` is deep water and never walkable.
  */
-export type GroundKind = 'islet' | 'causeway' | 'shore' | 'road' | 'grass' | 'flagstone' | 'channel';
+export type GroundKind = 'islet' | 'causeway' | 'shore' | 'road' | 'grass' | 'flagstone' | 'deck' | 'channel';
 
 export interface Prop {
   readonly kind: 'pebble' | 'puddle';

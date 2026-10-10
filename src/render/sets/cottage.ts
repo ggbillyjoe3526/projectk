@@ -2,7 +2,7 @@ import {
   type BufferGeometry, CylinderGeometry, Group, LatheGeometry, type Material, Mesh, MeshStandardNodeMaterial, type Object3D, PointLight,
   type Scene, Vector2,
 } from 'three/webgpu';
-import type { CottageDressing } from '../../content/level';
+import { type CottageDressing, VIGIL_MESHES } from '../../content/level';
 import { applyPs1Snap } from '../retro/ps1Snap';
 import type { StaticBatch } from '../staticBatch';
 import { surface, tiledBox, tileOf } from '../textures/surfaces';
@@ -11,8 +11,10 @@ import { surface, tiledBox, tileOf } from '../textures/surfaces';
  * The father's cottage on the Brough, the first space built to the round 3 standard (art direction, approved
  * 2026-10-10): flagstone floor, lime-washed walls, a rubble hearth with a peat fire, the dresser, the table where the
  * notebook turns up, the empty bier where the coffin lay for the vigil, a candle and the plate of salt, under a boarded
- * ceiling and, outside, a slate roof and a chimney. Everything is made here or by render/textures: nothing scanned or
- * licensed. Static pieces go into the level's static batch, so the room costs a few draw calls.
+ * ceiling and, outside, a slate roof and a chimney. On the vigil night (chapter 1, `vigil`) the coffin is on the bier and
+ * the customs' pieces (VIGIL_MESHES) are drawn on their own, for the chapter to show as William does them. Everything is
+ * made here or by render/textures: nothing scanned or licensed. Static pieces go into the level's static batch, so the
+ * room costs a few draw calls.
  */
 
 const plainCache = new Map<string, MeshStandardNodeMaterial>();
@@ -47,6 +49,7 @@ export function buildCottage(d: CottageDressing, batch: StaticBatch, scene: Scen
   const darkWood = surface('darkBoards');
   const rubble = surface('rubble');
   const plaster = surface('plaster');
+  const brassPlate = plain(0xa8883e, 0.3);
 
   /** A box from its extents, textured at the material's scale. */
   const box = (m: Material, minX: number, maxX: number, y0: number, y1: number, minZ: number, maxZ: number, cast = true): void => {
@@ -94,6 +97,18 @@ export function buildCottage(d: CottageDressing, batch: StaticBatch, scene: Scen
   for (const x of [wx - 0.5, wx, wx + 0.5]) box(frameWhite, x - 0.03, x + 0.03, wy0, wy1, R.minZ + lining, R.minZ + 0.08, false);
   for (const y of [wy0, (wy0 + wy1) / 2, wy1]) box(frameWhite, wx - 0.53, wx + 0.53, y - 0.03, y + 0.03, R.minZ + lining, R.minZ + 0.08, false);
   box(wood, wx - 0.6, wx + 0.6, wy0 - 0.05, wy0, R.minZ, R.minZ + 0.18);
+  if (d.vigil) {
+    // The lower sash pushed up: a dark gap to the night under it, and its rail raised.
+    const open = new Group();
+    const gap = new Mesh(tiledBox(0.94, 0.22, 0.01, 1), plain(0x020304, 1));
+    gap.position.set(wx, wy0 + 0.11, R.minZ + lining + 0.012);
+    const rail = new Mesh(tiledBox(1.06, 0.06, 0.07, 1), frameWhite);
+    rail.position.set(wx, wy0 + 0.25, R.minZ + 0.06);
+    open.add(gap, rail);
+    open.visible = false;
+    scene.add(open);
+    thingMeshes.set(VIGIL_MESHES.windowOpen, open);
+  }
 
   // --- the hearth: rubble surround and chimney breast, a timber mantel, the peat fire ---
   const h = d.hearth;
@@ -181,14 +196,41 @@ export function buildCottage(d: CottageDressing, batch: StaticBatch, scene: Scen
   }
   for (let i = 0; i < 3; i++) piece(lathe([[0, 0], [0.05, 0], [0.06, 0.08], [0.045, 0.14], [0.05, 0.16], [0, 0.16]]), willow, dr.minX + 0.3 + i * 0.5, F + 0.9, dr.minZ + 0.25);
 
-  // --- the bier: two trestles where the coffin lay, a sheet left folded on them ---
+  // --- the bier: two trestles, with the coffin on them for the vigil, or a sheet left folded on them after ---
   const b = d.bier;
   const bz = (b.minZ + b.maxZ) / 2;
   for (const x of [b.minX + 0.35, b.maxX - 0.35]) {
     box(darkWood, x - 0.05, x + 0.05, F + 0.58, F + 0.66, b.minZ, b.maxZ);
     for (const z of [b.minZ + 0.06, b.maxZ - 0.06]) box(darkWood, x - 0.03, x + 0.03, F, F + 0.58, z - 0.03, z + 0.03);
   }
-  box(plain(0xd8d4c8, 0.95), b.minX + 0.2, b.minX + 0.75, F + 0.66, F + 0.74, bz - 0.3, bz + 0.3);
+  if (!d.vigil) box(plain(0xd8d4c8, 0.95), b.minX + 0.2, b.minX + 0.75, F + 0.66, F + 0.74, bz - 0.3, bz + 0.3);
+  // The vigil night: the coffin on the trestles, plain oak with brass handles and a brass plate on the lid.
+  const lid = F + 1.12;
+  if (d.vigil) {
+    const coffin = new Group();
+    const oak = plain(0x6a4a2a, 0.55);
+    const shell = new Mesh(tiledBox(1.95, 0.44, 0.58, 1), oak);
+    shell.position.set(0, F + 0.88, 0);
+    const board = new Mesh(tiledBox(2.01, 0.06, 0.64, 1), oak);
+    board.position.set(0, lid - 0.03, 0);
+    const plate = new Mesh(tiledBox(0.3, 0.005, 0.12, 1), brassPlate);
+    plate.position.set(0.2, lid + 0.003, 0);
+    coffin.add(shell, board, plate);
+    for (const x of [-0.6, 0, 0.6]) {
+      for (const z of [-0.3, 0.3]) {
+        const handle = new Mesh(tiledBox(0.18, 0.03, 0.03, 1), brassPlate);
+        handle.position.set(x, F + 0.9, z * 1.03);
+        coffin.add(handle);
+      }
+    }
+    coffin.position.set((b.minX + b.maxX) / 2, 0, bz);
+    coffin.traverse((o) => {
+      o.castShadow = true;
+      o.receiveShadow = true;
+    });
+    scene.add(coffin);
+    thingMeshes.set(VIGIL_MESHES.coffin, coffin);
+  }
   // The candle at its head, on a stool, and the plate of salt beside it.
   const sx = b.maxX + 0.45;
   const sz = bz;
@@ -200,21 +242,53 @@ export function buildCottage(d: CottageDressing, batch: StaticBatch, scene: Scen
   const brass = plain(0x9a7a3a, 0.35);
   piece(lathe([[0, 0], [0.06, 0], [0.065, 0.008], [0.02, 0.015], [0.018, 0.04], [0.03, 0.045], [0, 0.046]]), brass, sx, F + 0.645, sz);
   piece(new CylinderGeometry(0.018, 0.018, 0.18, 8), plain(0xe8e0c8, 0.6), sx, F + 0.78, sz);
+  // On the vigil night it waits to be lit: the flame and its light are one thing mesh.
+  const lit = new Group();
   const flame = new Mesh(new CylinderGeometry(0.004, 0.012, 0.035, 6), plain(0xffc070, 1, 0xffb050, 3));
   flame.position.set(sx, F + 0.89, sz);
-  scene.add(flame);
   const candle = new PointLight(0xffb060, 1.6, 5, 1.8);
   candle.position.set(sx, F + 0.95, sz);
-  scene.add(candle);
+  lit.add(flame, candle);
+  scene.add(lit);
   flames.push({ light: candle, base: candle.intensity });
-  piece(lathe([[0, 0], [0.09, 0], [0.1, 0.012], [0.095, 0.014], [0.07, 0.006], [0, 0.006]], 16), plain(0xe8e6dc, 0.25), sx + 0.08, F + 0.645, sz + 0.09);
-  const salt = new CylinderGeometry(0, 0.055, 0.035, 12);
-  piece(salt, plain(0xf2f2ee, 0.9), sx + 0.08, F + 0.668, sz + 0.09);
+  if (d.vigil) {
+    lit.visible = false;
+    thingMeshes.set(VIGIL_MESHES.candleFlame, lit);
+  }
+  // The plate of salt: by the candle, or on the vigil night on the table, waiting to be put where it goes.
+  const saucer = (x: number, y: number, z: number): Group => {
+    const g = new Group();
+    const dish = new Mesh(lathe([[0, 0], [0.09, 0], [0.1, 0.012], [0.095, 0.014], [0.07, 0.006], [0, 0.006]], 16), plain(0xe8e6dc, 0.25));
+    const heap = new Mesh(new CylinderGeometry(0, 0.055, 0.035, 12), plain(0xf2f2ee, 0.9));
+    heap.position.y = 0.023;
+    g.add(dish, heap);
+    g.position.set(x, y, z);
+    scene.add(g);
+    return g;
+  };
+  if (!d.vigil) {
+    piece(lathe([[0, 0], [0.09, 0], [0.1, 0.012], [0.095, 0.014], [0.07, 0.006], [0, 0.006]], 16), plain(0xe8e6dc, 0.25), sx + 0.08, F + 0.645, sz + 0.09);
+    const salt = new CylinderGeometry(0, 0.055, 0.035, 12);
+    piece(salt, plain(0xf2f2ee, 0.9), sx + 0.08, F + 0.668, sz + 0.09);
+  } else {
+    thingMeshes.set(VIGIL_MESHES.saltOnTable, saucer((t.minX + t.maxX) / 2, top, t.maxZ - 0.25));
+    const onLid = saucer((b.minX + b.maxX) / 2 - 0.25, lid, bz);
+    onLid.visible = false;
+    thingMeshes.set(VIGIL_MESHES.saltOnCoffin, onLid);
+  }
 
   // --- the west wall: a mirror nobody covered, a shelf of his books ---
   const mirrorZ = (h.maxZ + d.table.minZ) / 2;
   box(plain(0x3a2418, 0.5), R.minX, R.minX + 0.05, F + 1.1, F + 1.9, mirrorZ - 0.32, mirrorZ + 0.32, false);
   box(plain(0x8a9094, 0.08), R.minX + 0.05, R.minX + 0.055, F + 1.16, F + 1.84, mirrorZ - 0.26, mirrorZ + 0.26, false);
+  if (d.vigil) {
+    // Turned to the wall: its plain wooden back is all that shows.
+    const back = new Mesh(tiledBox(0.04, 0.8, 0.64, 1), plain(0x4a3626, 0.9));
+    back.position.set(R.minX + 0.075, F + 1.5, mirrorZ);
+    back.visible = false;
+    scene.add(back);
+    thingMeshes.set(VIGIL_MESHES.mirrorTurned, back);
+  }
   const shelfZ0 = d.table.minZ + 0.2;
   const shelfZ1 = shelfZ0 + 0.9;
   box(wood, R.minX, R.minX + 0.32, F, F + 0.03, shelfZ0, shelfZ1);

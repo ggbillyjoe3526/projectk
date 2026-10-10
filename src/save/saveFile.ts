@@ -22,12 +22,13 @@ import { SAVE_STORES, type StoreData } from './stores';
  * every store keeps fields it doesn't know when it saves (save/overStored.ts).
  */
 
-export const SAVE_FORMAT = 2;
+export const SAVE_FORMAT = 3;
 
 /** The stores' own versions each format carried (id → version), for the test that keeps SAVE_FORMAT honest. */
 export const STORES_BY_FORMAT: Readonly<Record<number, Readonly<Record<string, number>>>> = {
   1: { settings: 1, keyBindings: 0 },
   2: { settings: 1, keyBindings: 0, progress: 1 },
+  3: { settings: 1, keyBindings: 0, progress: 1, crossing: 1 },
 };
 
 /**
@@ -37,6 +38,8 @@ export const STORES_BY_FORMAT: Readonly<Record<number, Readonly<Record<string, n
 export const MIGRATIONS: Readonly<Record<number, (stores: StoreData) => StoreData>> = {
   // Format 2 added the game's progress; a format 1 save has none, so the game starts fresh.
   1: (stores) => ({ ...stores, progress: null }),
+  // Format 3 added chapter 1's progress; a format 2 save has none, so chapter 1 starts fresh.
+  2: (stores) => ({ ...stores, crossing: null }),
 };
 
 /** What a save holds, read or about to be written. */

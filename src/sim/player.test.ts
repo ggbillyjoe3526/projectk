@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createPlayer, stepPlayer, type PlayerCommand } from './player';
-import { loadLevel } from '../content/level';
+import { composeLevel, loadLevel } from '../content/level';
+import { PIER, PIER_AREA } from '../content/levels/pier';
 import { CAUSEWAY } from '../content/levels/brough';
 import { HAUGSAY } from '../content/levels/haugsay';
 import { resolveCircleVsBoxes } from './collision';
@@ -34,6 +35,15 @@ describe('player movement', () => {
     p.x = 0; p.z = 0; p.y = CAUSEWAY.top;
     for (let i = 0; i < 600; i++) stepPlayer(p, { ...idle(), moveZ: 1 }, world, T.lowLevel, 1 / 60);
     expect(Math.abs(p.z)).toBeLessThanOrEqual(CAUSEWAY.halfWidth);
+  });
+
+  it('is never shoved off a pier by a bollard at its edge', () => {
+    const pier = loadLevel(composeLevel({ id: 'pier-test', channelFloor: -3, spawn: { x: 32.7, z: 28, facing: Math.PI } }, [PIER_AREA])).sim;
+    const p = createPlayer(pier);
+    p.x = PIER.maxX - 0.1; p.z = 28;
+    for (let i = 0; i < 120; i++) stepPlayer(p, { ...idle(), moveZ: -1 }, pier, T.lowLevel, 1 / 60);
+    expect(p.x).toBeLessThanOrEqual(PIER.maxX);
+    expect(pier.groundAt(p.x, p.z).kind).toBe('road');
   });
 
   it('stands still while listening', () => {

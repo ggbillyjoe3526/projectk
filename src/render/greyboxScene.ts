@@ -154,7 +154,8 @@ export function buildGreybox(level: Level): GreyboxScene {
   // Land, from the level's ground regions, over the channel floor beneath the sea.
   const floor = level.world.channelFloor;
   const batch = new StaticBatch();
-  for (const r of level.world.ground) drawGround(batch, r, floor);
+  // A ship's deck is drawn by its own set, which moves it.
+  for (const r of level.world.ground) if (r.kind !== 'deck') drawGround(batch, r, floor);
   const bed = new Mesh(new PlaneGeometry(400, 400), MAT.seabed);
   bed.rotation.x = -Math.PI / 2;
   bed.position.y = floor;

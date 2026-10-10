@@ -33,4 +33,9 @@ export class PauseScreen {
   show(on: boolean): void {
     this.pane.hidden = !on;
   }
+
+  /** Take it off the page (another part of the game, with other controls, replaces it). */
+  remove(): void {
+    this.pane.remove();
+  }
 }
