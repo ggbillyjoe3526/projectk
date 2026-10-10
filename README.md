@@ -1,7 +1,12 @@
 # Project Outbound
 
 A web survival-horror game (Project Outbound is its working title): TypeScript, Vite and Three.js's `WebGPURenderer`,
-keyboard and mouse. The design lives in the project's concept document (v0.6).
+keyboard and mouse. The design lives in the [concept document](docs/concept/concept-v0.6.md) (v0.6) and the
+[story summary](docs/story/story-so-far.md).
+
+**The project is on hold** (since 2026-10-10). The [project record](docs/project-record.md) has every decision, what's
+still open and how the project got here, and [docs/](docs/README.md) has everything else: the concept versions, the
+story, the art direction shots and their tools, and the camera lab.
 
 The engine skeleton (the loop, saving, input, renderer start-up and diagnostics) runs the first playable slice, M0:
 the father's cottage, the Brough and the tidal causeway in greybox, under authored tracking cameras (concept camera A),
@@ -61,6 +66,7 @@ src/sim        pure simulation: the tide, the hum's rhythm, player movement and 
                seeded random numbers, allocation-free vectors
 src/audio      voice limiting; the island's hum, wind and rain (synthesised with Web Audio)
 src/ui         start pane, debug overlay, crash pane
+docs           the project record, concept and story documents, art direction shots and tools, the camera lab
 ```
 
 ## Where this came from
