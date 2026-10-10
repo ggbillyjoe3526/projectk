@@ -122,11 +122,11 @@ The two rounds of concept shots, both real-time three.js renders rather than gen
    third-party.
 3. **Round 3** ([art/concept-shots-v3/](art/concept-shots-v3/README.md), 2026-10-10): round 2's sculpted bodies and
    textures through B's pipeline (640x360, ordered dither, vertex snap, hard-pixel upscale), with self-sculpted faces
-   and procedural skies so nothing in it is licensed. Two shots, dialogue and combat. Awaiting William's verdict.
+   and procedural skies so nothing in it is licensed. Two shots, dialogue and combat. **Approved by William ("perfect").**
 
-**Where it stands:** the target is round 2's realistic models and detailed textures **seen through B's lo-fi pipeline**
+**Where it stands (settled 2026-10-10):** the look is round 2's realistic models and detailed textures **seen through B's lo-fi pipeline**
 (low internal resolution, dithering), not full-resolution realism. No third-party art: faces, skies and textures are
-made for the project. Section 8 of the concept document (480x270) still needs updating to match.
+made for the project. Section 8 of the concept document describes this look.
 
 ## Open questions
 
