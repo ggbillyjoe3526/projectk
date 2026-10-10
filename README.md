@@ -4,9 +4,9 @@ A web survival-horror game (Project Outbound is its working title): TypeScript, 
 keyboard and mouse. The design lives in the [concept document](docs/concept/concept-v0.6.md) (v0.6) and the
 [story summary](docs/story/story-so-far.md).
 
-**The project is on hold** (since 2026-10-10). The [project record](docs/project-record.md) has every decision, what's
-still open and how the project got here, and [docs/](docs/README.md) has everything else: the concept versions, the
-story, the art direction shots and their tools, and the camera lab.
+Work is on the vertical slice ([plan](docs/vertical-slice-plan.md)). The [project record](docs/project-record.md)
+has every decision, what's still open and how the project got here, and [docs/](docs/README.md) has everything else:
+the concept versions, the story, the art direction shots and their tools, and the camera lab.
 
 The engine skeleton (the loop, saving, input, renderer start-up and diagnostics) runs the first playable slice, M0:
 the father's cottage, the Brough and the tidal causeway in greybox, under authored tracking cameras (concept camera A),

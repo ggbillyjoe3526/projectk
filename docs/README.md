@@ -1,11 +1,12 @@
 # Project Outbound documentation
 
 Everything from the project so far: the design, the story, the art direction work, and the record of what was decided.
-**The project is on hold** (since 2026-10-10); start with the project record.
+Work is on the vertical slice; start with the project record.
 
 | Document | What it is |
 |---|---|
 | [project-record.md](project-record.md) | **Start here.** Settled decisions, open questions, art direction feedback, process rules (pull requests, the rename, the Airsoft routine) and the project's history. |
+| [vertical-slice-plan.md](vertical-slice-plan.md) | What the game does today, what is only designed, and the two-stage plan for the vertical slice ("Low water", then "The funeral"). |
 | [concept/concept-v0.6.md](concept/concept-v0.6.md) | The current concept document: pitch, mechanics (the tide, Resolve, weapons, the phone), the map, folklore, camera, art, audio and technical direction, and the vertical slice. |
 | [concept/](concept/) | Earlier concept versions, v0.1 to v0.5, kept to show how the design got here. Superseded by v0.6. |
 | [story/story-so-far.md](story/story-so-far.md) | The story summary (v4, rough draft): what's settled, the 22-beat outline, the endings and what's still open. It replaces the story parts of the concept document. |
