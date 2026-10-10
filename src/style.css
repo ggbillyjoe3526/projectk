@@ -187,6 +187,19 @@ body {
   background: #b9c8d2;
 }
 
+.hud-torch {
+  width: 50%;
+  height: 2px;
+}
+
+.hud-torch .hud-fill {
+  background: #c9a45c;
+}
+
+.hud-torch .hud-fill.off {
+  opacity: 0.4;
+}
+
 .hud-resolve .hud-fill.low {
   animation: hud-falter 0.9s ease-in-out infinite;
 }

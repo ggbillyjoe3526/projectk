@@ -67,7 +67,7 @@ export const BROUGH_AREA: LevelArea = {
     { x: 18, z: -4, radius: 1.6 },
     { x: -12.4, z: 1.2, radius: 1.2 },
   ],
-  interiors: [{ minX: COTTAGE.minX, maxX: COTTAGE.maxX, minZ: COTTAGE.minZ, maxZ: COTTAGE.maxZ, refuge: true }],
+  interiors: [{ minX: COTTAGE.minX, maxX: COTTAGE.maxX, minZ: COTTAGE.minZ, maxZ: COTTAGE.maxZ, refuge: true, power: true }],
   cameras: [
     {
       id: 'cottage',

@@ -2,6 +2,7 @@ import { STORAGE_PREFIX } from '../config/save';
 import type { Progress } from '../game/things';
 import type { Encounter } from '../sim/combat/encounter';
 import type { PlayerState } from '../sim/player';
+import type { TorchState } from '../sim/torch';
 import { overStored, storedIsNewer } from './overStored';
 
 /**
@@ -21,6 +22,8 @@ export interface Checkpoint {
   readonly encounter: Encounter;
   readonly player: PlayerState;
   readonly tideClock: number;
+  /** Absent in a checkpoint saved before the torch had a battery: a full one. */
+  readonly torch?: TorchState;
 }
 
 export interface SavedGame {
@@ -72,6 +75,7 @@ function checkpointOk(c: unknown, deadCount: number): boolean {
   const { player, encounter } = c;
   if (![player.x, player.y, player.z, player.facing].every(finite)) return false;
   if (!isObject(encounter.fighter) || !isObject(encounter.rng) || !Array.isArray(encounter.dead) || encounter.dead.length !== deadCount) return false;
+  if (c.torch !== undefined && !(isObject(c.torch) && typeof c.torch.on === 'boolean' && finite(c.torch.charge))) return false;
   const f = encounter.fighter;
   if (![f.health, f.resolve].every(finite) || typeof f.action !== 'string') return false;
   return encounter.dead.every((u: unknown) => isObject(u) && [u.x, u.z, u.health, u.maxHealth].every(finite) && typeof u.state === 'string');
