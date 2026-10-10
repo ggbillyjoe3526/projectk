@@ -38,10 +38,12 @@ function run(enc: Encounter, p: PlayerState, n: number, input: Partial<FighterIn
   }
 }
 
-/** Freeze the enemy's AI into a wind-up that lands its blow in `ticks` ticks. */
+/** Freeze the enemy's AI into an attack whose blow lands on the tick after the next `ticks`. */
 function windup(enc: Encounter, ticks: number): void {
   const u = enc.dead[0]!;
-  Object.assign(u, { state: 'windup', t: 0, duration: ticks, feint: false, struck: false, facing: Math.PI });
+  const before = ticks + 1 - UT.attack.impactTick;
+  const attack = before >= 1 ? { state: 'windup', t: 0, duration: before } : { state: 'strike', t: -before, duration: UT.attack.active };
+  Object.assign(u, attack, { feint: false, struck: false, facing: Math.PI });
 }
 
 /** Keep the enemy from attacking (it stands recovering) so a test sees only the player's moves. */
@@ -223,16 +225,30 @@ describe('deflect', () => {
     expect(enc.fighter.perfect).toBe(PC.deflect.perfectTicks);
   });
 
-  it('the dead give a tell a fixed time before the blow', () => {
+  it('the dead give a tell a fixed time before the blow lands', () => {
     const { enc, p } = duel('sword');
-    windup(enc, 30);
+    Object.assign(enc.dead[0]!, { state: 'windup', t: 0, duration: UT.attack.windup[0], feint: false, struck: false, facing: Math.PI });
     let tellAt = -1;
-    for (let i = 1; i <= 30; i++) {
+    let hurtAt = -1;
+    for (let i = 1; i <= 80 && hurtAt < 0; i++) {
       tick(enc, p);
       if (enc.events.some((e) => e.kind === 'enemyTell')) tellAt = i;
+      if (enc.events.some((e) => e.kind === 'hurt')) hurtAt = i;
       enc.events.length = 0;
     }
-    expect(tellAt).toBe(30 - UT.tellTicks);
+    expect(tellAt).toBeGreaterThanOrEqual(UT.attack.raiseTicks);
+    expect(hurtAt - tellAt).toBe(UT.tellTicks);
+  });
+
+  it('the blow lands when the arm comes down, not as the strike begins', () => {
+    const { enc, p } = duel('sword');
+    Object.assign(enc.dead[0]!, { state: 'windup', t: 0, duration: 1, feint: false, struck: false, facing: Math.PI });
+    tick(enc, p);
+    expect(enc.dead[0]!.state).toBe('strike');
+    for (let i = 1; i < UT.attack.impactTick; i++) tick(enc, p);
+    expect(enc.fighter.health).toBe(PC.maxHealth);
+    tick(enc, p);
+    expect(enc.fighter.health).toBe(PC.maxHealth - UT.attack.damage);
   });
 
   it('the window narrows as Resolve runs low', () => {

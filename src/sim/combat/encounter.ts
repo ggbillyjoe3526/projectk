@@ -649,7 +649,7 @@ function stepUnburied(enc: Encounter, i: number, p: PlayerState, world: WorldDef
 
     case 'windup':
       turnToward(u, Math.atan2(p.x - u.x, p.z - u.z), 4 * dt);
-      if (u.t === u.duration - UT.tellTicks) enc.events.push({ kind: 'enemyTell', enemy: i });
+      if (u.t === u.duration - (UT.tellTicks - UT.attack.impactTick)) enc.events.push({ kind: 'enemyTell', enemy: i });
       if (u.t >= u.duration) {
         if (u.feint) {
           enc.events.push({ kind: 'feint', enemy: i });
@@ -663,7 +663,8 @@ function stepUnburied(enc: Encounter, i: number, p: PlayerState, world: WorldDef
 
     case 'strike':
       walkForward(u, 2.4, world, waterLevel, dt);
-      if (!u.struck) strikePlayer(enc, i, p);
+      // The blow lands when the arm comes down on the player, not as it starts to fall.
+      if (!u.struck && u.t >= UT.attack.impactTick) strikePlayer(enc, i, p);
       if (u.t >= u.duration) setState(u, 'recover', UT.attack.recovery);
       break;
 

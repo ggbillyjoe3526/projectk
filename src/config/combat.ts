@@ -94,9 +94,17 @@ export const UNBURIED_TUNING = {
   /** Chance at each lurch-or-shuffle change that it goes still instead, and for how long. */
   stillChance: 0.18,
   stillTicks: [40, 110],
-  attack: { reach: 1.7, windup: [22, 50], active: 7, recovery: 34, damage: 20, spiritWound: 7, halfArc: 1.0 },
-  /** The tell: a glint and a hiss this many ticks before the wind-up ends, the cue to deflect on. */
-  tellTicks: 14,
+  /**
+   * The wind-up raises the arm over `raiseTicks` then holds it; the strike brings it down and the blow lands on
+   * `impactTick`, when the arm visibly reaches the player (earlier it landed on the strike's first tick, arm still
+   * overhead, so a deflect timed to the visible blow came too late).
+   */
+  attack: { reach: 1.7, windup: [32, 56], raiseTicks: 12, active: 9, impactTick: 4, recovery: 32, damage: 20, spiritWound: 7, halfArc: 1.0 },
+  /**
+   * The tell: a glint and a hiss this many ticks before the blow lands (400 ms). Deflecting on reaction to it, about
+   * 200 ms later, falls in the middle of the perfect window.
+   */
+  tellTicks: 24,
   feintChance: 0.22,
   /** After a perfect deflect: reeling and open. */
   reelTicks: 40,
