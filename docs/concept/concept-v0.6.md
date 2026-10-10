@@ -6,6 +6,7 @@
 - *The game is keyboard and mouse only, so the island's vibrations come through sound, visuals and the character.*
 - *The opening runs phone torch, then kitchen knife, then the note.*
 - *Camera: decided, option A (authored tracking camera with mouse aim).*
+- *Art direction (section 8) updated 2026-10-10 to the look William approved in the round 3 concept shots.*
 
 *v0.1–v0.5 are kept alongside for history.*
 
@@ -25,6 +26,7 @@
 - **Keyboard and mouse only.** No controller support, so the vibrations are felt by the *character* and shown through sound and visuals.
 - **Opening:** you first enter the dangerous area with just your phone torch and have to retreat. Then you try a kitchen knife, and realise it's useless when you read an old book, note or log saying only the ancient sword can defeat the dead.
 - **Themes:** depression, grief, growing up, and what it means to be an adult. William would like to work "one pill a day" (antidepressants) into the game; see section 3.7 for the proposal.
+- **Look:** direction B, "Lamplight". Detailed models and textures seen through a PS2-style low-resolution, dithered image, switching to a monochrome grade (only red keeps its colour) when health or Resolve is low. No third-party or licensed art. See section 8.
 
 ## 1. The pitch
 
@@ -415,10 +417,13 @@ You see through the protagonist's eyes.
 
 ## 8. Art direction
 
-**Low-poly 3D at PS1/PS2 resolution.**
-- Internal resolution is about 480×270, upscaled with hard pixels.
-- Colour is reduced with ordered dithering, textures are unfiltered, there's subtle vertex snapping and distance fog.
+**Detailed 3D seen through a PS2: direction B, "Lamplight".** Approved by William on 2026-10-10 from the round 3 concept shots (`docs/art/concept-shots-v3/`).
+- Models and textures are detailed: sculpted characters with folded coats, knitwear and real faces, and rich procedural materials (damp plaster, harled walls, worn boards, rust, wet flagstones).
+- Lighting is modern: soft shadowed lamps and torchlight, ambient occlusion, bloom, filmic tone mapping and grain.
+- The image is PS2: an internal resolution of 640×360 with no anti-aliasing, upscaled with hard pixels; colour posterised through a 4×4 ordered dither; subtle vertex snapping; hard texels close up; distance fog.
+- **Low Resolve or health:** the world drains to the haar's grey and only red keeps its colour (blood, rowan berries, warning lights). It fades in rather than snapping on.
 - Each effect is a slider.
+- **No third-party art.** Faces, skies, textures and models are made for the project; nothing scanned, photographed or licensed.
 
 **Mood:** The Outrun's island, seen through a PS1. Treeless land under an enormous sky, flagstone dykes, a winter sun that barely clears the horizon, the slow pulse of the lighthouse beam.
 
@@ -433,7 +438,7 @@ You see through the protagonist's eyes.
 
 **Weather is the set dressing** and where WebGPU compute earns its keep: horizontal rain and sleet, spray over the causeway, sea fog (haar) rolling in, and the tide itself (a real water surface that visibly rises over the causeway).
 
-**Characters:** 500–1,500 triangles with strong silhouettes. Folklore creatures are designed from the written sources, not from existing game or film versions.
+**Characters:** sculpted in detail with strong silhouettes that still read at 640×360. Folklore creatures are designed from the written sources, not from existing game or film versions.
 
 **UI:** minimal and in-world. The phone *is* the menu: notes, photos, the map, tide times and messages, shown on a modern phone screen rendered at the same low resolution as the world. Resolve and health read from posture, breathing and the screen's edges, with an optional HUD.
 
