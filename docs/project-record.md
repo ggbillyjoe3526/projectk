@@ -150,7 +150,7 @@ The game code is in this repository. See the [main README](../README.md) to run 
 | M0: first playable slice | The cottage, the Brough and the tidal causeway in greybox under camera A, in the low-res dithered look, with the tide and the island's hum. William: "I'm happy with that. Feels good." | #3 |
 | M1: combat prototype | Three of the dead on the shore, the knife that can't keep them down, the note, the sword on the howe slab, with deflect, Resolve, Break and the Rite. William: "quite good for a first test". | #4 |
 | M1 deflect fixes | The deflect made reliable and readable after William's playtest (see below). | #8 |
-| M1 deflect timing | The dead's blow lands when the arm visibly reaches the player; the tell re-timed to it. | #9 |
+| M1 deflect timing | The dead's blow lands when the arm visibly reaches the player; the tell re-timed to it. | #10 |
 
 Playable builds and the camera lab were published as claude.ai artifacts, which only William's account can open:
 [camera lab](https://claude.ai/artifact/AeiT4iTYDFGWtLZhDpbzBU),
@@ -195,7 +195,7 @@ William, after PR #8: "still feels bad to deflect. timing seems off." The cause:
 tick of the strike, while the arm was still overhead, about 100 ms before it visibly came down. A deflect timed to the
 blow you see was late.
 
-What changed (PR #9):
+What changed (PR #10):
 
 - The blow lands on the strike's 4th tick, when the arm reaches the player. The arm now comes down fast and
   accelerating to that point, then follows through.
@@ -262,4 +262,4 @@ just disabled, and can be turned back on when he asks.
 | 2026-10-10 | Art direction: round 1 (A/B/C), William picked B with the low-Resolve grade; round 2 (realistic), "better but not quite there". |
 | 2026-10-10 | William put the project on hold: no new work, no more concept images, the Airsoft routine paused. Everything was brought into this repository. |
 | 2026-10-10 | Work resumed. William's M1 playtest: the deflect felt clunky and he couldn't tell if it worked. Fixed in PR #8. |
-| 2026-10-10 | Still felt off: the blow counted before the arm came down. Fixed in PR #9. |
+| 2026-10-10 | Still felt off: the blow counted before the arm came down. Fixed in PR #10. |
