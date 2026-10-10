@@ -1,6 +1,7 @@
 import { BoxGeometry, Color, Group, Mesh, MeshLambertNodeMaterial, PointLight, type Scene, Vector3 } from 'three/webgpu';
 import { CombatSounds } from '../audio/combatSounds';
 import { PLAYER_COMBAT as PC, type WeaponId } from '../config/combat';
+import type { LevelPlaces } from '../content/level';
 import { PLAYER_TUNING } from '../config/player';
 import { ClashSparks } from '../render/clashSparks';
 import { PlayerWeapon, UnburiedFigures } from '../render/fighterFigures';
@@ -17,7 +18,6 @@ import {
   stepEncounter,
 } from '../sim/combat/encounter';
 import type { PlayerCommand, PlayerState } from '../sim/player';
-import { BROUGH_PLACES as PLACES } from '../sim/world/broughGreybox';
 import type { WorldDef } from '../sim/world/types';
 import type { CombatHud } from '../ui/combatHud';
 
@@ -76,13 +76,14 @@ export class BroughFight {
     scene: Scene,
     private readonly g: GreyboxScene,
     private readonly hud: CombatHud,
+    private readonly places: LevelPlaces,
     private readonly seed: number,
     weapon: WeaponId,
   ) {
-    this.enc = createEncounter(seed, weapon, PLACES.dead);
+    this.enc = createEncounter(seed, weapon, places.dead);
     this.swordTaken = weapon === 'sword';
     this.weapon = new PlayerWeapon(g.player);
-    this.figures = new UnburiedFigures(scene, PLACES.dead.length);
+    this.figures = new UnburiedFigures(scene, places.dead.length);
     this.prevDead = this.enc.dead.map((u) => ({ x: u.x, z: u.z }));
 
     this.swordOnSlab = new Group();
@@ -91,7 +92,7 @@ export class BroughFight {
     const hilt = new Mesh(new BoxGeometry(0.24, 0.04, 0.05), steel);
     hilt.position.z = -0.47;
     this.swordOnSlab.add(blade, hilt);
-    this.swordOnSlab.position.set(PLACES.sword.x, PLACES.sword.top + 0.02, PLACES.sword.z);
+    this.swordOnSlab.position.set(places.sword.x, places.sword.top + 0.02, places.sword.z);
     this.swordOnSlab.rotation.y = 0.4;
     this.swordOnSlab.visible = !this.swordTaken;
     scene.add(this.swordOnSlab, this.flash);
@@ -258,9 +259,9 @@ export class BroughFight {
 
   private placeHere(p: PlayerState): Place | null {
     const near = (q: { x: number; z: number }): boolean => Math.hypot(q.x - p.x, q.z - p.z) < ITEM_REACH + PLAYER_TUNING.radius;
-    if (near(PLACES.hearth)) return 'hearth';
-    if (near(PLACES.note)) return 'note';
-    if (!this.swordTaken && near(PLACES.sword)) return 'sword';
+    if (near(this.places.hearth)) return 'hearth';
+    if (near(this.places.note)) return 'note';
+    if (!this.swordTaken && near(this.places.sword)) return 'sword';
     return null;
   }
 

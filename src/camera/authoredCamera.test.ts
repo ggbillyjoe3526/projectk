@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { HeldMoveBasis, poseYaw, selectZone, zoneMoveYaw, zonePose, type CameraPose } from './authoredCamera';
-import { BROUGH_ZONES as Z } from './broughZones';
+import { BROUGH } from '../content/levels/brough';
+
+const Z = BROUGH.cameras;
 
 const pose = (): CameraPose => ({ px: 0, py: 0, pz: 0, lx: 0, ly: 0, lz: 0, fov: 0 });
 const id = (i: number) => Z[i]!.id;

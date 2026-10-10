@@ -1,10 +1,11 @@
 import { PerspectiveCamera, Plane, Raycaster, type RenderPipeline, type Scene, Vector2, Vector3, type WebGPURenderer } from 'three/webgpu';
 import { IslandHum } from '../audio/islandHum';
 import { type CameraPose, HeldMoveBasis, selectZone, zoneMoveYaw, zonePose } from '../camera/authoredCamera';
-import { BROUGH_ZONES } from '../camera/broughZones';
 import type { WeaponId } from '../config/combat';
 import { RETRO_LOOK } from '../config/render';
 import { DEFAULT_TIDE } from '../config/tide';
+import { isIndoors, type Level, loadLevel } from '../content/level';
+import { BROUGH } from '../content/levels/brough';
 import { buildGreybox, type GreyboxScene } from '../render/greyboxScene';
 import { Rain } from '../render/rain';
 import { ps1Snap } from '../render/retro/ps1Snap';
@@ -14,7 +15,6 @@ import type { FighterInput } from '../sim/combat/encounter';
 import { HumClock, listeningClarity } from '../sim/humClock';
 import { createPlayer, type PlayerCommand, type PlayerState } from '../sim/player';
 import { causewayPassable, humParams, tideLevel, tidePhase } from '../sim/tide';
-import { broughGreybox as world, COTTAGE_BOUNDS } from '../sim/world/broughGreybox';
 import { CombatHud } from '../ui/combatHud';
 import { BroughFight, type FightSnapshot } from './broughFight';
 
@@ -40,7 +40,6 @@ export interface SliceIntent extends FighterInput {
 const TIME_SCALES = [1, 4, 16, 64] as const;
 /** Where a visit starts in the tide's cycle: just after the causeway closes, so it reopens within minutes. */
 const START_TIDE = 0.82;
-const MOVE_YAWS = BROUGH_ZONES.map(zoneMoveYaw);
 
 /** What a death reloads: everything as it was when the player last rested at the hearth. */
 interface Checkpoint {
@@ -51,6 +50,8 @@ interface Checkpoint {
 
 export class BroughSlice {
   readonly scene: Scene;
+  private readonly level: Level = loadLevel(BROUGH);
+  private readonly moveYaws = this.level.cameras.map(zoneMoveYaw);
   readonly camera = new PerspectiveCamera(50, 16 / 9, 0.1, 220);
   private readonly g: GreyboxScene;
   private readonly rain = new Rain();
@@ -94,12 +95,13 @@ export class BroughSlice {
    * `weapon=sword` with the sword already in hand. `seed` seeds the fight; `hudParent` holds the on-screen readouts.
    */
   constructor(params: URLSearchParams, seed: number, hudParent: HTMLElement) {
-    this.g = buildGreybox(world);
+    const world = this.level.sim;
+    this.g = buildGreybox(this.level);
     this.scene = this.g.scene;
     this.scene.add(this.rain.object);
     this.hud = new CombatHud(hudParent);
     const weapon: WeaponId = params.get('weapon') === 'sword' ? 'sword' : 'knife';
-    this.fight = new BroughFight(this.scene, this.g, this.hud, seed, weapon);
+    this.fight = new BroughFight(this.scene, this.g, this.hud, this.level.places, seed, weapon);
 
     this.player = createPlayer(world);
     const at = params.get('at')?.split(',').map(Number);
@@ -111,7 +113,7 @@ export class BroughSlice {
     const tide = Number(params.get('tide') ?? Number.NaN);
     this.tideClock = DEFAULT_TIDE.cycleSeconds * (Number.isFinite(tide) ? tide : START_TIDE);
     this.copyPrev();
-    this.zone = selectZone(BROUGH_ZONES, -1, this.player.x, this.player.z);
+    this.zone = selectZone(this.level.cameras, -1, this.player.x, this.player.z);
     this.checkpoint = this.save();
   }
 
@@ -164,7 +166,7 @@ export class BroughSlice {
   tick(intent: SliceIntent, dt: number): void {
     // Camera-relative movement, kept on the old camera's axes across a cut while the keys stay held.
     this.moveHeld = intent.forward || intent.back || intent.left || intent.right;
-    const yaw = this.basis.update(MOVE_YAWS[this.zone]!, false, this.moveHeld);
+    const yaw = this.basis.update(this.moveYaws[this.zone]!, false, this.moveHeld);
     const fx = Math.sin(yaw);
     const fz = Math.cos(yaw);
     let mx = 0;
@@ -192,20 +194,14 @@ export class BroughSlice {
 
     this.copyPrev();
     this.tideClock += dt * TIME_SCALES[this.timeScale]!;
-    const indoors = this.inCottage();
+    const indoors = isIndoors(this.level, this.player.x, this.player.z);
     const ctx = { lit: this.torchOn, dark: !this.torchOn && !indoors, inRefuge: indoors };
-    const rested = this.fight.tick(intent, this.cmd, this.player, world, tideLevel(this.tideClock), ctx, dt, this.now);
+    const rested = this.fight.tick(intent, this.cmd, this.player, this.level.sim, tideLevel(this.tideClock), ctx, dt, this.now);
     if (rested) this.checkpoint = this.save();
     if (this.fight.wantsWake) {
       this.load(this.checkpoint);
       this.hud.say('You wake by the hearth.', this.now, 3.5);
     }
-  }
-
-  private inCottage(): boolean {
-    const c = COTTAGE_BOUNDS;
-    const p = this.player;
-    return p.x > c.minX && p.x < c.maxX && p.z > c.minZ && p.z < c.maxZ;
   }
 
   private save(): Checkpoint {
@@ -229,13 +225,13 @@ export class BroughSlice {
     const pz = this.prev.z + (p.z - this.prev.z) * alpha;
 
     // Camera zones: cut on a change, track within one.
-    const next = selectZone(BROUGH_ZONES, this.zone, px, pz);
+    const next = selectZone(this.level.cameras, this.zone, px, pz);
     if (next !== this.zone) {
       this.zone = next;
-      this.basis.update(MOVE_YAWS[next]!, true, this.moveHeld);
+      this.basis.update(this.moveYaws[next]!, true, this.moveHeld);
       this.snapCamera = true;
     }
-    const zone = BROUGH_ZONES[this.zone]!;
+    const zone = this.level.cameras[this.zone]!;
     zonePose(zone, px, py, pz, this.pose);
     this.camPos.lerp(this.target.set(this.pose.px, this.pose.py, this.pose.pz), this.snapCamera ? 1 : 1 - Math.exp(-frameDt * 5));
     this.camLook.lerp(this.target.set(this.pose.lx, this.pose.ly, this.pose.lz), this.snapCamera ? 1 : 1 - Math.exp(-frameDt * 9));
@@ -245,7 +241,8 @@ export class BroughSlice {
     const hum = humParams(this.tideClock);
     this.humClock.advance(hum, frameDt * Math.sqrt(TIME_SCALES[this.timeScale]!));
     const beat = this.humClock.beat();
-    const indoors = zone.id === 'cottage';
+    const indoors = zone.indoors === true;
+    const world = this.level.sim;
     const nearPost = world.listeningPosts.some((post) => Math.hypot(post.x - px, post.z - pz) < post.radius);
     const clarity = listeningClarity(nearPost, indoors, world.groundAt(px, pz).kind);
     const feel = hum.strength * beat * clarity * (p.listening ? 1 : 0.3);
@@ -271,7 +268,7 @@ export class BroughSlice {
     }
     g.ripple.amount.value = Math.min(1, hum.strength * 1.4 * (0.35 + 0.65 * beat));
     g.ripple.phase.value = this.humClock.phase;
-    g.beam.rotation.y += frameDt * 0.35;
+    for (const beam of g.beams) beam.rotation.y += frameDt * 0.35;
     g.fog.density = 0.026 + 0.012 * (0.5 + 0.5 * Math.sin(now / 9000));
 
     // The figure: crouched to listen with a hand on the ground trembling with the beat, otherwise holding the torch.
@@ -313,7 +310,7 @@ export class BroughSlice {
       tide: `${tidePhase(this.tideClock)} ${tideLevel(this.tideClock).toFixed(2)} m, causeway ${causewayPassable(this.tideClock) ? 'open' : 'closed'}`,
       'island time': `×${TIME_SCALES[this.timeScale]} (])`,
       player: `${p.x.toFixed(1)}, ${p.z.toFixed(1)}, water ${p.depth.toFixed(2)} m`,
-      camera: BROUGH_ZONES[this.zone]!.id,
+      camera: this.level.cameras[this.zone]!.id,
       hum: `${(this.shown.hum * 100).toFixed(0)}%, ${this.shown.beatHz.toFixed(2)} beats/s, heard ${(this.shown.clarity * 100).toFixed(0)}%`,
       ...this.fight.debugStats(),
     };

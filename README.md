@@ -55,6 +55,8 @@ src/core       fixed-timestep loop, frame pacing, seeds, pausing when the player
 src/input      keyboard and mouse into actions: bindings (rebindable, two keys each), keyboard layout names, mouse aim
 src/game       the playable slice: runs the simulation and presents it (game/broughSlice.ts), and the fight in it
                (game/broughFight.ts)
+src/content    levels as data (content/levels): ground, walls, props, cameras, where things and the dead are, set dressing;
+               content/level.ts checks a level for authoring mistakes (run by the unit tests)
 src/camera     authored cameras: zones, fixed/rail/crane rigs, movement keys that keep their direction across cuts
 src/render     renderer start-up, the WebGPU adapter probe, GPU tier, automatic quality step-down; the greybox scene,
                sea and GPU-computed rain
@@ -62,8 +64,8 @@ src/render/retro  the low-resolution look: ordered dither and colour quantisatio
 src/render/webgpu  the renderer back end (device loss, GPU timing) and Chromium WebGPU compatibility fixes
 src/save       guarded storage, the save file (format, migrations, checksum), restore points and Undo, tab lock
 src/settings   the player's saved settings: one versioned object
-src/sim        pure simulation: the tide, the hum's rhythm, player movement and wading, collision, the greybox world,
-               the fight (sim/combat: moves, Resolve, Break, the Rite, the dead's behaviour);
+src/sim        pure simulation: the tide, the hum's rhythm, player movement and wading, collision, the ground built from
+               level data, the fight (sim/combat: moves, Resolve, Break, the Rite, the dead's behaviour);
                seeded random numbers, allocation-free vectors
 src/audio      voice limiting; the island's hum, wind and rain (synthesised with Web Audio)
 src/ui         start pane, debug overlay, crash pane
