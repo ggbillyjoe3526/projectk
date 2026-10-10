@@ -157,6 +157,7 @@ The game code is in this repository. See the [main README](../README.md) to run 
 | Stage 1 expedition loop | Things to use with E (hearth, refuge, documents, tide table, sword, the kirkyard gate), the island clock, waiting out the tide, saving in the browser. | #15 |
 | Torch battery | The torch drains while lit and charges in the cottage; the static greybox merged to cut draw calls. | #16 |
 | The opening's beats | Empty-handed first trip and retreat, the knife from the dresser, the rise that sends you to the notebook, the sword brought home. | #17 |
+| CI | A GitHub workflow runs the tests, type check and build on every pull request, then starts the game in headless Chromium on the WebGL2 path. | #18 |
 
 Playable builds and the camera lab were published as claude.ai artifacts, which only William's account can open:
 [camera lab](https://claude.ai/artifact/AeiT4iTYDFGWtLZhDpbzBU),
