@@ -68,12 +68,14 @@ export function buildCottage(d: CottageDressing, batch: StaticBatch, scene: Scen
   const lining = 0.03;
   box(plaster, R.minX, R.maxX, F, F + H, R.minZ, R.minZ + lining, false);
   box(plaster, R.minX, R.maxX, F, F + H, R.maxZ - lining, R.maxZ, false);
-  box(plaster, R.minX, R.minX + lining, F, F + H, R.minZ, R.maxZ, false);
+  // The west wall, round the bedroom's doorway when there is one.
+  const westSpans: [number, number][] = d.bedroom ? [[R.minZ, d.bedroom.door[0]], [d.bedroom.door[1], R.maxZ]] : [[R.minZ, R.maxZ]];
+  for (const [z0, z1] of westSpans) box(plaster, R.minX, R.minX + lining, F, F + H, z0, z1, false);
   box(plaster, R.maxX - lining, R.maxX, F, F + H, R.minZ, -d.door, false);
   box(plaster, R.maxX - lining, R.maxX, F, F + H, d.door, R.maxZ, false);
   // Skirting.
   box(darkWood, R.minX, R.maxX, F, F + 0.14, R.minZ + lining, R.minZ + lining + 0.025, false);
-  box(darkWood, R.minX + lining, R.minX + lining + 0.025, F, F + 0.14, R.minZ, R.maxZ, false);
+  for (const [z0, z1] of westSpans) box(darkWood, R.minX + lining, R.minX + lining + 0.025, F, F + 0.14, z0, z1, false);
   // A boarded ceiling on heavy beams, just under the wall heads.
   box(wood, R.minX, R.maxX, F + H - 0.04, F + H, R.minZ, R.maxZ, false);
   for (let x = R.minX + 0.9; x < R.maxX - 0.3; x += 1.6) box(darkWood, x - 0.09, x + 0.09, F + H - 0.24, F + H - 0.04, R.minZ, R.maxZ, false);
@@ -306,6 +308,48 @@ export function buildCottage(d: CottageDressing, batch: StaticBatch, scene: Scen
       z += w + 0.004;
       n++;
     }
+  }
+
+  // --- the bedroom off the west gable: his bed, a chest of drawers, a small window, a lean-to roof ---
+  if (d.bedroom) {
+    const B = d.bedroom.room;
+    const BH = d.bedroom.height;
+    const [dz0, dz1] = d.bedroom.door;
+    box(surface('boards'), B.minX, R.minX, F, F + 0.03, B.minZ, B.maxZ, false);
+    box(plaster, B.minX, B.maxX, F, F + BH, B.minZ, B.minZ + lining, false);
+    box(plaster, B.minX, B.maxX, F, F + BH, B.maxZ - lining, B.maxZ, false);
+    box(plaster, B.minX, B.minX + lining, F, F + BH, B.minZ, B.maxZ, false);
+    for (const [z0, z1] of [[B.minZ, dz0], [dz1, B.maxZ]] as const) box(plaster, B.maxX - lining, B.maxX, F, F + BH, z0, z1, false);
+    box(wood, B.minX, R.minX, F + BH - 0.04, F + BH, B.minZ, B.maxZ, false);
+    // The doorway: a plain frame through the thickness of the gable.
+    for (const z of [dz0, dz1]) box(frameWhite, B.maxX - 0.02, R.minX + 0.02, F, F + 2.0, z - 0.04, z + 0.04);
+    box(frameWhite, B.maxX - 0.02, R.minX + 0.02, F + 2.0, F + 2.08, dz0 - 0.04, dz1 + 0.04);
+    // The bed: an iron frame, a mattress, a grey blanket turned down, a pillow at the head.
+    const bed = d.bedroom.bed;
+    const iron = plain(0x2a2a2c, 0.5);
+    for (const z of [bed.minZ + 0.03, bed.maxZ - 0.05]) box(iron, bed.minX, bed.maxX, F, F + (z > bed.minZ + 0.5 ? 0.95 : 0.65), z - 0.025, z + 0.025);
+    box(plain(0xd8d2c4, 0.9), bed.minX + 0.04, bed.maxX - 0.04, F + 0.3, F + 0.48, bed.minZ + 0.06, bed.maxZ - 0.08);
+    box(plain(0x5a5c58, 0.95), bed.minX + 0.02, bed.maxX - 0.02, F + 0.48, F + 0.52, bed.minZ + 0.05, bed.maxZ - 0.55);
+    box(plain(0xe8e4da, 0.9), bed.minX + 0.15, bed.maxX - 0.15, F + 0.52, F + 0.62, bed.maxZ - 0.48, bed.maxZ - 0.12);
+    // The chest of drawers, a lamp and a photograph on it.
+    const dw = d.bedroom.drawers;
+    box(wood, dw.minX, dw.maxX, F, F + 0.9, dw.minZ, dw.maxZ);
+    for (const y of [F + 0.2, F + 0.48, F + 0.76]) box(darkWood, dw.minX + 0.04, dw.maxX - 0.04, y - 0.1, y + 0.1, dw.maxZ, dw.maxZ + 0.015, false);
+    piece(lathe([[0, 0], [0.06, 0], [0.04, 0.02], [0.015, 0.03], [0.015, 0.25], [0.1, 0.26], [0.08, 0.38], [0, 0.38]]), plain(0x6a5a40, 0.5), dw.minX + 0.2, F + 0.9, (dw.minZ + dw.maxZ) / 2);
+    piece(tiledBox(0.16, 0.2, 0.02, 1), plain(0x8a7040, 0.35), dw.maxX - 0.25, F + 1.0, dw.minZ + 0.12);
+    // A small window in the west wall, dark glass and a white frame.
+    const wz = (B.minZ + dw.maxZ) / 2 + 1.2;
+    box(glass, B.minX + lining, B.minX + lining + 0.01, F + 1.1, F + 1.75, wz - 0.32, wz + 0.32, false);
+    for (const z of [wz - 0.32, wz, wz + 0.32]) box(frameWhite, B.minX + lining, B.minX + 0.07, F + 1.1, F + 1.75, z - 0.025, z + 0.025, false);
+    for (const y of [F + 1.1, F + 1.75]) box(frameWhite, B.minX + lining, B.minX + 0.07, y - 0.025, y + 0.025, wz - 0.34, wz + 0.34, false);
+    // Outside: a lean-to of slates falling from the gable to the bedroom's west wall.
+    const high = F + BH + 0.5;
+    const low = F + BH + 0.05;
+    const run = R.minX - T - (B.minX - T) + 0.3;
+    const lean = tiledBox(Math.hypot(run, high - low), 0.08, B.maxZ - B.minZ + 2 * T + 0.3, tileOf(surface('slates')));
+    lean.rotateZ(Math.atan2(high - low, run));
+    piece(lean, surface('slates'), (R.minX - T + B.minX - T - 0.3) / 2, (high + low) / 2 + 0.04, (B.minZ + B.maxZ) / 2);
+    box(surface('harl'), B.minX - T, R.minX - T, F + BH, low, B.minZ - T, B.maxZ + T);
   }
 
   // --- by the door: the tide table pinned to the wall ---

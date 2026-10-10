@@ -4,8 +4,9 @@ import { applyPs1Snap } from './retro/ps1Snap';
 
 /**
  * The islanders as greybox figures (chapter 1): a body in their coat, legs, a head, and the one detail that tells
- * them apart at a distance (a hi-vis stripe, a dog collar, an apron, a headscarf). They turn to face the player as
- * they come near, and back again as they go. A kneeling one stays down, palm on the ground, until spoken to.
+ * them apart at a distance (a hi-vis stripe, a dog collar, an apron, a headscarf). They turn to face the player only
+ * while talking to him, and back again after (William, 2026-10-10: nobody follows the player round with their eyes).
+ * A kneeling one stays down, palm on the ground, until spoken to.
  */
 
 function lambert(color: number): MeshLambertNodeMaterial {
@@ -19,8 +20,7 @@ function box(w: number, h: number, d: number, color: number, x: number, y: numbe
   return m;
 }
 
-/** How near the player comes before someone turns to them, and how fast they turn (radians a second). */
-const NOTICE_RANGE = 4.5;
+/** How fast someone turns to the player they're talking to, and back (radians a second). */
 const TURN_SPEED = 3;
 
 interface Figure {
@@ -84,7 +84,7 @@ export class PeopleFigures {
   }
 
   /**
-   * Per frame: who's kneeling (`kneels(id)`), who's turned to the player (near, or the one they're talking to), a
+   * Per frame: who's kneeling (`kneels(id)`), who's turned to the player (the one they're talking to), a
    * visibility test (`shown(id)`) for people only there part of the chapter, and where each is (`place`: writes where
    * they stand in the simulation, and the way they face, into `out`, and returns where it's drawn offset by a turn, for
    * someone aboard the moving ferry: `drawn` gets the drawn position).
@@ -109,8 +109,7 @@ export class PeopleFigures {
       at.facing = p.facing;
       const turn = place(p, at, drawn);
       const kneeling = kneels(p.id);
-      const near = Math.hypot(px - at.x, pz - at.z) < NOTICE_RANGE;
-      const want = (talkingTo === p.id || (near && !kneeling)) ? Math.atan2(px - at.x, pz - at.z) : at.facing;
+      const want = talkingTo === p.id ? Math.atan2(px - at.x, pz - at.z) : at.facing;
       const by = Math.atan2(Math.sin(want - f.facing), Math.cos(want - f.facing));
       const most = TURN_SPEED * dt;
       f.facing += Math.max(-most, Math.min(most, by));

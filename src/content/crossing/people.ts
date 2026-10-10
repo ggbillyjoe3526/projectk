@@ -49,6 +49,8 @@ export const FLAGS = {
   declinedRoom: 'declinedRoom',
   /** He spent the night at the inn. */
   slept: 'slept',
+  /** His backpack is set down in the bedroom at the cottage. */
+  bagDown: 'bagDown',
   toldVigil: 'toldVigil',
   taughtListen: 'taughtListen',
   sawSalt: 'saw:salt',

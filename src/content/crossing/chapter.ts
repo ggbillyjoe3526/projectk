@@ -12,7 +12,11 @@ export const VOYAGE_SECONDS = 75;
 export const DOCKED_TIDE = atTime(0, 23, 45);
 /** The tide clock as the chapter begins, out in the sound (one real second is one tide-clock second). */
 export const FERRY_START_TIDE = DOCKED_TIDE - VOYAGE_SECONDS;
-/** Real seconds for the ferry to pull away again once William is ashore. */
+/** Real seconds before docking when the deckhand calls the island (William, 2026-10-10: he says something as it docks). */
+export const DOCKING_CALL_SECONDS = VOYAGE_SECONDS - 16;
+/** Real seconds the ferry waits once William is up the pier before it casts off (William, 2026-10-10: a little later). */
+export const DEPART_DELAY_SECONDS = 9;
+/** Real seconds for the ferry to pull away again once it casts off. */
 export const DEPARTURE_SECONDS = 70;
 /** When a night at the inn ends: Thursday, half past eight, the causeway open. */
 export const MORNING_TIDE = atTime(1, 8, 30);
@@ -50,6 +54,7 @@ export const LINES = {
   opening: 'The late ferry to Haugsay. Your father’s funeral is on Friday.',
   phoneHint: (key: string): string => `${key} to look at your phone`,
   bagHint: (key: string): string => `The letter is in your backpack. ${key} for your phone and bag.`,
+  docking: 'The deckhand calls along the deck: “That’s us coming in to Haugsay. Mind yourself on the gangway, it’s greasy in the wet.”',
   docked: 'The ferry bumps against the pier. Haugsay.',
   gangway: 'They’ve run the gangway out.',
   departing: 'Behind you, the ferry is already pulling away from the pier.',
@@ -58,6 +63,9 @@ export const LINES = {
   innArrive: 'The Skerry Inn. Warm, and too quiet. Morag is behind the bar as if she’d never left it.',
   slept: 'You sleep badly, under a sloping ceiling, listening to the sea. In the morning the rain has eased.',
   turnedBack: 'The sea is coming over. You scramble back the way you came.',
+  /** Walking into water too deep to wade (William, 2026-10-10: a warning at high tide). */
+  tooDeep: 'The tide is in. The water’s too deep and too cold to go any further.',
+  tooDeepCauseway: 'The tide is over the causeway. Go on and the sea will take you off it. Wait for low water.',
   cottage: 'His house. It smells of peat smoke, and something underneath it.',
   cottageAfter: 'He’s here. They brought him home this morning, so he’d have his last night in his own house.',
   listenHint: (key: string): string => `Hold ${key} to kneel and listen.`,

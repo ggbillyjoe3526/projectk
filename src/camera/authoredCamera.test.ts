@@ -43,7 +43,7 @@ describe('held movement basis across cuts', () => {
 
 describe('movement basis within a zone', () => {
   it('stays fixed while a turning camera follows the player', () => {
-    const cottage = Z[0]!;
+    const cottage = Z.find((z) => z.id === 'cottage')!;
     expect(cottage.rig.type).toBe('fixed');
     const yaw = zoneMoveYaw(cottage);
     // The live view swings as the player crosses the room; the movement basis does not.
