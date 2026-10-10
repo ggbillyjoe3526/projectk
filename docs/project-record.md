@@ -134,8 +134,8 @@ made for the project. Section 8 of the concept document describes this look.
   true cause of Alan's death; whether the pill gets consequences later; whether texts from his mother and the coastguard
   stay.
 - **Art:** the final look, as above, and the protagonist's face.
-- **Combat:** whether the deflect now reads and feels right after the fixes (see [Playtest feedback](#playtest-feedback));
-  how fast the dead are, and whether three at once is too many.
+- **Combat:** how fast the dead are, and whether three at once is too many. (The deflect is settled for now: see
+  [Playtest feedback](#playtest-feedback).)
 - **Death rule:** the concept recommends reloading the last save (the cottage or a refuge); the prototype does that for now.
 - **Concept document section 13** lists decisions that have since been made (camera, the pill, the protagonist's name).
   Treat this record as current.
@@ -205,7 +205,8 @@ What changed (PR #10):
   falls inside the 200 ms window.
 - The dead's swing now makes a whoosh as it starts down.
 
-Still to judge by playing: whether 200 ms is the right window, and whether the tell comes at the right moment.
+William, after PR #10: "that feels much better." The deflect timing stands as it is: a 200 ms window and the tell 400 ms
+before the blow.
 
 ## Process
 
@@ -262,4 +263,4 @@ just disabled, and can be turned back on when he asks.
 | 2026-10-10 | Art direction: round 1 (A/B/C), William picked B with the low-Resolve grade; round 2 (realistic), "better but not quite there". |
 | 2026-10-10 | William put the project on hold: no new work, no more concept images, the Airsoft routine paused. Everything was brought into this repository. |
 | 2026-10-10 | Work resumed. William's M1 playtest: the deflect felt clunky and he couldn't tell if it worked. Fixed in PR #8. |
-| 2026-10-10 | Still felt off: the blow counted before the arm came down. Fixed in PR #10. |
+| 2026-10-10 | Still felt off: the blow counted before the arm came down. Fixed in PR #10; William: "that feels much better." |
