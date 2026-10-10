@@ -61,12 +61,13 @@ bosses and puzzles until he can make the final journey to the ferry, or stay and
 | Decision | When |
 |---|---|
 | **No firearms and no consumable ammunition.** No katana, because it doesn't suit Scotland. The "ammo" is a spiritual or mental resource (Resolve in the design). | 2026-10-09 |
-| The opening: the player first goes out with only the **phone torch** and has to retreat. Then a **kitchen knife** proves useless against the dead. Then an old **note** reveals that only the **ancient sword in the kirk** can lay them. | 2026-10-09 |
+| The opening: the player first goes out with only the **phone torch** and has to retreat. Then a **kitchen knife** proves useless against the dead. Then only the **ancient sword in the kirk** can lay them. *Revised 2026-10-10, below: the retreat is the daylight flight from the funeral, and hints in the kirk replace the note.* | 2026-10-09 |
 | The sword becomes the main weapon. The **off hand** holds a light source, swappable for other items, each with clear pros and cons (a light helps you see but gets you detected sooner). | 2026-10-09 |
 | The **phone is offline**: it is the in-game menu (notes, discoveries). Signal and charging (phone, torch, other electronics) are available only in safe areas. | 2026-10-09 |
 | **Camera A**: authored high-angle tracking cameras per zone, with the mouse aiming the torch. Movement keeps its direction across camera cuts. Chosen after trying all five in the camera lab. | 2026-10-09 |
 | Death reloads the last hearth checkpoint. This is the prototype's rule; the final death rule hasn't been decided. | 2026-10-09 |
 | The **vertical slice is built in two playable stages**: "Low water" (the torch retreat to taking the sword, about 15 minutes), then "The funeral" (the ferry, vigil, kirk service and the Hogboon). See [vertical-slice-plan.md](vertical-slice-plan.md). | 2026-10-10 |
+| **The retreat is the flight from the funeral** (chapter 2). The service is at ten in the morning, so it's daylight and no torch is needed: he just has to get back to the Brough safe house, where he's safe for the night. The next day he takes a kitchen knife, which proves useless (chapter 3). He does **not** learn about the sword from a note that appears in his father's house; **hints in the kirk** point him to it. The hints themselves are a proposal in [story/chapters.md](story/chapters.md). | 2026-10-10 |
 | The **vertical slice ends at Stage 1, "Low water"** (William: "a good place to wrap up this vertical slice so we can begin working on the first chapter"). Stage 2's content is left for the chapter work. | 2026-10-10 |
 
 ### Story
@@ -348,4 +349,5 @@ the routine was deleted. Don't set it up again unless he asks.
 | 2026-10-10 | William started the vertical slice and chose to build it in two stages, "Low water" first ([plan](vertical-slice-plan.md)). Levels became data (PR #12). |
 | 2026-10-10 | Stage 1, "Low water", built and played through PR #25 (spaces, expedition loop, the opening's beats, torch battery, CI, the cottage, the low-Resolve grade, and the controls, combat and HUD after William's playtests). William wrapped up the vertical slice there; work moves to the first chapter, in another thread. Stage 2, "The funeral", was not started. |
 | 2026-10-10 | William set the version scheme: a minor version per chapter, numbered Dev builds within it; chapter 1 releases as "0.1 Dev 1". |
+| 2026-10-10 | Chapter 1, "The Crossing", built and released as 0.1 Dev 1 (PR #27). William settled the opening's order: the retreat is the daylight flight from the funeral, the knife fails the next day, and the sword's hints are in the kirk, not in a note that appears. |
 | 2026-10-10 | William stopped the Airsoft sync for good: the routine was deleted and nothing more is pulled from Airsoft. |
