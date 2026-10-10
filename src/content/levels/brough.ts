@@ -1,17 +1,17 @@
 import type { Prop, Wall } from '../../sim/world/types';
-import type { LevelDef } from '../level';
+import type { LevelArea } from '../level';
 
 /**
- * The Brough (the tidal islet with the father's cottage and the lighthouse), the causeway, and the edge of the main
- * island, in greybox (M0 and M1). Metres; +x is east, +z is south.
+ * The Brough (the tidal islet with the father's cottage and the lighthouse), the causeway, and the shore of the main
+ * island, in greybox. Metres; +x is east, +z is south.
  */
 
 export const ISLET = { minX: -34, maxX: -12, minZ: -12, maxZ: 12, top: 3.2 } as const;
 export const CAUSEWAY = { minX: -12, maxX: 12, halfWidth: 1.5, top: 0.15, rampLength: 7 } as const;
 export const SHORE = { minX: 12, maxX: 40, minZ: -16, maxZ: 16, top: 3.2 } as const;
-const CHANNEL_FLOOR = -2.5;
+export const CHANNEL_FLOOR = -2.5;
 
-const COTTAGE = { minX: -28, maxX: -20, minZ: -3, maxZ: 3, wall: 0.3, height: 2.6, door: 0.8 } as const;
+export const COTTAGE = { minX: -28, maxX: -20, minZ: -3, maxZ: 3, wall: 0.3, height: 2.6, door: 0.8 } as const;
 
 function cottageWalls(): Wall[] {
   const c = COTTAGE;
@@ -35,8 +35,6 @@ const WALLS: Wall[] = [
   { minX: 15, maxX: 16, minZ: 7.5, maxZ: 8.3, height: 0.8, kind: 'boulder' },
   { minX: 26, maxX: 26.6, minZ: -16, maxZ: -5, height: 1.2, kind: 'dyke' },
   { minX: 26, maxX: 26.6, minZ: -2, maxZ: 16, height: 1.2, kind: 'dyke' },
-  // The howe slab past the dyke, where the old sword lies.
-  { minX: 33.2, maxX: 34.8, minZ: -10.7, maxZ: -9.3, height: 0.45, kind: 'stone' },
   // A table and the bier in the cottage (low, still solid).
   { minX: -25.2, maxX: -23.8, minZ: -1.2, maxZ: 0.2, height: 0.8, kind: 'stone' },
   { minX: -27.6, maxX: -26.2, minZ: 1.2, maxZ: 2.6, height: 0.9, kind: 'stone' },
@@ -54,27 +52,22 @@ const RAMP_WEST = CAUSEWAY.minX + CAUSEWAY.rampLength;
 const RAMP_EAST = CAUSEWAY.maxX - CAUSEWAY.rampLength;
 const causeway = { minZ: -CAUSEWAY.halfWidth, maxZ: CAUSEWAY.halfWidth, kind: 'causeway' } as const;
 
-export const BROUGH: LevelDef = {
-  id: 'brough',
-  world: {
-    channelFloor: CHANNEL_FLOOR,
-    ground: [
-      { ...ISLET, kind: 'islet', height: ISLET.top },
-      { ...SHORE, kind: 'shore', height: SHORE.top },
-      // The causeway: ramps down off the islet, a long low spine the tide covers, and a ramp up onto the shore.
-      { ...causeway, minX: CAUSEWAY.minX, maxX: RAMP_WEST, height: { axis: 'x', from: ISLET.top, to: CAUSEWAY.top } },
-      { ...causeway, minX: RAMP_WEST, maxX: RAMP_EAST, height: CAUSEWAY.top },
-      { ...causeway, minX: RAMP_EAST, maxX: CAUSEWAY.maxX, height: { axis: 'x', from: CAUSEWAY.top, to: SHORE.top } },
-    ],
-    walls: WALLS,
-    props: PROPS,
-    listeningPosts: [
-      { x: 18, z: -4, radius: 1.6 },
-      { x: -12.4, z: 1.2, radius: 1.2 },
-    ],
-    spawn: { x: -24, z: 1.4, facing: Math.PI / 2 },
-  },
-  interiors: [{ minX: COTTAGE.minX, maxX: COTTAGE.maxX, minZ: COTTAGE.minZ, maxZ: COTTAGE.maxZ }],
+export const BROUGH_AREA: LevelArea = {
+  ground: [
+    { ...ISLET, kind: 'islet', height: ISLET.top },
+    { ...SHORE, kind: 'shore', height: SHORE.top },
+    // The causeway: ramps down off the islet, a long low spine the tide covers, and a ramp up onto the shore.
+    { ...causeway, minX: CAUSEWAY.minX, maxX: RAMP_WEST, height: { axis: 'x', from: ISLET.top, to: CAUSEWAY.top } },
+    { ...causeway, minX: RAMP_WEST, maxX: RAMP_EAST, height: CAUSEWAY.top },
+    { ...causeway, minX: RAMP_EAST, maxX: CAUSEWAY.maxX, height: { axis: 'x', from: CAUSEWAY.top, to: SHORE.top } },
+  ],
+  walls: WALLS,
+  props: PROPS,
+  listeningPosts: [
+    { x: 18, z: -4, radius: 1.6 },
+    { x: -12.4, z: 1.2, radius: 1.2 },
+  ],
+  interiors: [{ minX: COTTAGE.minX, maxX: COTTAGE.maxX, minZ: COTTAGE.minZ, maxZ: COTTAGE.maxZ, refuge: true }],
   cameras: [
     {
       id: 'cottage',
@@ -106,19 +99,12 @@ export const BROUGH: LevelDef = {
       lookOffset: [0.5, 0.4, -0.8],
     },
   ],
-  places: {
-    note: { x: -24.5, z: -0.5 },
-    hearth: { x: -27, z: -2.2 },
-    sword: { x: 34, z: -10, top: SHORE.top + 0.45 },
-    dead: [
-      { x: 18, z: 7, facing: -Math.PI / 2 },
-      { x: 23, z: -9, facing: -Math.PI / 2 },
-      { x: 31, z: 5, facing: -Math.PI / 2 },
-    ],
-  },
+  dead: [
+    { x: 18, z: 7, facing: -Math.PI / 2 },
+    { x: 23, z: -9, facing: -Math.PI / 2 },
+    { x: 31, z: 5, facing: -Math.PI / 2 },
+  ],
   dressing: [
-    // Rising ground beyond the shore.
-    { kind: 'block', box: { minX: SHORE.maxX, maxX: SHORE.maxX + 60, minZ: -60, maxZ: 60 }, bottom: CHANNEL_FLOOR, top: SHORE.top + 6, material: 'cliff' },
     // The cottage floor (no roof, so the authored camera can see in), the stove and its glow.
     { kind: 'block', box: COTTAGE, bottom: ISLET.top, top: ISLET.top + 0.03, material: 'floor' },
     { kind: 'block', box: { minX: -27.7, maxX: -26.5, minZ: -2.8, maxZ: -1.8 }, bottom: ISLET.top, top: ISLET.top + 0.9, material: 'stone', castShadow: true },

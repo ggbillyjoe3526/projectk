@@ -4,8 +4,8 @@ import { type CameraPose, HeldMoveBasis, selectZone, zoneMoveYaw, zonePose } fro
 import type { WeaponId } from '../config/combat';
 import { RETRO_LOOK } from '../config/render';
 import { DEFAULT_TIDE } from '../config/tide';
-import { isIndoors, type Level, loadLevel } from '../content/level';
-import { BROUGH } from '../content/levels/brough';
+import { inRefuge, isIndoors, type Level, loadLevel } from '../content/level';
+import { HAUGSAY } from '../content/levels/haugsay';
 import { buildGreybox, type GreyboxScene } from '../render/greyboxScene';
 import { Rain } from '../render/rain';
 import { ps1Snap } from '../render/retro/ps1Snap';
@@ -50,7 +50,7 @@ interface Checkpoint {
 
 export class BroughSlice {
   readonly scene: Scene;
-  private readonly level: Level = loadLevel(BROUGH);
+  private readonly level: Level = loadLevel(HAUGSAY);
   private readonly moveYaws = this.level.cameras.map(zoneMoveYaw);
   readonly camera = new PerspectiveCamera(50, 16 / 9, 0.1, 220);
   private readonly g: GreyboxScene;
@@ -194,8 +194,8 @@ export class BroughSlice {
 
     this.copyPrev();
     this.tideClock += dt * TIME_SCALES[this.timeScale]!;
-    const indoors = isIndoors(this.level, this.player.x, this.player.z);
-    const ctx = { lit: this.torchOn, dark: !this.torchOn && !indoors, inRefuge: indoors };
+    const { x, z } = this.player;
+    const ctx = { lit: this.torchOn, dark: !this.torchOn && !isIndoors(this.level, x, z), inRefuge: inRefuge(this.level, x, z) };
     const rested = this.fight.tick(intent, this.cmd, this.player, this.level.sim, tideLevel(this.tideClock), ctx, dt, this.now);
     if (rested) this.checkpoint = this.save();
     if (this.fight.wantsWake) {

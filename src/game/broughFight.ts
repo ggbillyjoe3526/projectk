@@ -24,7 +24,7 @@ import type { CombatHud } from '../ui/combatHud';
 /**
  * The M1 fight on the Brough's greybox (concept v0.6 sections 3.2 to 3.4): the player starts with the kitchen knife,
  * which cuts the dead down but never keeps them down; the note on the cottage table says why; the old sword lies on the
- * howe slab past the dyke. Resting at the hearth restores the player and is where a death reloads to.
+ * howe slab in the kirk. Resting at the hearth restores the player and is where a death reloads to.
  */
 
 /** Read at the cottage table. */
@@ -33,7 +33,7 @@ const NOTE = [
   'The knife won’t do it. Nothing will that wasn’t in the ground with them.',
   'Iron from the howe. Nothing else will lay them.',
   'When one goes down on its knees, say the words over it, and it stays down for good.',
-  'The old blade is on the slab past the dyke, where they opened the howe.',
+  'The old blade is in the kirk, on the slab where they opened the howe. Go at low water.',
 ] as const;
 
 /** Ticks after dying before waking at the hearth. */

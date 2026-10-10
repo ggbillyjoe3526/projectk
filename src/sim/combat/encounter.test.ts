@@ -3,7 +3,7 @@ import { PLAYER_COMBAT as PC, UNBURIED_TUNING as UT, WEAPONS } from '../../confi
 import { SIM_DT } from '../../config/sim';
 import type { PlayerCommand, PlayerState } from '../player';
 import { loadLevel } from '../../content/level';
-import { BROUGH } from '../../content/levels/brough';
+import { HAUGSAY } from '../../content/levels/haugsay';
 import type { WorldDef } from '../world/types';
 import { createEncounter, deadCanStand, type Encounter, type FightContext, type FighterInput, interactTarget, perfectWindow, stepEncounter } from './encounter';
 
@@ -15,7 +15,7 @@ const flat: WorldDef = {
   listeningPosts: [],
   spawn: { x: 0, z: 0, facing: 0 },
 };
-const broughGreybox = loadLevel(BROUGH).sim;
+const broughGreybox = loadLevel(HAUGSAY).sim;
 const ctx: FightContext = { lit: true, dark: false, inRefuge: false };
 
 const none = (): FighterInput => ({ attackHeld: false, attackPressed: false, deflectHeld: false, deflectPressed: false, stepPressed: false, interactPressed: false });

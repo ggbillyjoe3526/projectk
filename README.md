@@ -10,9 +10,11 @@ the concept versions, the story, the art direction shots and their tools, and th
 
 The engine skeleton (the loop, saving, input, renderer start-up and diagnostics) runs the first playable slice, M0:
 the father's cottage, the Brough and the tidal causeway in greybox, under authored tracking cameras (concept camera A),
-in the low-resolution dithered look, with the tide and the island's hum; and M1, the fight: three of the dead on the
-shore, the kitchen knife that cuts them down but can't keep them down, the note on the cottage table, and the sword on
-the howe slab past the dyke, with deflect, Resolve, Break and the Rite. There is no story beyond that, and no art yet.
+in the low-resolution dithered look, with the tide and the island's hum; and M1, the fight: the dead on the shore,
+the kitchen knife that cuts them down but can't keep them down, the note on the cottage table, and the sword, with
+deflect, Resolve, Break and the Rite. The first stage of the vertical slice adds the village street and its shop, the
+lane up to the kirkyard, and the kirk, where the sword lies on the howe slab, with the vestry as a refuge. All of it is
+greybox; there is no story beyond that, and no art yet.
 
 ## Run it
 
