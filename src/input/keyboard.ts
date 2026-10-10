@@ -31,6 +31,11 @@ export class Keyboard {
     return this.bindings.label(action);
   }
 
+  /** The readable names of all of `action`'s keys ("Right Mouse / Left Shift"). */
+  keysName(action: Action): string {
+    return this.bindings.describe(this.bindings.codes(action));
+  }
+
   /** True if the action was pressed since the last `endFrame()`. */
   wasPressed(action: Action): boolean {
     for (const code of this.bindings.codes(action)) if (this.pressedThisFrame.has(code)) return true;

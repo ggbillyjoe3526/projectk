@@ -151,6 +151,11 @@ export class BroughSlice {
     this.torchOn = !this.torchOn;
   }
 
+  /** The deflect timing readout on or off. */
+  toggleFightReadout(): void {
+    this.fight.toggleReadout(this.now);
+  }
+
   cycleTimeScale(): void {
     this.timeScale = (this.timeScale + 1) % TIME_SCALES.length;
   }

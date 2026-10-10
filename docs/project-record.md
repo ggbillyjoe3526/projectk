@@ -13,6 +13,9 @@ Where this record and an older document disagree, this record is newer. The stor
 
 ## Status: on hold
 
+**Update:** work resumed later on 2026-10-10 at William's request (new concept shots, then the M1 playtest fixes
+below). The rest of this section is the hold as it was.
+
 On 2026-10-10 William put the whole project on hold:
 
 - **No new work** until William asks for it.
@@ -127,8 +130,8 @@ Section 8 of the concept document (480x270) still needs updating to match this w
   true cause of Alan's death; whether the pill gets consequences later; whether texts from his mother and the coastguard
   stay.
 - **Art:** the final look, as above, and the protagonist's face.
-- **Combat:** William's playtest notes on the M1 combat prototype (deflect timing, how fast the dead are, whether three at
-  once is too many). The build was delivered on 2026-10-09 and no feedback has come back yet.
+- **Combat:** whether the deflect now reads and feels right after the fixes (see [Playtest feedback](#playtest-feedback));
+  how fast the dead are, and whether three at once is too many.
 - **Death rule:** the concept recommends reloading the last save (the cottage or a refuge); the prototype does that for now.
 - **Concept document section 13** lists decisions that have since been made (camera, the pill, the protagonist's name).
   Treat this record as current.
@@ -141,13 +144,49 @@ The game code is in this repository. See the [main README](../README.md) to run 
 |---|---|---|
 | Engine skeleton | Small, tested modules brought over from Airsoft: the fixed 60 Hz loop, frame pacing, seeds, WebGPU start-up with the WebGL2 fallback and device-loss recovery, quality step-down, debug overlay, crash report, saves and key rebinding. William confirmed it runs on WebGPU on his own graphics card. | #1 |
 | M0: first playable slice | The cottage, the Brough and the tidal causeway in greybox under camera A, in the low-res dithered look, with the tide and the island's hum. William: "I'm happy with that. Feels good." | #3 |
-| M1: combat prototype | Three of the dead on the shore, the knife that can't keep them down, the note, the sword on the howe slab, with deflect, Resolve, Break and the Rite. Awaiting William's playtest. | #4 |
+| M1: combat prototype | Three of the dead on the shore, the knife that can't keep them down, the note, the sword on the howe slab, with deflect, Resolve, Break and the Rite. William: "quite good for a first test". | #4 |
+| M1 deflect fixes | The deflect made reliable and readable after William's playtest (see below). | #8 |
 
 Playable builds and the camera lab were published as claude.ai artifacts, which only William's account can open:
 [camera lab](https://claude.ai/artifact/AeiT4iTYDFGWtLZhDpbzBU),
 [M0](https://claude.ai/artifact/FNETqvfTLu65TUHz5ZeWd8) and [M1](https://claude.ai/artifact/MyusiGSTaMTQzLVp8JHUjk).
 The camera lab is a standalone page, so a copy is in [prototypes/camera-lab.html](prototypes/camera-lab.html): open it in
 a browser and press 1 to 5 to switch cameras. M0 and M1 are builds of this repository (`npm run build`).
+
+## Playtest feedback
+
+### M1 combat, 2026-10-10
+
+William: "this is quite good for a first test. deflects with right click feel a bit clunky/awkward. i can't really tell
+if it's working."
+
+What was wrong:
+
+- **Right clicks were lost.** Mouse buttons were read from pointer events, which report only the first button pressed.
+  A right click while the left button was held (deflecting out of a swing or a sained charge) never arrived.
+- **Presses were dropped.** A deflect pressed during a swing's blow, a stagger or a hit-stop was thrown away, not
+  remembered, so the game seemed to ignore it.
+- **The window was tight and punished retries.** 150 ms, and a second press within about 230 ms of the last deflect
+  ending had no window at all, even straight after a perfect deflect, so blows in quick succession couldn't each be met.
+- **No clear cue to time it on.** The dead's wind-up is a random length, with no "now" moment.
+- **The result was hard to see.** A perfect deflect showed only a small light at the blade tip, often off-screen at
+  270p, and a guard looked almost the same as a hit.
+
+What changed (PR #8):
+
+- Mouse buttons come from mouse events, so a right click always registers. Left Shift also deflects.
+- A deflect press waits up to 8 ticks (133 ms) for the player to be free, and a press during a hit-stop counts.
+- The perfect window is 12 ticks (200 ms) at good Resolve. A perfect deflect re-arms at once, and pressing again
+  straight after one opens a fresh window. The no-spam rule now covers only misses, for 10 ticks.
+- **The tell:** a cold glint in the dead's raised hand and a sharp hiss 14 ticks (about 230 ms) before the blow.
+- **Feedback:** a perfect deflect throws bright sparks and a ring of light where the blades meet, flashes the screen,
+  rings louder and throws the enemy back a step. A guard throws a few dull sparks. The blade catches the light during
+  the perfect window, so a press is seen to land.
+- **A timing readout** under the view says how each deflect went: "Deflected", "100 ms early", "150 ms late",
+  "Guarded", "Pressed again too soon" or "Mid-swing, too busy to deflect". It's on in the prototype so the window can be
+  learned and tuned; F4 hides it.
+
+Still to judge by playing: whether 200 ms is the right window, and whether the tell comes at the right moment.
 
 ## Process
 
@@ -203,3 +242,4 @@ just disabled, and can be turned back on when he asks.
 | 2026-10-10 | Story summary written and revised to v4 over William's notes (ferry opening, names, vigil, the Hogboon and the pier, two endings, the pill). |
 | 2026-10-10 | Art direction: round 1 (A/B/C), William picked B with the low-Resolve grade; round 2 (realistic), "better but not quite there". |
 | 2026-10-10 | William put the project on hold: no new work, no more concept images, the Airsoft routine paused. Everything was brought into this repository. |
+| 2026-10-10 | Work resumed. William's M1 playtest: the deflect felt clunky and he couldn't tell if it worked. Fixed in PR #8. |

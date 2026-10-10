@@ -1,4 +1,4 @@
-import { BoxGeometry, CapsuleGeometry, Color, Group, Mesh, MeshLambertNodeMaterial, type Scene } from 'three/webgpu';
+import { AdditiveBlending, BoxGeometry, CapsuleGeometry, Color, Group, Mesh, MeshBasicNodeMaterial, MeshLambertNodeMaterial, type Scene } from 'three/webgpu';
 import { PLAYER_COMBAT as PC, UNBURIED_TUNING as UT, WEAPONS } from '../config/combat';
 import type { Encounter, Fighter, Unburied } from '../sim/combat/encounter';
 import { applyPs1Snap } from './retro/ps1Snap';
@@ -67,11 +67,14 @@ export class PlayerWeapon {
     setArm(this.arm, armPose(f, t));
     // The sained strike's blessing: the blade warms as the charge builds.
     const glow = f.action === 'charge' ? Math.min(1, t / PC.sained.chargeTicks) : f.action === 'sained' ? 1 - t / 40 : 0;
-    this.steel.emissive.setRGB(0.9 * glow, 0.75 * glow, 0.45 * glow);
+    // A deflect's perfect window: the blade catches the light, fading as the window closes, so a press is seen to land.
+    const ready = f.action === 'deflect' && t < f.perfect ? 0.35 + 0.65 * (1 - t / f.perfect) : 0;
+    this.steel.emissive.setRGB(Math.max(0.9 * glow, 0.75 * ready), Math.max(0.75 * glow, 0.8 * ready), Math.max(0.45 * glow, 0.85 * ready));
   }
 }
 
 const REST: ArmPose = { sweep: -0.25, lift: -0.45 };
+const DEFLECT: ArmPose = { sweep: 0.95, lift: -1.75 };
 
 function armPose(f: Fighter, t: number): ArmPose {
   const w = WEAPONS[f.weapon];
@@ -99,8 +102,8 @@ function armPose(f: Fighter, t: number): ArmPose {
       return mix(low, REST, ease((t - s.windup - s.active) / s.recovery));
     }
     case 'deflect':
-      // Blade held across the body, snapping up fast.
-      return mix(REST, { sweep: 1.15, lift: -1.25 }, ease(t / 3));
+      // Blade raised across the body, snapping up in two ticks.
+      return mix(REST, DEFLECT, ease(t / 2));
     case 'step':
       return { sweep: -0.5, lift: -0.2 };
     case 'hurt':
@@ -128,6 +131,8 @@ class UnburiedFigure {
   private readonly armL = new Group();
   private readonly armR = new Group();
   readonly material = lambert(0x7b8576);
+  /** The tell: a cold glint in the raised hand before the blow. */
+  private readonly glint: Mesh;
 
   constructor(scene: Scene) {
     this.material.emissive = new Color(0x000000);
@@ -143,6 +148,11 @@ class UnburiedFigure {
       arm.add(box(0.09, 0.78, 0.09, this.material, -0.39));
       this.body.add(arm);
     }
+    this.glint = new Mesh(new BoxGeometry(0.16, 0.16, 0.16), new MeshBasicNodeMaterial({ color: 0xdff2ff, blending: AdditiveBlending, depthWrite: false, transparent: true }));
+    this.glint.position.y = -0.82;
+    this.glint.rotation.set(Math.PI / 4, 0, Math.PI / 4);
+    this.glint.visible = false;
+    this.armR.add(this.glint);
     scene.add(this.root);
   }
 
@@ -227,6 +237,11 @@ class UnburiedFigure {
     }
     setArm(this.armR, armR);
     setArm(this.armL, armL);
+
+    // Flares at the tell, then holds until the blow.
+    const tellFrom = u.duration - UT.tellTicks;
+    this.glint.visible = u.state === 'windup' && t >= tellFrom;
+    if (this.glint.visible) this.glint.scale.setScalar(Math.max(0.8, 2.2 - (t - tellFrom) * 0.35));
 
     // Break, read on the body: a cold light seeping out, pulsing once it's broken.
     const b = u.break / UT.maxBreak;

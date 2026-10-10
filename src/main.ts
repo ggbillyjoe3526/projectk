@@ -177,6 +177,7 @@ async function main(): Promise<void> {
     }
     if (keyboard.wasPressed('swapOffHand')) slice.toggleTorch();
     if (keyboard.wasPressed('debugTimeScale')) slice.cycleTimeScale();
+    if (keyboard.wasPressed('debugFightReadout')) slice.toggleFightReadout();
     if (keyboard.wasPressed('debugOverlay')) {
       overlay.toggle();
       node.setTiming(overlay.visible);
@@ -200,12 +201,12 @@ async function main(): Promise<void> {
     [`${key('forward')} ${key('left')} ${key('back')} ${key('right')}`, 'walk'],
     ['Mouse', 'aim'],
     [`${key('attack')}`, 'attack (hold with the sword: sained strike)'],
-    [`${key('deflect')}`, 'deflect, just as a blow lands'],
+    [keyboard.keysName('deflect'), 'deflect as the blow lands (a glint in its hand warns you)'],
     [`${key('step')}`, 'step aside'],
     [key('interact'), 'read, take, rest, the Rite'],
     [`${key('listen')} (hold)`, 'kneel and listen to the island'],
     [key('swapOffHand'), 'torch on or off'],
-    [`${key('debugOverlay')} / ${key('debugTimeScale')}`, 'debug readout / faster island time'],
+    [`${key('debugOverlay')} / ${key('debugTimeScale')} / ${key('debugFightReadout')}`, 'debug readout / faster island time / deflect timing'],
   ]);
   slice.startAudio();
   playing = true;

@@ -4,7 +4,7 @@ import { filter, gain, noiseBuffer } from './islandHum';
 /**
  * The fight's sounds, synthesised until recordings replace them (concept v0.6 section 9): the whoosh of a swing, the
  * dull blow on dead flesh, the bright ring of old iron on a perfect deflect, a duller clank on a guard, the groan of a
- * wind-up (the ear's telegraph, as the raised arm is the eye's), the swell of the dead rising, and the Rite's low
+ * wind-up (the ear's telegraph, as the raised arm is the eye's), a sharp hiss at the tell (the cue to deflect), the swell of the dead rising, and the Rite's low
  * chord. Each event plays once; nothing loops.
  */
 export class CombatSounds {
@@ -27,8 +27,10 @@ export class CombatSounds {
         this.thump(e.heavy ? 70 : 95, e.heavy ? 0.7 : 0.45);
         return this.crack(e.weapon === 'knife' ? 3200 : 1800, 0.12, 0.25);
       case 'perfectDeflect':
-        return this.ring(520, 1.6, 0.5);
+        this.thump(110, 0.5);
+        return this.ring(520, 1.6, 0.6);
       case 'guard':
+        this.thump(75, 0.35);
         return this.ring(310, 0.35, 0.3);
       case 'hurt':
         this.thump(60, 0.8);
@@ -39,6 +41,9 @@ export class CombatSounds {
         return this.groan(0.6, 0.18, 220);
       case 'enemyWindup':
         return this.groan(0.45, 0.22, 330);
+      case 'enemyTell':
+        this.crack(5200, 0.16, 0.22);
+        return this.tone(900, 1700, 0.12, 0.05, 'triangle');
       case 'feint':
         return this.groan(0.25, 0.12, 180);
       case 'enemyBroken':

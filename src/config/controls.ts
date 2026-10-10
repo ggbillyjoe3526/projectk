@@ -9,7 +9,8 @@ export const DEFAULT_BINDINGS = {
   left: ['KeyA', 'ArrowLeft'],
   right: ['KeyD', 'ArrowRight'],
   attack: ['Mouse0'],
-  deflect: ['Mouse2'],
+  /** Right click, or Left Shift for a player who'd rather deflect from the keyboard hand. */
+  deflect: ['Mouse2', 'ShiftLeft'],
   /** The evasive step. */
   step: ['Space'],
   /** Hold: kneel, palm on stone, and listen to the island. */
@@ -24,6 +25,8 @@ export const DEFAULT_BINDINGS = {
   debugOverlay: ['Backquote', 'F3'],
   /** Development: run island time faster (×1, ×4, ×16, ×64, then back to ×1) to watch a whole tide. */
   debugTimeScale: ['BracketRight'],
+  /** The deflect timing readout (early, late, perfect, in milliseconds), on by default in the prototype. */
+  debugFightReadout: ['F4'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type Action = keyof typeof DEFAULT_BINDINGS;
@@ -80,4 +83,4 @@ export const ESSENTIAL_ACTIONS: ReadonlySet<Action> = new Set<Action>(['forward'
  * Keys whose browser default is blocked while playing, whether bound or not (input/keyboard.ts): scrolling, the find
  * bar, the menu bar, and Tab moving keyboard focus off the game to the page's buttons.
  */
-export const PREVENT_DEFAULT_KEYS: ReadonlySet<string> = new Set(['Space', 'F3', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'AltLeft', 'AltRight', 'Tab']);
+export const PREVENT_DEFAULT_KEYS: ReadonlySet<string> = new Set(['Space', 'F3', 'F4', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'AltLeft', 'AltRight', 'Tab']);

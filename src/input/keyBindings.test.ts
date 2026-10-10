@@ -63,11 +63,11 @@ describe('KeyBindings', () => {
     expect(b.codes('step')).toEqual(['Space', 'KeyQ']);
     expect(b.codes('swapOffHand')).toEqual([]);
     // Attack is essential: taking its only button into a second slot would strand it.
-    expect(b.strands('deflect', 'Mouse0', 1)).toBe('attack');
-    expect(b.rebind('deflect', 'Mouse0', 1)).toBe(false);
+    expect(b.strands('interact', 'Mouse0', 1)).toBe('attack');
+    expect(b.rebind('interact', 'Mouse0', 1)).toBe(false);
     expect(b.primary('attack')).toBe('Mouse0');
     // Into the main slot it is a swap, which strands nothing.
-    expect(b.strands('deflect', 'Mouse0', 0)).toBeNull();
+    expect(b.strands('interact', 'Mouse0', 0)).toBeNull();
   });
 
   it('clears a key with unbind; the second key moves up; an essential action keeps its last key', () => {
