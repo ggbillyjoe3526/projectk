@@ -46,7 +46,7 @@
 3. **The father's house** on the tidal islet with a lighthouse. This is the main hub.
 4. **The vigil.** He has to sit by his father's coffin, but he doesn't know the rituals. Nothing appears to be wrong.
 5. **The kirk service.** His father's body is gone or taken, and the islanders turn.
-6. **The weapon sequence:** the phone torch only (retreat), then a kitchen knife that proves useless, then a book, note or log revealing that only the ancient sword in the kirk can stop them. Taking the sword ends the opening.
+6. **The weapon sequence (settled, William 2026-10-10):** he flees the funeral in daylight (the service is at ten, so no torch is needed) and has to make it back to the Brough safe house, where he's safe for the night. The next day he takes a kitchen knife, which proves useless. No note appears in the house to tell him about the sword: hints in the kirk point him to it (proposal in [chapters.md](chapters.md)). Taking the sword ends the opening.
 7. **The tide is the threat.** If he stays on the main island too long, he can't get back to the Brough until the tide turns, so he has to shelter and wait it out.
 
 **Working plan**
@@ -182,6 +182,8 @@ There's no tutorial and no fail screen. Whatever the player does, he falls aslee
 
 ## 11. Beat outline
 
+*The proposed chapter breakdown built from these beats is in [chapters.md](chapters.md).*
+
 Settled beats are in **bold**. Everything else is working plan or proposed.
 
 **Act 1: Homecoming**
@@ -190,9 +192,9 @@ Settled beats are in **bold**. Everything else is working plan or proposed.
 3. **Crossing to his father's house on the tidal islet with the lighthouse.** The first letters found.
 4. **The vigil by the coffin, without knowing the rituals.** Nothing seems wrong.
 5. **The kirk service: the body is gone and the islanders turn.** The sword hangs above the empty coffin.
-6. **Phone torch only: retreat to the Brough before the tide.**
-7. **The kitchen knife: they get back up.**
-8. **The note: only the kirk's sword can lay them.**
+6. **Empty-handed, in daylight: flight from the funeral to the Brough safe house before the tide. Safe for the night.**
+7. **The next day, the kitchen knife: they get back up.**
+8. **Hints in the kirk, not a note: only the kirk's sword can lay them.**
 9. **Taking the sword.**
 10. **Boss 1, after which the ferry pier can't be used.** Its corpse curses the harbour. The vertical slice ends here. Freed islanders begin gathering at the cottage.
 
