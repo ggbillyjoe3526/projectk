@@ -130,9 +130,6 @@ async function main(): Promise<void> {
   const stepper = createStepper(SIM_DT, SIM.maxTicksPerFrame);
   const intent: SliceIntent = {
     forward: false,
-    back: false,
-    left: false,
-    right: false,
     listen: false,
     aim: null,
     attackHeld: false,
@@ -157,9 +154,6 @@ async function main(): Promise<void> {
     const ticks = playing ? advanceStepper(stepper, dt) : 0;
     facts.tick += ticks;
     intent.forward = keyboard.isDown('forward');
-    intent.back = keyboard.isDown('back');
-    intent.left = keyboard.isDown('left');
-    intent.right = keyboard.isDown('right');
     intent.listen = keyboard.isDown('listen');
     aim.x = pointer.x;
     aim.y = pointer.y;
@@ -198,11 +192,11 @@ async function main(): Promise<void> {
 
   const key = (action: Action): string => keyboard.keyName(action);
   await startGate(container, 'PROJECT OUTBOUND', [
-    [`${key('forward')} ${key('left')} ${key('back')} ${key('right')}`, 'walk (toward the pointer, back, round it)'],
     ['Mouse', 'face and aim'],
+    [`${key('forward')}`, 'walk toward the pointer'],
     [`${key('attack')}`, 'attack (hold with the sword: sained strike)'],
     [keyboard.keysName('deflect'), 'deflect as the blow lands (a glint in its hand warns you)'],
-    [`${key('step')}`, 'step aside'],
+    [`${key('step')}`, 'step back, quickly'],
     [key('interact'), 'read, take, open, rest, the Rite'],
     [`${key('listen')} (hold)`, 'kneel and listen to the island'],
     [key('swapOffHand'), 'torch on or off'],

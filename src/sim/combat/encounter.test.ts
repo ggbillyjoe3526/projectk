@@ -299,6 +299,14 @@ describe('the step', () => {
     expect(enc.fighter.health).toBe(PC.maxHealth);
     expect(p.z).toBeLessThan(-PC.step.distance * 0.8);
   });
+
+  it('goes straight back from where the player faces, even while walking forward', () => {
+    const { enc, p } = duel('sword', 6);
+    tick(enc, p, { stepPressed: true }, { ...still(), moveZ: 1 });
+    run(enc, p, PC.step.ticks);
+    expect(p.z).toBeLessThan(-PC.step.distance * 0.8);
+    expect(Math.abs(p.x)).toBeLessThan(0.01);
+  });
 });
 
 describe('Break and the Rite', () => {

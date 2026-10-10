@@ -32,12 +32,12 @@ npm run smoke        # after a build: start the game in headless Chromium on the
                      # (needs `npx playwright install chromium` once)
 ```
 
-Controls: the player faces the pointer, and WASD walks relative to that (W toward the pointer, S back, A and D
-round it); the mouse also aims the torch, hold F to kneel and listen to the island
+Controls: the player faces the pointer and W walks toward it (there is no strafing; the mouse steers); the mouse
+also aims the torch, hold F to kneel and listen to the island
 (the hum's strength and beat tell the tide), Q for the torch (its battery, the thin amber mark under Resolve, runs down
 while it's lit and charges in the cottage). Left click attacks (hold it with the sword for a sained
 strike, which costs Resolve), right click or Left Shift deflects (as the blow lands; a glint in the attacker's hand
-comes just before it), Space steps aside (the only defence empty-handed), and E reads (the notebook, the tide table by the cottage door), takes, opens
+comes just before it), Space steps quickly back, away from the pointer (the only defence empty-handed), and E reads (the notebook, the tide table by the cottage door), takes, opens
 a gate from its barred side, rests at the hearth or waits out the tide in the kirk vestry (both save the game, and are
 where a death returns to), and gives a kneeling body the Rite. Press `` ` `` or F3 for the debug overlay (frame rate,
 renderer, draw calls, GPU time, simulation tick, seed, tide, player, camera zone, hum) and `]` to run island time

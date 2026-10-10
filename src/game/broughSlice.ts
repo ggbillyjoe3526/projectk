@@ -2,6 +2,7 @@ import { PerspectiveCamera, Plane, Raycaster, type RenderPipeline, type Scene, V
 import { IslandHum } from '../audio/islandHum';
 import { type CameraPose, selectZone, zonePose } from '../camera/authoredCamera';
 import { PLAYER_COMBAT } from '../config/combat';
+import { PLAYER_TUNING } from '../config/player';
 import { RETRO_LOOK } from '../config/render';
 import { DEFAULT_TIDE } from '../config/tide';
 import { TORCH } from '../config/torch';
@@ -35,9 +36,6 @@ import { freshProgress, nudgeHere, onGateSide, type Progress, thingHere, thingPr
 /** What the player asks for this tick, from the bindings and the mouse. Presses are true on one tick only. */
 export interface SliceIntent extends FighterInput {
   forward: boolean;
-  back: boolean;
-  left: boolean;
-  right: boolean;
   listen: boolean;
   /** The mouse in normalised device coordinates, or null before it has moved over the game. */
   aim: { x: number; y: number } | null;
@@ -236,19 +234,19 @@ export class BroughSlice {
       }
     }
 
-    // Movement is relative to where the player faces, which follows the pointer: W walks toward it, S backs away, A
-    // and D step round it. The mouse steers, so walking is smooth, and a camera cut never turns the keys round.
-    const fx = Math.sin(this.player.facing);
-    const fz = Math.cos(this.player.facing);
-    let mx = 0;
-    let mz = 0;
-    if (intent.forward) (mx += fx), (mz += fz);
-    if (intent.back) (mx -= fx), (mz -= fz);
-    if (intent.right) (mx -= fz), (mz += fx);
-    if (intent.left) (mx += fz), (mz -= fx);
-    const length = Math.hypot(mx, mz);
-    this.cmd.moveX = length > 0 ? mx / length : 0;
-    this.cmd.moveZ = length > 0 ? mz / length : 0;
+    // The player faces the pointer, and W walks toward it: the mouse steers and there is no strafing or walking back
+    // (Space steps back). Heading straight for the pointer, not only along the facing, keeps the walk on the line
+    // the player drew while the turn catches up; right by the pointer they carry on the way they face.
+    let mx = Math.sin(this.player.facing);
+    let mz = Math.cos(this.player.facing);
+    if (this.cmd.aimX !== null && this.cmd.aimZ !== null) {
+      const dx = this.cmd.aimX - this.player.x;
+      const dz = this.cmd.aimZ - this.player.z;
+      const d = Math.hypot(dx, dz);
+      if (d > PLAYER_TUNING.aimDeadZone) (mx = dx / d), (mz = dz / d);
+    }
+    this.cmd.moveX = intent.forward ? mx : 0;
+    this.cmd.moveZ = intent.forward ? mz : 0;
     this.cmd.listen = intent.listen;
 
     // E: put down what's being read, or use what's in reach, before the fight sees the press.
