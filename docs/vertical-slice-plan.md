@@ -6,6 +6,10 @@ Written 2026-10-10 from the code on `main` (after PR #11), the [project record](
 **Settled (William, 2026-10-10):** the slice is built in the two stages below, "Low water" first. The details inside
 each stage are still a working plan.
 
+**Wrapped up (William, 2026-10-10):** Stage 1 was built (PRs #12 to #25) and the slice ends there; work moves to the
+first chapter. Stage 2 was not started. The [project record](project-record.md) has what was built and the playtest
+changes.
+
 ## 1. What you can play today
 
 Everything below runs in the current build (M0 + M1), in greybox, on one small map: the father's cottage, the Brough,

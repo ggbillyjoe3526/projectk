@@ -67,6 +67,7 @@ bosses and puzzles until he can make the final journey to the ferry, or stay and
 | **Camera A**: authored high-angle tracking cameras per zone, with the mouse aiming the torch. Movement keeps its direction across camera cuts. Chosen after trying all five in the camera lab. | 2026-10-09 |
 | Death reloads the last hearth checkpoint. This is the prototype's rule; the final death rule hasn't been decided. | 2026-10-09 |
 | The **vertical slice is built in two playable stages**: "Low water" (the torch retreat to taking the sword, about 15 minutes), then "The funeral" (the ferry, vigil, kirk service and the Hogboon). See [vertical-slice-plan.md](vertical-slice-plan.md). | 2026-10-10 |
+| The **vertical slice ends at Stage 1, "Low water"** (William: "a good place to wrap up this vertical slice so we can begin working on the first chapter"). Stage 2's content is left for the chapter work. | 2026-10-10 |
 
 ### Story
 
@@ -265,6 +266,18 @@ What changed (PR #24):
   kept until another is clearly nearer. Pale while out of reach, red once a swing would turn onto it. Only with a
   blade in hand.
 
+William, 2026-10-10, after #24: "1. bug - when using left alt to sprint the character keeps moving when the button
+is let go. make left shift the sprint button. 2. when sprinting the player should make more noise which might attract
+nearby enemies." Then: "i think this is a good place to wrap up this vertical slice so we can begin working on the
+first chapter in the other task thread."
+
+What changed (PR #25):
+
+- **Sprint is Left Shift only.** Left Alt is no longer bound; on Windows its release opened the browser menu, which
+  swallowed the release of W and left the player walking.
+- **Sprinting is loud.** The dead hear a sprinting player up to 18 m off, lit or dark (sight is 15 m with the torch,
+  6.5 m without), so a sprint can draw ones that wouldn't have seen you.
+
 ## Process
 
 ### Pull requests
@@ -322,3 +335,4 @@ just disabled, and can be turned back on when he asks.
 | 2026-10-10 | Work resumed. William's M1 playtest: the deflect felt clunky and he couldn't tell if it worked. Fixed in PR #8. |
 | 2026-10-10 | Still felt off: the blow counted before the arm came down. Fixed in PR #10; William: "that feels much better." |
 | 2026-10-10 | William started the vertical slice and chose to build it in two stages, "Low water" first ([plan](vertical-slice-plan.md)). Levels became data (PR #12). |
+| 2026-10-10 | Stage 1, "Low water", built and played through PR #25 (spaces, expedition loop, the opening's beats, torch battery, CI, the cottage, the low-Resolve grade, and the controls, combat and HUD after William's playtests). William wrapped up the vertical slice there; work moves to the first chapter, in another thread. Stage 2, "The funeral", was not started. |

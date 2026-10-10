@@ -9,8 +9,11 @@ export const DEFAULT_BINDINGS = {
   attack: ['Mouse0'],
   /** Right click. (Left Shift deflected too until sprint took it.) */
   deflect: ['Mouse2'],
-  /** Hold while walking: sprint, spending stamina (William, 2026-10-10). */
-  sprint: ['ShiftLeft', 'AltLeft'],
+  /**
+   * Hold while walking: sprint, spending stamina (William, 2026-10-10). Left Shift only: on Left Alt, letting go opened
+   * the browser's menu on Windows, which swallowed the release of W and left the player walking.
+   */
+  sprint: ['ShiftLeft'],
   /** The quick step back, away from the pointer. */
   step: ['Space'],
   /** Hold: kneel, palm on stone, and listen to the island. */

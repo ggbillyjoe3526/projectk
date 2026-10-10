@@ -152,12 +152,12 @@ describe('KeyBindings', () => {
     store.setItem(KEY_BINDINGS_KEY, JSON.stringify({ deflect: ['Mouse2', 'ShiftLeft'], step: ['KeyC'] }));
     const b = new KeyBindings(store);
     expect(b.codes('deflect')).toEqual(['Mouse2']);
-    expect(b.codes('sprint')).toEqual(['ShiftLeft', 'AltLeft']);
+    expect(b.codes('sprint')).toEqual(['ShiftLeft']);
     expect(b.primary('step')).toBe('KeyC');
     store.setItem(KEY_BINDINGS_KEY, JSON.stringify({ deflect: ['ShiftLeft'] }));
     const c = new KeyBindings(store);
     expect(c.codes('deflect')).toEqual(['ShiftLeft']);
-    expect(c.codes('sprint')).toEqual(['AltLeft']);
+    expect(c.codes('sprint')).toEqual([]);
   });
 
   it('ignores corrupt or invalid saved data', () => {
