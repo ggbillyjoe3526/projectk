@@ -288,7 +288,7 @@ export function stepEncounter(
     return;
   }
 
-  updateFighter(enc, input, cmd, player, ctx, dt);
+  updateFighter(enc, input, player, ctx, dt);
   shapeCommand(f, cmd);
   stepPlayer(player, cmd, world, waterLevel, dt);
   if (f.action === 'attack' || f.action === 'sained') swingHits(enc, player);
@@ -318,7 +318,7 @@ function swingLength(f: Fighter): number {
   return w.windup + w.active + w.recovery;
 }
 
-function updateFighter(enc: Encounter, input: FighterInput, cmd: PlayerCommand, p: PlayerState, ctx: FightContext, dt: number): void {
+function updateFighter(enc: Encounter, input: FighterInput, p: PlayerState, ctx: FightContext, dt: number): void {
   const f = enc.fighter;
   const w = WEAPONS[f.weapon];
   f.t++;
@@ -340,16 +340,9 @@ function updateFighter(enc: Encounter, input: FighterInput, cmd: PlayerCommand, 
     setAction(f, 'deflect');
   };
   const startStep = (): void => {
-    // Where the player is walking, else straight back.
-    let x = cmd.moveX;
-    let z = cmd.moveZ;
-    if (x === 0 && z === 0) {
-      x = -Math.sin(p.facing);
-      z = -Math.cos(p.facing);
-    }
-    const l = Math.hypot(x, z);
-    f.stepX = x / l;
-    f.stepZ = z / l;
+    // Always straight back, away from where the player faces (the pointer), whatever they were doing.
+    f.stepX = -Math.sin(p.facing);
+    f.stepZ = -Math.cos(p.facing);
     setAction(f, 'step');
     enc.events.push({ kind: 'step' });
   };

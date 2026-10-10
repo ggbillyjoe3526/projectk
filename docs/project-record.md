@@ -227,13 +227,26 @@ attack."
 
 What changed (PR #20):
 
-- **Movement follows the pointer.** The player turns toward the pointer (quickly, 16 radians a second, not in a snap)
+- **Movement follows the pointer.** The player turns toward the pointer (quickly, 16 radians a second then, not in a snap)
   and WASD is relative to that facing: W walks toward the pointer, S backs away, A and D step round it. Before, WASD
   was relative to the camera, so a camera cut or a fixed camera turned the keys round.
 - **The sword kills.** One the sword cuts down is laid to rest for good. Only the knife's get back up. The Rite on one
   broken by deflects is still there, and gives Resolve back.
 - **Deflect, then punish.** A perfect deflect staggers the enemy for 55 ticks (about 0.9 s, was 40), and blows on one
   staggered or broken do double damage, with the heavy hit's shake and sound.
+
+William, 2026-10-10, after #20: "an improvement but still movement is clunky and awkward. change controls so the
+player faces and moves in the direction of the mouse. the player should press W to actually move. A, S, D are no
+longer used. the player can backstep quickly by pressing Space."
+
+What changed (PR #22):
+
+- **W walks toward the pointer, and that's all the walking.** A, S and D (and their arrow keys) are gone, from the
+  bindings and the settings list. W heads straight for the pointer, not only along the facing, so the walk follows
+  the mouse while the body turns; right by the pointer the player carries on the way they face.
+- **Faster turn.** 22 radians a second (was 16).
+- **Space steps straight back**, away from the pointer, whatever the player was doing (before, it stepped the way they
+  were walking).
 
 ## Process
 

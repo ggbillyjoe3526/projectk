@@ -10,7 +10,7 @@ export const PLAYER_TUNING = {
   maxWadeDepth: DEFAULT_TIDE.maxWadeDepth,
   maxStepUp: 0.6,
   /** Turning toward the pointer, radians a second: quick, but a sweep of the mouse turns the body rather than snapping it. */
-  turnSpeed: 16,
+  turnSpeed: 22,
   /** The pointer this close to the player gives no direction: facing (and walking forward) keep the last one. */
   aimDeadZone: 0.6,
 } as const;

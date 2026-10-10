@@ -4,14 +4,12 @@
  * WHEEL_CODES, so any action can sit on a key, a mouse button or a wheel notch (input/keyBindings.ts).
  */
 export const DEFAULT_BINDINGS = {
+  /** Walk toward the pointer. There is no strafing or walking back: the mouse steers (William, 2026-10-10). */
   forward: ['KeyW', 'ArrowUp'],
-  back: ['KeyS', 'ArrowDown'],
-  left: ['KeyA', 'ArrowLeft'],
-  right: ['KeyD', 'ArrowRight'],
   attack: ['Mouse0'],
   /** Right click, or Left Shift for a player who'd rather deflect from the keyboard hand. */
   deflect: ['Mouse2', 'ShiftLeft'],
-  /** The evasive step. */
+  /** The quick step back, away from the pointer. */
   step: ['Space'],
   /** Hold: kneel, palm on stone, and listen to the island. */
   listen: ['KeyF'],
@@ -33,13 +31,10 @@ export type Action = keyof typeof DEFAULT_BINDINGS;
 
 /** Actions players can rebind, in the order the settings list them, with their labels. The debug keys (`debug…`) are not listed. */
 export const REBINDABLE: readonly { action: Action; label: string }[] = [
-  { action: 'forward', label: 'Move forward' },
-  { action: 'back', label: 'Move back' },
-  { action: 'left', label: 'Move left' },
-  { action: 'right', label: 'Move right' },
+  { action: 'forward', label: 'Walk' },
   { action: 'attack', label: 'Attack' },
   { action: 'deflect', label: 'Deflect' },
-  { action: 'step', label: 'Step' },
+  { action: 'step', label: 'Step back' },
   { action: 'listen', label: 'Listen (hold)' },
   { action: 'swapOffHand', label: 'Swap off-hand item' },
   { action: 'interact', label: 'Interact' },
@@ -77,7 +72,7 @@ export const KEY_SLOTS = 2;
  * Actions the game can't be played without: their last key can't be cleared, and another action can't take it from
  * them when they would be left with none.
  */
-export const ESSENTIAL_ACTIONS: ReadonlySet<Action> = new Set<Action>(['forward', 'back', 'left', 'right', 'attack', 'deflect']);
+export const ESSENTIAL_ACTIONS: ReadonlySet<Action> = new Set<Action>(['forward', 'attack', 'deflect']);
 
 /**
  * Keys whose browser default is blocked while playing, whether bound or not (input/keyboard.ts): scrolling, the find
