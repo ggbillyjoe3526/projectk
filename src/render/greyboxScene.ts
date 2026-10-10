@@ -1,9 +1,10 @@
 import {
-  AdditiveBlending, BoxGeometry, CapsuleGeometry, CircleGeometry, Color, ConeGeometry, CylinderGeometry, DirectionalLight,
+  AdditiveBlending, type BufferGeometry, BoxGeometry, CapsuleGeometry, CircleGeometry, Color, ConeGeometry, CylinderGeometry, DirectionalLight,
   FogExp2, Group, HemisphereLight, Mesh, MeshBasicNodeMaterial, MeshLambertNodeMaterial, Object3D, PlaneGeometry, PointLight,
   Scene, SpotLight,
 } from 'three/webgpu';
 import { float, length, mix, sin, uniform, uv, vec3 } from 'three/tsl';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { Dressing, DressingMaterial, Level } from '../content/level';
 import { type GroundRegion, regionHeight } from '../sim/world/ground';
 import type { Wall } from '../sim/world/types';
@@ -71,6 +72,39 @@ function block(scene: Scene, minX: number, maxX: number, bottom: number, top: nu
   return add(scene, new BoxGeometry(maxX - minX, top - bottom, maxZ - minZ), material, (minX + maxX) / 2, (bottom + top) / 2, (minZ + maxZ) / 2, cast);
 }
 
+/**
+ * Everything that never moves or changes, merged into one mesh per material (and per whether it casts shadows), so the
+ * whole static greybox costs a handful of draw calls however many walls and gravestones the level has.
+ */
+class StaticBatch {
+  private readonly groups = new Map<MeshLambertNodeMaterial, { cast: BufferGeometry[]; still: BufferGeometry[] }>();
+
+  put(geometry: BufferGeometry, material: MeshLambertNodeMaterial, x: number, y: number, z: number, cast: boolean): void {
+    geometry.translate(x, y, z);
+    let group = this.groups.get(material);
+    if (!group) this.groups.set(material, (group = { cast: [], still: [] }));
+    (cast ? group.cast : group.still).push(geometry);
+  }
+
+  block(minX: number, maxX: number, bottom: number, top: number, minZ: number, maxZ: number, material: MeshLambertNodeMaterial, cast = false): void {
+    this.put(new BoxGeometry(maxX - minX, top - bottom, maxZ - minZ), material, (minX + maxX) / 2, (bottom + top) / 2, (minZ + maxZ) / 2, cast);
+  }
+
+  addTo(scene: Scene): void {
+    for (const [material, group] of this.groups) {
+      for (const [geometries, cast] of [[group.cast, true], [group.still, false]] as const) {
+        if (geometries.length === 0) continue;
+        const merged = mergeGeometries(geometries);
+        for (const g of geometries) g.dispose();
+        const mesh = new Mesh(merged, material);
+        mesh.castShadow = cast;
+        mesh.receiveShadow = true;
+        scene.add(mesh);
+      }
+    }
+  }
+}
+
 /** Ramps are drawn as steps this long, each topped at the walkable height. */
 const SLOPE_STEP = 0.5;
 
@@ -84,10 +118,10 @@ function groundMaterial(r: GroundRegion): MeshLambertNodeMaterial {
   }
 }
 
-function drawGround(scene: Scene, r: GroundRegion, floor: number): void {
+function drawGround(batch: StaticBatch, r: GroundRegion, floor: number): void {
   const h = r.height;
   if (typeof h === 'number') {
-    block(scene, r.minX, r.maxX, floor, h, r.minZ, r.maxZ, groundMaterial(r));
+    batch.block(r.minX, r.maxX, floor, h, r.minZ, r.maxZ, groundMaterial(r));
     return;
   }
   const len = h.axis === 'x' ? r.maxX - r.minX : r.maxZ - r.minZ;
@@ -97,10 +131,10 @@ function drawGround(scene: Scene, r: GroundRegion, floor: number): void {
     const b = (len * (i + 1)) / segs;
     if (h.axis === 'x') {
       const top = regionHeight(r, r.minX + (a + b) / 2, r.minZ);
-      block(scene, r.minX + a, r.minX + b, floor, top, r.minZ, r.maxZ, groundMaterial(r));
+      batch.block(r.minX + a, r.minX + b, floor, top, r.minZ, r.maxZ, groundMaterial(r));
     } else {
       const top = regionHeight(r, r.minX, r.minZ + (a + b) / 2);
-      block(scene, r.minX, r.maxX, floor, top, r.minZ + a, r.minZ + b, groundMaterial(r));
+      batch.block(r.minX, r.maxX, floor, top, r.minZ + a, r.minZ + b, groundMaterial(r));
     }
   }
 }
@@ -146,7 +180,8 @@ export function buildGreybox(level: Level): GreyboxScene {
 
   // Land, from the level's ground regions, over the channel floor beneath the sea.
   const floor = level.world.channelFloor;
-  for (const r of level.world.ground) drawGround(scene, r, floor);
+  const batch = new StaticBatch();
+  for (const r of level.world.ground) drawGround(batch, r, floor);
   const bed = new Mesh(new PlaneGeometry(400, 400), MAT.seabed);
   bed.rotation.x = -Math.PI / 2;
   bed.position.y = floor;
@@ -157,18 +192,19 @@ export function buildGreybox(level: Level): GreyboxScene {
   for (const w of world.walls) {
     const base = w.base ?? world.groundAt((w.minX + w.maxX) / 2, (w.minZ + w.maxZ) / 2).height;
     if (w.kind === 'lighthouse') {
-      add(scene, new CylinderGeometry(1.0, 1.25, w.height, 10), MAT.lighthouse, (w.minX + w.maxX) / 2, base + w.height / 2, (w.minZ + w.maxZ) / 2);
+      batch.put(new CylinderGeometry(1.0, 1.25, w.height, 10), MAT.lighthouse, (w.minX + w.maxX) / 2, base + w.height / 2, (w.minZ + w.maxZ) / 2, true);
       continue;
     }
-    const mesh = block(scene, w.minX, w.maxX, base, base + w.height, w.minZ, w.maxZ, wallMaterial(w), true);
-    if (w.id) wallMeshes.set(w.id, mesh);
+    // A wall with an id can be opened, so it stays a mesh of its own.
+    if (w.id) wallMeshes.set(w.id, block(scene, w.minX, w.maxX, base, base + w.height, w.minZ, w.maxZ, wallMaterial(w), true));
+    else batch.block(w.minX, w.maxX, base, base + w.height, w.minZ, w.maxZ, wallMaterial(w), true);
   }
   // Set dressing: what the simulation never touches.
   const beams: Object3D[] = [];
   for (const d of level.dressing) {
     if (d.kind === 'block') {
       const b = d.box;
-      block(scene, b.minX, b.maxX, d.bottom, d.top, b.minZ, b.maxZ, DRESSING_MAT[d.material], d.castShadow ?? false);
+      batch.block(b.minX, b.maxX, d.bottom, d.top, b.minZ, b.maxZ, DRESSING_MAT[d.material], d.castShadow ?? false);
     } else if (d.kind === 'light') {
       const light = new PointLight(d.color, d.intensity, d.distance, d.decay);
       light.position.set(d.x, d.y, d.z);
@@ -179,6 +215,8 @@ export function buildGreybox(level: Level): GreyboxScene {
       beams.push(beam);
     }
   }
+
+  batch.addTo(scene);
 
   // Pebbles that tremble with the hum, and puddles that ripple.
   const pebbles: { mesh: Mesh; baseY: number }[] = [];

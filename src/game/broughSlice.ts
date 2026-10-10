@@ -4,7 +4,8 @@ import { type CameraPose, HeldMoveBasis, selectZone, zoneMoveYaw, zonePose } fro
 import { PLAYER_COMBAT } from '../config/combat';
 import { RETRO_LOOK } from '../config/render';
 import { DEFAULT_TIDE } from '../config/tide';
-import { inRefuge, isIndoors, type Level, levelLayout, loadLevel, type Thing } from '../content/level';
+import { TORCH } from '../config/torch';
+import { hasPower, inRefuge, isIndoors, type Level, levelLayout, loadLevel, type Thing } from '../content/level';
 import { HAUGSAY } from '../content/levels/haugsay';
 import { buildGreybox, type GreyboxScene } from '../render/greyboxScene';
 import { Rain } from '../render/rain';
@@ -16,6 +17,7 @@ import { HumClock, listeningClarity } from '../sim/humClock';
 import { createPlayer, type PlayerCommand, type PlayerState } from '../sim/player';
 import { causewayPassable, humParams, nextCausewayOpen, tideLevel, tidePhase } from '../sim/tide';
 import type { WorldDef } from '../sim/world/types';
+import { createTorch, stepTorch, switchTorch, torchBrightness, type TorchState } from '../sim/torch';
 import { type Checkpoint, readSavedGame, writeSavedGame } from '../save/progress';
 import { CombatHud } from '../ui/combatHud';
 import { BroughFight } from './broughFight';
@@ -80,7 +82,9 @@ export class BroughSlice {
   /** Seconds of island time. */
   private tideClock: number;
   private timeScale = 0;
-  private torchOn = true;
+  private readonly torch: TorchState = createTorch();
+  /** The torch beam's brightness at full charge. */
+  private torchIntensity = 0;
   private readonly cmd: PlayerCommand = { moveX: 0, moveZ: 0, aimX: null, aimZ: null, listen: false, speedScale: 1, turn: true };
   private moveHeld = false;
 
@@ -109,6 +113,7 @@ export class BroughSlice {
     this.world = world;
     this.g = buildGreybox(this.level);
     this.scene = this.g.scene;
+    this.torchIntensity = this.g.torch.intensity;
     this.scene.add(this.rain.object);
     this.hud = new CombatHud(hudParent);
     const sword = this.level.things.find((t) => t.kind === 'sword');
@@ -149,6 +154,7 @@ export class BroughSlice {
     this.fight.reset();
     Object.assign(this.player, createPlayer(this.level.sim));
     this.tideClock = DEFAULT_TIDE.cycleSeconds * START_TIDE;
+    Object.assign(this.torch, createTorch());
     this.applyProgress();
     this.checkpoint = this.save();
     this.writeGame();
@@ -189,7 +195,7 @@ export class BroughSlice {
 
   /** The off-hand light on or off (the off-hand swap, until there are other items to swap to). */
   toggleTorch(): void {
-    this.torchOn = !this.torchOn;
+    if (!switchTorch(this.torch) && this.torch.charge === 0) this.hud.say('The torch is dead. It needs charging at the cottage.', this.now, 3);
   }
 
   /** The deflect timing readout on or off. */
@@ -247,7 +253,12 @@ export class BroughSlice {
     this.copyPrev();
     this.tideClock += dt * TIME_SCALES[this.timeScale]!;
     const { x, z } = this.player;
-    const ctx = { lit: this.torchOn, dark: !this.torchOn && !isIndoors(this.level, x, z), inRefuge: inRefuge(this.level, x, z) };
+    const torchNews = stepTorch(this.torch, hasPower(this.level, x, z), dt);
+    if (torchNews === 'low') this.hud.say('The torch is dimming.', this.now, 3);
+    else if (torchNews === 'dead') this.hud.say('The torch gutters and goes out.', this.now, 3.5);
+    else if (torchNews === 'charged') this.hud.say('The torch is charged.', this.now, 2.5);
+    const lit = this.torch.on;
+    const ctx = { lit, dark: !lit && !isIndoors(this.level, x, z), inRefuge: inRefuge(this.level, x, z) };
     this.fight.tick(intent, this.cmd, this.player, this.world, tideLevel(this.tideClock), ctx, dt);
     if (this.fight.wantsWake) {
       this.load(this.checkpoint);
@@ -260,6 +271,7 @@ export class BroughSlice {
     switch (thing.kind) {
       case 'hearth': {
         this.fight.recover(true);
+        this.torch.charge = 1;
         const waited = this.waitForCauseway();
         this.hud.say(waited ? 'You rest by the hearth until the causeway clears.' : 'You rest by the hearth a while.', now, 3.5);
         this.rest();
@@ -329,13 +341,14 @@ export class BroughSlice {
   }
 
   private save(): Checkpoint {
-    return { encounter: this.fight.snapshot(), player: { ...this.player, listening: false }, tideClock: this.tideClock };
+    return { encounter: this.fight.snapshot(), player: { ...this.player, listening: false }, tideClock: this.tideClock, torch: { ...this.torch } };
   }
 
   private load(c: Checkpoint): void {
     this.fight.restore(c.encounter);
     Object.assign(this.player, c.player);
     this.tideClock = c.tideClock;
+    Object.assign(this.torch, c.torch ?? createTorch());
     this.copyPrev();
     this.snapCamera = true;
   }
@@ -404,7 +417,11 @@ export class BroughSlice {
     if (p.listening) g.hand.position.set(-0.15 + (Math.random() - 0.5) * feel * 0.04, 0.06, 0.5);
     else g.hand.position.set(-0.3, 1.05, 0.28);
 
-    g.torch.visible = this.torchOn;
+    g.torch.visible = this.torch.on;
+    // Near the end of its charge the beam dims and stutters.
+    const stutter = this.torch.charge < TORCH.low && Math.random() < 0.06 ? 0.4 : 1;
+    g.torch.intensity = this.torchIntensity * torchBrightness(this.torch.charge) * stutter;
+    this.hud.setTorch(this.torch.charge, this.torch.on);
     const sx = Math.sin(p.facing);
     const sz = Math.cos(p.facing);
     g.torch.position.set(px - 0.3 * sz + 0.3 * sx, py + 1.1, pz + 0.3 * sx + 0.3 * sz);

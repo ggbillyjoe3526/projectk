@@ -29,7 +29,8 @@ npm run build        # static site in dist/ (relative paths; any static host)
 ```
 
 Controls: WASD to walk (relative to the camera), the mouse to aim the torch, hold F to kneel and listen to the island
-(the hum's strength and beat tell the tide), Q for the torch. Left click attacks (hold it with the sword for a sained
+(the hum's strength and beat tell the tide), Q for the torch (its battery, the thin amber mark under Resolve, runs down
+while it's lit and charges in the cottage). Left click attacks (hold it with the sword for a sained
 strike, which costs Resolve), right click or Left Shift deflects (as the blow lands; a glint in the attacker's hand
 comes just before it), Space steps aside, and E reads (the notebook, the tide table by the cottage door), takes, opens
 a gate from its barred side, rests at the hearth or waits out the tide in the kirk vestry (both save the game, and are

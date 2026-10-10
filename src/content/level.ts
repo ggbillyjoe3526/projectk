@@ -34,10 +34,11 @@ export type Dressing =
 
 /**
  * An indoor space: the dark doesn't drain Resolve here. A refuge (the cottage, the kirk vestry) is one the dead won't
- * follow you into.
+ * follow you into; a safe area (the cottage) has power, so the torch charges there.
  */
 export interface Interior extends Box2 {
   readonly refuge?: boolean;
+  readonly power?: boolean;
 }
 
 /**
@@ -103,6 +104,10 @@ export function isIndoors(level: LevelDef, x: number, z: number): boolean {
 
 export function inRefuge(level: LevelDef, x: number, z: number): boolean {
   return level.interiors.some((b) => b.refuge === true && within(b, x, z));
+}
+
+export function hasPower(level: LevelDef, x: number, z: number): boolean {
+  return level.interiors.some((b) => b.power === true && within(b, x, z));
 }
 
 /**

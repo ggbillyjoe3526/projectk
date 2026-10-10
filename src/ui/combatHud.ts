@@ -1,14 +1,15 @@
 import { el } from './dom';
 
 /**
- * What the player reads on screen during play, kept spare (concept v0.6 section 8): health and Resolve as two thin
- * marks at the bottom left, the action E would take here, a caption line for what just happened (a name spoken at the
+ * What the player reads on screen during play, kept spare (concept v0.6 section 8): health, Resolve and the torch's
+ * charge as thin marks at the bottom left, the action E would take here, a caption line for what just happened (a name spoken at the
  * Rite), and the reader for a found document.
  */
 export class CombatHud {
   private readonly root: HTMLDivElement;
   private readonly health: HTMLDivElement;
   private readonly resolve: HTMLDivElement;
+  private readonly torch: HTMLDivElement;
   private readonly prompt: HTMLDivElement;
   private readonly caption: HTMLDivElement;
   private readonly reader: HTMLDivElement;
@@ -24,6 +25,7 @@ export class CombatHud {
     const bars = el('div', 'hud-bars');
     this.health = this.bar(bars, 'hud-health', 'Health');
     this.resolve = this.bar(bars, 'hud-resolve', 'Resolve');
+    this.torch = this.bar(bars, 'hud-torch', 'Torch battery');
     this.prompt = el('div', 'hud-prompt');
     this.caption = el('div', 'hud-caption');
     this.reader = el('div', 'hud-reader');
@@ -50,6 +52,12 @@ export class CombatHud {
     this.health.style.width = `${(health * 100).toFixed(1)}%`;
     this.resolve.style.width = `${(resolve * 100).toFixed(1)}%`;
     this.resolve.classList.toggle('low', low);
+  }
+
+  /** The torch's charge, 0..1; dimmed while it's off. */
+  setTorch(charge: number, on: boolean): void {
+    this.torch.style.width = `${(charge * 100).toFixed(1)}%`;
+    this.torch.classList.toggle('off', !on);
   }
 
   setPrompt(text: string): void {
