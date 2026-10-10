@@ -457,6 +457,16 @@ describe('sprinting', () => {
     expect(enc.fighter.sprinting).toBe(true);
   });
 
+  it('is loud: the dead hear it further off than they would see the player, even in the dark', () => {
+    const dark: FightContext = { lit: false, dark: true, inRefuge: false };
+    const d = (UT.sightLit + UT.hearSprint) / 2;
+    for (const sprintHeld of [false, true]) {
+      const { enc, p } = duel('sword', d);
+      for (let i = 0; i < 10; i++) stepEncounter(enc, { ...none(), sprintHeld }, { ...still(), moveZ: -1 }, p, flat, -10, dark, SIM_DT);
+      expect(enc.dead[0]!.state === 'stalk', `sprinting ${sprintHeld}`).toBe(sprintHeld);
+    }
+  });
+
   it('needs the player walking and free: not standing, not mid-swing', () => {
     const { enc, p } = duel('sword', 40);
     tick(enc, p, { sprintHeld: true });

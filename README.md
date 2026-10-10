@@ -33,7 +33,8 @@ npm run smoke        # after a build: start the game in headless Chromium on the
 ```
 
 Controls: the player faces the pointer and W walks toward it (there is no strafing; the mouse steers), and holding
-Left Shift or Left Alt sprints while stamina lasts (the pale green mark under Resolve); a small mark over one of the
+Left Shift sprints while stamina lasts (the pale green mark under Resolve), loudly enough that the dead hear it from
+further off than they can see you; a small mark over one of the
 dead shows which one an attack goes for, turning red once it's in reach; Escape or P pauses; the mouse
 also aims the torch, hold F to kneel and listen to the island
 (the hum's strength and beat tell the tide), Q for the torch (its battery, the thin amber mark under Resolve, runs down

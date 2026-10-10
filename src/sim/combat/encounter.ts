@@ -676,7 +676,8 @@ function stepUnburied(enc: Encounter, i: number, p: PlayerState, world: WorldDef
   const f = enc.fighter;
   u.t++;
   const dist = Math.hypot(p.x - u.x, p.z - u.z);
-  const sight = ctx.lit ? UT.sightLit : UT.sightDark;
+  // Seen within sight (further with the torch lit), or heard further still while the player sprints.
+  const sight = Math.max(ctx.lit ? UT.sightLit : UT.sightDark, f.sprinting ? UT.hearSprint : 0);
   const canReach = !ctx.inRefuge && f.action !== 'dead';
 
   if (u.state === 'idle' || u.state === 'stalk' || u.state === 'still' || u.state === 'home') {

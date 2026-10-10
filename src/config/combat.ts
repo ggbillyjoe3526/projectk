@@ -102,6 +102,8 @@ export const UNBURIED_TUNING = {
   /** How far it notices the player: further when the player carries a light. */
   sightLit: 15,
   sightDark: 6.5,
+  /** How far it hears the player sprinting, lit or not (William, 2026-10-10: sprinting is loud). */
+  hearSprint: 18,
   /** Gives up and drifts home past this. */
   loseInterest: 22,
   shuffleSpeed: 0.9,
