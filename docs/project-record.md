@@ -248,6 +248,23 @@ What changed (PR #22):
 - **Space steps straight back**, away from the pointer, whatever the player was doing (before, it stepped the way they
   were walking).
 
+William, 2026-10-10, after #22: "1. add sprint button (left shift or left alt). sprint consumes stamina 2. when the
+player dies a message "DEAD" appears in large text appears 3. add pause screen 4. add a visual cue that shows the
+player which enemy they are targeting."
+
+What changed (PR #23):
+
+- **Sprint.** Hold Left Shift or Left Alt while walking: 1.8 times walking speed, spending stamina (a new thin bar under
+  Resolve). It comes back after a short pause. Run it dry and sprinting waits until it's back to 30%. Not while
+  swinging, guarding or stepping. Left Shift no longer deflects (right click does); a saved key set that still had
+  it on deflect gives it to sprint.
+- **DEAD.** Large red letters across the view as the body falls, held for four seconds before waking at the last rest.
+- **Pause.** Escape or P (rebindable) freezes the game and its sound and lists the controls; a click, Escape or P
+  carries on. Switching tabs or windows pauses it too.
+- **Target mark.** A small point over the head of the enemy an attack goes for: the nearest in front within 9 m,
+  kept until another is clearly nearer. Pale while out of reach, red once a swing would turn onto it. Only with a
+  blade in hand.
+
 ## Process
 
 ### Pull requests

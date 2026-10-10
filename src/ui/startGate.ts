@@ -38,6 +38,8 @@ export function startGate(
   }
   pane.appendChild(box);
   parent.appendChild(pane);
+  // The click that starts the game isn't also a swing.
+  pane.addEventListener('mousedown', (e) => e.stopPropagation());
   return new Promise((resolve) => {
     pane.addEventListener(
       'click',

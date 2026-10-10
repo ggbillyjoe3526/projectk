@@ -1,15 +1,17 @@
 import { el } from './dom';
 
 /**
- * What the player reads on screen during play, kept spare (concept v0.6 section 8): health, Resolve and the torch's
- * charge as thin marks at the bottom left, the action E would take here, a caption line for what just happened (a name spoken at the
- * Rite), and the reader for a found document.
+ * What the player reads on screen during play, kept spare (concept v0.6 section 8): health, Resolve, stamina and the
+ * torch's charge as thin marks at the bottom left, the action E would take here, a caption line for what just happened
+ * (a name spoken at the Rite), the reader for a found document, and DEAD across the view when the player dies.
  */
 export class CombatHud {
   private readonly root: HTMLDivElement;
   private readonly health: HTMLDivElement;
   private readonly resolve: HTMLDivElement;
+  private readonly stamina: HTMLDivElement;
   private readonly torch: HTMLDivElement;
+  private readonly dead: HTMLDivElement;
   private readonly prompt: HTMLDivElement;
   private readonly caption: HTMLDivElement;
   private readonly reader: HTMLDivElement;
@@ -25,6 +27,7 @@ export class CombatHud {
     const bars = el('div', 'hud-bars');
     this.health = this.bar(bars, 'hud-health', 'Health');
     this.resolve = this.bar(bars, 'hud-resolve', 'Resolve');
+    this.stamina = this.bar(bars, 'hud-stamina', 'Stamina');
     this.torch = this.bar(bars, 'hud-torch', 'Torch battery');
     this.prompt = el('div', 'hud-prompt');
     this.caption = el('div', 'hud-caption');
@@ -35,7 +38,9 @@ export class CombatHud {
     this.reader.hidden = true;
     this.flash = el('div', 'hud-flash');
     this.timing = el('div', 'hud-timing');
-    this.root.append(this.flash, bars, this.prompt, this.timing, this.caption, this.reader);
+    this.dead = el('div', 'hud-dead');
+    this.dead.appendChild(el('span', '', 'DEAD'));
+    this.root.append(this.flash, bars, this.prompt, this.timing, this.caption, this.dead, this.reader);
     parent.appendChild(this.root);
   }
 
@@ -52,6 +57,18 @@ export class CombatHud {
     this.health.style.width = `${(health * 100).toFixed(1)}%`;
     this.resolve.style.width = `${(resolve * 100).toFixed(1)}%`;
     this.resolve.classList.toggle('low', low);
+  }
+
+  /** Stamina, 0..1: faint while full, faltering while winded (run dry, not yet back enough to sprint). */
+  setStamina(stamina: number, winded: boolean): void {
+    this.stamina.style.width = `${(stamina * 100).toFixed(1)}%`;
+    this.stamina.classList.toggle('full', stamina >= 1);
+    this.stamina.classList.toggle('winded', winded);
+  }
+
+  /** DEAD across the view, fading in as the body falls; gone at once on waking. */
+  setDead(on: boolean): void {
+    this.dead.classList.toggle('on', on);
   }
 
   /** The torch's charge, 0..1; dimmed while it's off. */

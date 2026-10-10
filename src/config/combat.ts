@@ -80,6 +80,18 @@ export const PLAYER_COMBAT = {
   lockHalfAngle: 1.1,
   /** Walking speed while attacking or guarding. */
   busySpeed: 0.25,
+  /**
+   * The enemy marked as the target: the nearest within this reach and the lock angle, kept while it stays within
+   * `focusKeep` of the nearest so the mark doesn't flicker between two at nearly the same distance.
+   */
+  focusReach: 9,
+  focusKeep: 1.3,
+  /**
+   * Sprinting (William, 2026-10-10): walking speed times `speed`, spending stamina a second; it comes back `regenDelay`
+   * ticks after the last sprint. Run dry and it can't be used again until it is back to `recoverAt`.
+   */
+  maxStamina: 100,
+  sprint: { speed: 1.8, drain: 28, regen: 24, regenDelay: 40, recoverAt: 30 },
 } as const;
 
 export const UNBURIED_TUNING = {

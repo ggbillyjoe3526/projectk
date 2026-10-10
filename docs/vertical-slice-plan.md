@@ -28,7 +28,7 @@ the tidal causeway and a strip of shore past a dyke. The unit tests cover the si
 - You start with the kitchen knife: quick, short, cuts the dead down, but builds no Break and can't lay them to rest.
 - The note on the cottage table points to the sword on a slab past the dyke. E takes it.
 - Sword: a three-hit chain that builds Break; hold for a sained strike (20 Resolve, heavy Break).
-- Deflect (right click or Left Shift): a 200 ms perfect window that shrinks when Resolve is low. Perfect gives back
+- Deflect (right click): a 200 ms perfect window that shrinks when Resolve is low. Perfect gives back
   5 Resolve, builds a lot of Break and throws the enemy back with sparks and a flash. Too late but still holding
   means a guard, which costs Resolve instead of health. A glint and a hiss come 400 ms before each blow. F4 shows
   how early or late you were.

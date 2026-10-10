@@ -1,4 +1,4 @@
-import { BoxGeometry, Color, Group, Mesh, MeshLambertNodeMaterial, PointLight, type Scene, Vector3 } from 'three/webgpu';
+import { BoxGeometry, Color, ConeGeometry, Group, Mesh, MeshBasicNodeMaterial, MeshLambertNodeMaterial, PointLight, type Scene, Vector3 } from 'three/webgpu';
 import { CombatSounds } from '../audio/combatSounds';
 import { PLAYER_COMBAT as PC, type WeaponId } from '../config/combat';
 import type { Placement } from '../content/level';
@@ -9,6 +9,7 @@ import { applyPs1Snap } from '../render/retro/ps1Snap';
 import {
   type CombatEvent,
   createEncounter,
+  createFighter,
   type DeflectTiming,
   type Encounter,
   type FightContext,
@@ -27,8 +28,11 @@ import type { CombatHud } from '../ui/combatHud';
  * (bodies, the blade, sparks, sounds, the gauges) and gives the rest of the game what it needs to rest and reload.
  */
 
-/** Ticks after dying before waking at the last place rested. */
-const WAKE_AFTER = 150;
+/** Ticks after dying before waking at the last place rested: long enough to read DEAD. */
+const WAKE_AFTER = 240;
+/** The target mark: pale while the enemy is out of reach, the colour of blood once an attack would reach it. */
+const MARK_FAR = new Color(0xcfc8b4);
+const MARK_NEAR = new Color(0xc8402e);
 const NO_EVENTS: readonly CombatEvent[] = [];
 
 export class BroughFight {
@@ -53,6 +57,9 @@ export class BroughFight {
   private guarded = false;
   /** Where the player stands, for placing the sparks between them and the enemy. */
   private player: PlayerState | null = null;
+  /** Over the head of the enemy the player is squaring up to (sim `focus`). */
+  private readonly mark: Mesh;
+  private readonly markMaterial = new MeshBasicNodeMaterial({ color: MARK_FAR, transparent: true, opacity: 0.9, depthTest: false });
 
   constructor(
     scene: Scene,
@@ -78,7 +85,13 @@ export class BroughFight {
     if (sword) this.swordOnSlab.position.set(sword.x, sword.top + 0.02, sword.z);
     this.swordOnSlab.rotation.y = 0.4;
     this.swordOnSlab.visible = sword !== null;
-    scene.add(this.swordOnSlab, this.flash);
+    // A small four-sided point, upside down, drawn over everything so a wall never hides it.
+    const point = new ConeGeometry(0.13, 0.26, 4);
+    point.rotateX(Math.PI);
+    this.mark = new Mesh(point, this.markMaterial);
+    this.mark.renderOrder = 10;
+    this.mark.visible = false;
+    scene.add(this.swordOnSlab, this.flash, this.mark);
     this.sparks = new ClashSparks(scene);
   }
 
@@ -95,6 +108,9 @@ export class BroughFight {
   /** Back to a checkpoint. A blade stays in hand once taken, whatever the checkpoint says. */
   restore(encounter: Encounter): void {
     this.enc = structuredClone(encounter);
+    // A checkpoint saved before sprinting and the target mark: fresh legs, nothing marked.
+    this.enc.fighter = { ...createFighter(this.weaponId), ...this.enc.fighter };
+    this.enc.focus ??= -1;
     this.enc.fighter.weapon = this.weaponId;
     this.syncPrev();
   }
@@ -193,6 +209,8 @@ export class BroughFight {
       g.playerBody.position.y = 0.8 - Math.min(1, f.t / 30) * 0.55;
     }
 
+    this.placeMark(p, alpha, clock);
+
     this.flashLevel = Math.max(0, this.flashLevel - frameDt * 7);
     this.flash.intensity = this.flashLevel * 9;
     const tip = this.arms.arm.localToWorld(this.flash.position.set(0, -1.2, 0));
@@ -202,11 +220,27 @@ export class BroughFight {
     const resolve = f.resolve / PC.maxResolve;
     const low = f.resolve < PC.lowResolve;
     this.hud.setGauges(f.health / PC.maxHealth, resolve, low);
+    this.hud.setStamina(f.stamina / PC.maxStamina, f.winded);
+    this.hud.setDead(f.action === 'dead');
     this.hud.setPrompt(this.hud.reading || !this.free ? '' : (thingPrompt ?? this.promptHere(p)));
     this.hud.frame(now);
 
     const squeeze = f.action === 'broken' || f.action === 'dead' ? 1 : low ? 0.85 * (1 - f.resolve / PC.lowResolve) : 0;
     return { shake: this.shake, squeeze };
+  }
+
+  /** The target mark over the marked enemy's head, bobbing a little, turning red within striking reach. */
+  private placeMark(p: PlayerState, alpha: number, clock: number): void {
+    const i = this.enc.focus;
+    const u = this.enc.dead[i];
+    this.mark.visible = u !== undefined;
+    if (!u) return;
+    const prev = this.prevDead[i]!;
+    const x = prev.x + (u.x - prev.x) * alpha;
+    const z = prev.z + (u.z - prev.z) * alpha;
+    this.mark.position.set(x, u.y + 2.05 + Math.sin(clock * 4) * 0.05, z);
+    this.mark.rotation.y = clock * 1.5;
+    this.markMaterial.color.copy(Math.hypot(x - p.x, z - p.z) <= PC.lockReach ? MARK_NEAR : MARK_FAR);
   }
 
   private show(e: CombatEvent, now: number): void {
