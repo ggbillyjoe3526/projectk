@@ -56,7 +56,7 @@ describe('Keyboard', () => {
     expect(key('keyup', 'Space')).toBe(true);
     expect(key('keydown', 'KeyE')).toBe(true); // a bound key
     expect(key('keydown', 'F3')).toBe(true); // the find bar
-    expect(key('keydown', 'KeyP')).toBe(false); // nothing of the game's
+    expect(key('keydown', 'KeyO')).toBe(false); // nothing of the game's
   });
 
   it('lets go of everything when the window loses the focus', () => {
