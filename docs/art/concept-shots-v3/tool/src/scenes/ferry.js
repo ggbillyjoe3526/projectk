@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Water } from 'three/addons/objects/Water.js';
-import { mesh, rbox, plain, rng, hdri, jitter, shadowLight, pbr } from '../lib.js';
+import { mesh, rbox, plain, rng, skyEnv, jitter, shadowLight, pbr } from '../lib.js';
 import { glow, beam, point, holdall, bollard, rain } from '../props.js';
 import { person } from '../cast.js';
 
@@ -66,7 +66,7 @@ function noise2(seed) {
 /** The crossing: the forward deck of a small island ferry, Haugsay ahead under a winter sky. */
 export async function ferry({ renderer, M }) {
   const scene = new THREE.Scene();
-  const { env } = await hdri(renderer, 'blouberg_sunrise_2_1k.hdr');
+  const { env } = await skyEnv(renderer, 'sunrise');
   scene.environment = env; scene.environmentIntensity = 0.45;
   const sunDir = new THREE.Vector3(0.75, 0.1, -0.65).normalize();
   skyDome(scene, { sunDir, top: '#3e4856', hor: '#a9a598', cloud: '#7a7c7c', sun: '#ffe4b8' });
@@ -75,7 +75,7 @@ export async function ferry({ renderer, M }) {
 
   // the sea
   const tl = new THREE.TextureLoader();
-  const wn = await tl.loadAsync('assets/waternormals.jpg'); wn.wrapS = wn.wrapT = THREE.RepeatWrapping;
+  const wn = await tl.loadAsync('tex/waternormals.png'); wn.wrapS = wn.wrapT = THREE.RepeatWrapping;
   const water = new Water(new THREE.PlaneGeometry(3000, 3000), {
     textureWidth: 1024, textureHeight: 1024, waterNormals: wn, sunDirection: sunDir, sunColor: 0xffe8c8,
     waterColor: 0x0e1c22, distortionScale: 3.2, fog: true, alpha: 1.0,

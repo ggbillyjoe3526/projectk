@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Water } from 'three/addons/objects/Water.js';
-import { mesh, rbox, plain, rng, hdri, jitter, shadowLight } from '../lib.js';
+import { mesh, rbox, plain, rng, skyEnv, jitter, shadowLight } from '../lib.js';
 import { glow, beam, point, spot, holdall, bollard, rain, sashWindow, sword, phone, softTex } from '../props.js';
 import { person } from '../cast.js';
 import { skyDome } from './ferry.js';
@@ -102,7 +102,7 @@ function streetlight(parent, M, x, z, on = true, shadow = true) {
 
 async function village({ renderer, M, night }) {
   const scene = new THREE.Scene();
-  const { env } = await hdri(renderer, night ? 'moonless_golf_1k.hdr' : 'venice_sunset_1k.hdr');
+  const { env } = await skyEnv(renderer, night ? 'night' : 'dusk');
   scene.environment = env; scene.environmentIntensity = night ? 0.12 : 0.35;
   if (night) {
     skyDome(scene, { top: '#04060a', hor: '#121820', cloud: '#0c1016', sun: '#000000', bright: 1 });
@@ -122,7 +122,7 @@ async function village({ renderer, M, night }) {
   scene.add(mesh(rbox(44, 1.0, 0.6, 0.04), M.stonewall, { pos: [0, 0.5, 5.1], tile: 1.8 }));
   scene.add(mesh(rbox(44, 0.12, 0.7, 0.03), M.concrete, { pos: [0, 1.06, 5.1], tile: 1.5 }));
   const tl = new THREE.TextureLoader();
-  const wn = await tl.loadAsync('assets/waternormals.jpg'); wn.wrapS = wn.wrapT = THREE.RepeatWrapping;
+  const wn = await tl.loadAsync('tex/waternormals.png'); wn.wrapS = wn.wrapT = THREE.RepeatWrapping;
   const water = new Water(new THREE.PlaneGeometry(400, 400), { textureWidth: 512, textureHeight: 512, waterNormals: wn, sunDirection: new THREE.Vector3(-0.5, 0.3, -0.5).normalize(), sunColor: night ? 0x302820 : 0x8a6a50, waterColor: 0x0a1418, distortionScale: 2.5, fog: true });
   water.rotation.x = -Math.PI / 2; water.position.set(0, -1.3, 40); water.material.uniforms.size.value = 5; scene.add(water);
   // the pier, running out past the wall

@@ -399,5 +399,20 @@ if want('brass'):
     a = lerp(rgb('#b08a4a'), rgb('#4a4a2a'), smooth(tar, 0.5, 0.8) * 0.8)
     save('brass', a, f * 0.2, 0.35 + 0.4 * tar, 2, metal=np.ones((M, M)))
 
-# ---------- the sea (albedo only matters a little; normals come from waternormals) ----------
+# ---------- the sea: a tiling wave normal map for three.js Water (replaces the stock waternormals.jpg) ----------
+if want('water'):
+    n = 512; r = np.random.default_rng(301)
+    yy, xx = np.mgrid[0:n, 0:n] / n
+    h = np.zeros((n, n))
+    for i in range(48):  # integer wave vectors keep it tiling; a loose prevailing direction
+        a = r.normal(0.4, 0.9); k = r.integers(2, 26)
+        kx, ky = int(round(np.cos(a) * k)), int(round(np.sin(a) * k))
+        if kx == 0 and ky == 0: continue
+        amp = 1.0 / (kx * kx + ky * ky) ** 0.6
+        ph = 2 * np.pi * (kx * xx + ky * yy) + r.uniform(0, 2 * np.pi)
+        h += amp * (np.sin(ph) + 0.25 * np.sin(2 * ph + 1.3))  # slightly peaked crests
+    h += (fbm(n, 1.4, 302) - 0.5) * 0.15
+    h = (h - h.min()) / (h.max() - h.min())
+    nm = (normal_from_height(h, 9.0) * 255).astype(np.uint8)
+    Image.fromarray(nm).save(f'{OUT}/waternormals.png')
 print('done')

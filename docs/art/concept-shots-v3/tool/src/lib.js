@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 // ---------- seeded RNG ----------
@@ -28,6 +27,8 @@ function loadTex(file, srgb) {
     texCache.set(file, new Promise((res, rej) => loader.load(`tex/${file}`, (t) => {
       t.wrapS = t.wrapT = THREE.RepeatWrapping;
       t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+      // PS2-style sampling: hard texels up close, bilinear within a mip level but no blending between levels
+      t.magFilter = THREE.NearestFilter; t.minFilter = THREE.LinearMipmapNearestFilter;
       t.anisotropy = maxAniso;
       res(t);
     }, undefined, rej)));
@@ -205,14 +206,52 @@ export async function character(id, mats, o = {}) {
     return obj;
   };
   grp.userData.meta = meta;
-  if (o.head) grp.userData.joint('head').add(await scanHead(o.head));
+  if (o.head?.glow) {
+    // the head is sculpted into the body mesh; turned characters get a soft halo over each eye
+    const sc = meta.scale ?? 1;
+    for (const x of [0.032, -0.032]) {
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: haloTex(), color: new THREE.Color(o.head.glow).multiplyScalar(2.6), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, fog: false }));
+      sp.position.set(x * sc, 0.097 * sc, 0.1 * sc); sp.scale.set(0.1, 0.1, 1);
+      grp.userData.joint('head').add(sp);
+    }
+  }
   return grp;
 }
 
 // ---------- environment ----------
-export async function hdri(renderer, file) {
-  const t = await new HDRLoader().loadAsync(`assets/${file}`);
-  t.mapping = THREE.EquirectangularReflectionMapping;
+/**
+ * Procedural sky light (no photographed HDRIs). Bands are linear radiance at the zenith, high sky,
+ * horizon and ground, measured to match the CC0 skies used before; sun is [lat°, lon°, colour, disc, glow].
+ */
+const SKIES = {
+  night: { zen: [0.068, 0.069, 0.076], hi: [0.2, 0.185, 0.185], hor: [0.42, 0.36, 0.24], gnd: [0.059, 0.049, 0.017], sun: [6.5, -78.4, [1, 0.78, 0.48], 40, 0.35] },
+  dusk: { zen: [0.3, 0.47, 0.89], hi: [0.75, 0.9, 1.29], hor: [1.05, 0.75, 0.66], gnd: [0.2, 0.175, 0.18], sun: [3.3, 35.9, [1, 0.62, 0.36], 60, 0.8] },
+  overcast: { zen: [0.08, 0.16, 0.26], hi: [0.27, 0.41, 0.55], hor: [0.95, 0.82, 0.62], gnd: [0.2, 0.178, 0.143], sun: [10, 35.9, [1, 0.92, 0.8], 120, 1.4] },
+  sunrise: { zen: [0.36, 0.44, 0.65], hi: [0.99, 1.01, 1.1], hor: [1.5, 1.25, 0.84], gnd: [0.3, 0.28, 0.25], sun: [8.3, -160, [1, 0.8, 0.55], 8, 0.6] },
+};
+export async function skyEnv(renderer, name) {
+  const S = SKIES[name]; const W = 256, H = 128;
+  const d = new Float32Array(W * H * 4);
+  const [slat, slon, scol, disc, glow] = S.sun;
+  const la = (slat * Math.PI) / 180, lo = (slon * Math.PI) / 180;
+  const sd = [Math.cos(la) * Math.cos(lo), Math.sin(la), Math.cos(la) * Math.sin(lo)];
+  const mix = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
+  const sm = (e0, e1, x) => { const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
+  for (let y = 0; y < H; y++) {
+    const lat = (0.5 - (y + 0.5) / H) * Math.PI; const el = (lat * 180) / Math.PI;
+    let c = el < 0 ? mix(S.hor, S.gnd, sm(0, -12, el)) : el < 32 ? mix(S.hor, S.hi, sm(2, 32, el)) : mix(S.hi, S.zen, sm(32, 80, el));
+    for (let x = 0; x < W; x++) {
+      const lon = ((x + 0.5) / W) * 2 * Math.PI - Math.PI;
+      const v = [Math.cos(lat) * Math.cos(lon), Math.sin(lat), Math.cos(lat) * Math.sin(lon)];
+      const cs = Math.max(0, v[0] * sd[0] + v[1] * sd[1] + v[2] * sd[2]);
+      const k = disc * Math.pow(cs, 900) + glow * Math.pow(cs, 10);
+      const o = (y * W + x) * 4;
+      for (let i = 0; i < 3; i++) d[o + i] = c[i] + scol[i] * k;
+      d[o + 3] = 1;
+    }
+  }
+  const t = new THREE.DataTexture(d, W, H, THREE.RGBAFormat, THREE.FloatType);
+  t.mapping = THREE.EquirectangularReflectionMapping; t.magFilter = t.minFilter = THREE.LinearFilter; t.needsUpdate = true;
   const pm = new THREE.PMREMGenerator(renderer);
   const env = pm.fromEquirectangular(t).texture;
   return { env, bg: t };
@@ -231,7 +270,7 @@ export function shadowLight(light, size = 2048, area = 10, o = {}) {
   return light;
 }
 
-// ---------- scanned head ----------
+// ---------- the Unburied: a halo around eyes lit from inside ----------
 let halo = null;
 function haloTex() {
   if (halo) return halo;
@@ -240,96 +279,4 @@ function haloTex() {
   gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.15, 'rgba(255,255,255,0.6)'); gr.addColorStop(0.5, 'rgba(255,255,255,0.1)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
   g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
   halo = new THREE.CanvasTexture(c); halo.colorSpace = THREE.SRGBColorSpace; return halo;
-}
-const headData = {};
-let headTex = null;
-const tl = new THREE.TextureLoader();
-async function headAssets(name) {
-  if (!headTex) {
-    headTex = (async () => {
-      const map = await tl.loadAsync('assets/lps/Map-COL.jpg'); map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = maxAniso;
-      const nrm = await tl.loadAsync('assets/lps/Infinite-Level_02_Tangent_SmoothUV.jpg'); nrm.anisotropy = maxAniso;
-      return { map, nrm };
-    })();
-  }
-  if (!headData[name]) {
-    headData[name] = (async () => {
-      const [meta, buf] = await Promise.all([fetch(`assets/${name}.json`).then((r) => r.json()), fetch(`assets/${name}.bin`).then((r) => r.arrayBuffer())]);
-      const { map, nrm } = await headTex;
-      return { meta, buf, map, nrm };
-    })();
-  }
-  return headData[name];
-}
-
-/**
- * The scanned head in the sculptor's head-joint frame. o.warp reshapes it per character:
- * width, jaw (lower-face width), nose, brow, age (sag), and o.skin tints the photo texture.
- */
-export async function scanHead(o = {}) {
-  const { meta, buf, map, nrm } = await headAssets(o.closed ? 'head_closed' : 'head');
-  const [op, ouv, of, ohp, ohuv, ohf, oha] = meta.offsets;
-  const g = new THREE.BufferGeometry();
-  const P = new Float32Array(buf.slice(op, op + meta.verts * 12));
-  const w = { width: 1, jaw: 1, nose: 1, brow: 1, chin: 1, len: 1, ...(o.warp || {}) };
-  for (let i = 0; i < meta.verts; i++) {
-    let x = P[i * 3], y = P[i * 3 + 1], z = P[i * 3 + 2];
-    const lower = Math.min(1, Math.max(0, (0.07 - y) / 0.08));
-    x *= w.width * (1 + (w.jaw - 1) * lower);
-    const nose = Math.exp(-((x / 0.02) ** 2 + ((y - 0.075) / 0.03) ** 2)) * Math.max(0, z - 0.07);
-    z += nose * (w.nose - 1) * 1.2;
-    const brow = Math.exp(-(((y - 0.118) / 0.015) ** 2)) * Math.max(0, z - 0.05);
-    z += brow * (w.brow - 1) * 0.6;
-    const chin = Math.exp(-((x / 0.03) ** 2 + ((y + 0.0) / 0.03) ** 2)) * Math.max(0, z - 0.03);
-    z += chin * (w.chin - 1) * 0.8;
-    y = 0.1 + (y - 0.1) * w.len;
-    P[i * 3] = x; P[i * 3 + 1] = y; P[i * 3 + 2] = z;
-  }
-  g.setAttribute('position', new THREE.BufferAttribute(P, 3));
-  g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(buf, ouv, meta.verts * 2), 2));
-  g.setIndex(new THREE.BufferAttribute(new Uint32Array(buf, of, meta.tris * 3), 1));
-  g.computeVertexNormals();
-  const skin = new THREE.MeshStandardMaterial({ map, normalMap: nrm, roughness: o.rough ?? 0.58, color: new THREE.Color(o.skin ?? '#ffffff'), envMapIntensity: 0.8 });
-  if (o.pale) skin.color.set(o.pale === true ? '#b9bdb8' : o.pale);
-  const grp = new THREE.Group();
-  const head = new THREE.Mesh(g, skin); head.castShadow = head.receiveShadow = true; grp.add(head);
-  if (o.hair) {
-    const hg = new THREE.BufferGeometry();
-    const HP = new Float32Array(buf.slice(ohp, ohp + meta.hverts * 12));
-    for (let i = 0; i < meta.hverts; i++) {
-      const y = HP[i * 3 + 1];
-      const lower = Math.min(1, Math.max(0, (0.07 - y) / 0.08));
-      HP[i * 3] *= w.width * (1 + (w.jaw - 1) * lower) * (o.hairVol ?? 1);
-      HP[i * 3 + 1] = 0.1 + (y - 0.1) * w.len;
-      HP[i * 3 + 2] *= o.hairVol ?? 1;
-    }
-    hg.setAttribute('position', new THREE.BufferAttribute(HP, 3));
-    hg.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(buf, ohuv, meta.hverts * 2), 2));
-    hg.setIndex(new THREE.BufferAttribute(new Uint32Array(buf, ohf, meta.htris * 3), 1));
-    hg.computeVertexNormals();
-    const ha = new Float32Array(buf, oha, meta.hverts);
-    const hc = new Float32Array(meta.hverts * 4);
-    for (let i = 0; i < meta.hverts; i++) { hc[i * 4] = hc[i * 4 + 1] = hc[i * 4 + 2] = 0.55 + 0.45 * ha[i]; hc[i * 4 + 3] = ha[i]; }
-    hg.setAttribute('color', new THREE.BufferAttribute(hc, 4));
-    const hmat = o.hair.clone(); hmat.vertexColors = true; hmat.alphaHash = true; hmat.transparent = false;
-    const hm = new THREE.Mesh(hg, hmat); hm.castShadow = hm.receiveShadow = true; grp.add(hm);
-  }
-  if (o.eyes !== false) {
-    const sclera = o.glow ? new THREE.MeshStandardMaterial({ color: '#000', emissive: new THREE.Color(o.glow), emissiveIntensity: 3 }) : new THREE.MeshStandardMaterial({ color: '#cfc7bb', roughness: 0.12 });
-    const irisM = o.glow ? new THREE.MeshStandardMaterial({ color: '#000', emissive: new THREE.Color(o.glow), emissiveIntensity: 12 }) : new THREE.MeshStandardMaterial({ color: o.iris ?? '#3a2a1e', roughness: 0.05 });
-    const pupilM = new THREE.MeshStandardMaterial({ color: '#050403', roughness: 0.05 });
-    const look = new THREE.Vector3(...(o.look ?? [0, 0, 1])).normalize();
-    for (const e of meta.eyes) {
-      const c = new THREE.Vector3(e[0] * w.width, e[1], e[2]);
-      const eye = new THREE.Mesh(new THREE.SphereGeometry(meta.eyeR, 32, 24), sclera); eye.position.copy(c); grp.add(eye);
-      const ir = new THREE.Mesh(new THREE.SphereGeometry(meta.eyeR * 0.5, 24, 16), irisM);
-      ir.position.copy(c).addScaledVector(look, meta.eyeR * 0.9); ir.scale.set(1, 1, 0.35); ir.lookAt(c.clone().addScaledVector(look, 1)); grp.add(ir);
-      if (o.glow) {
-        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: haloTex(), color: new THREE.Color(o.glow).multiplyScalar(2.6), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, fog: false }));
-        sp.position.copy(c).addScaledVector(look, 0.02); sp.scale.set(0.1, 0.1, 1); grp.add(sp);
-      }
-      if (!o.glow) { const pu = new THREE.Mesh(new THREE.SphereGeometry(meta.eyeR * 0.22, 16, 12), pupilM); pu.position.copy(c).addScaledVector(look, meta.eyeR * 0.985); pu.scale.set(1, 1, 0.3); pu.lookAt(c.clone().addScaledVector(look, 1)); grp.add(pu); }
-    }
-  }
-  return grp;
 }

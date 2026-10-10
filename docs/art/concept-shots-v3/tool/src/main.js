@@ -9,7 +9,6 @@ const variant = params.get('dir') || 'B'; // B = normal, M = low Resolve (monoch
 
 const SHOTS = {
   test: () => import('./scenes/test.js').then((m) => m.test),
-  head: () => import('./scenes/headtest.js').then((m) => m.headtest),
   lineup: () => import('./scenes/lineup.js').then((m) => m.lineup),
   testface: () => import('./scenes/test.js').then((m) => m.testface),
   ferry: () => import('./scenes/ferry.js').then((m) => m.ferry),
@@ -20,6 +19,10 @@ const SHOTS = {
   combat: () => import('./scenes/village.js').then((m) => m.combat),
 };
 
+// PS1/PS2 vertex snapping: every projected vertex lands on a 480x270 grid, so edges wobble slightly
+THREE.ShaderChunk.project_vertex += `
+gl_Position.xy = floor(gl_Position.xy / gl_Position.w * vec2(480.0, 270.0) + 0.5) / vec2(480.0, 270.0) * gl_Position.w;`;
+
 async function run() {
   await document.fonts.ready;
   const renderer = new THREE.WebGLRenderer({ antialias: false, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
@@ -27,12 +30,12 @@ async function run() {
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.toneMapping = THREE.NoToneMapping;
-  setAniso(Math.min(8, renderer.capabilities.getMaxAnisotropy()));
+  setAniso(1); // no anisotropic filtering on a PS2
   const M = await materials();
   const build = await SHOTS[shot]();
   const { scene, camera, ui, look = {} } = await build({ renderer, M, mono: variant === 'M' });
   const L = { ...look, mono: variant === 'M' ? 1 : 0 };
-  renderer.setSize(L.w || 1280, L.h || 720, false);
+  renderer.setSize(L.w || 640, L.h || 360, false);
   camera.aspect = 16 / 9; camera.updateProjectionMatrix();
   const pipe = createPipeline(renderer, scene, camera, L);
   pipe.render();
@@ -40,7 +43,7 @@ async function run() {
   const OUT_W = 1920, OUT_H = 1080;
   const out = document.createElement('canvas'); out.width = OUT_W; out.height = OUT_H;
   const g = out.getContext('2d');
-  g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+  g.imageSmoothingEnabled = false; // hard pixels, 3x
   g.drawImage(renderer.domElement, 0, 0, OUT_W, OUT_H);
   if (ui) {
     const uc = document.createElement('canvas'); uc.width = 960; uc.height = 540;

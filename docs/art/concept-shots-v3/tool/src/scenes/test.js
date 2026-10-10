@@ -1,10 +1,10 @@
 import * as THREE from 'three';
-import { character, personMats, hdri, shadowLight, mesh, rbox, plain, pbr } from '../lib.js';
+import { character, personMats, skyEnv, shadowLight, mesh, rbox, plain, pbr } from '../lib.js';
 
 export const testface = (c) => test(c, true);
 export async function test({ renderer, M }, face) {
   const scene = new THREE.Scene();
-  const { env, bg } = await hdri(renderer, 'quarry_01_1k.hdr');
+  const { env, bg } = await skyEnv(renderer, 'overcast');
   scene.environment = env; scene.background = bg; scene.environmentIntensity = 0.6; scene.backgroundIntensity = 0.6;
   scene.add(mesh(new THREE.PlaneGeometry(8, 8).rotateX(-Math.PI / 2), M.flags));
   scene.add(mesh(rbox(3, 2.4, 0.4, 0.03), M.harl, { pos: [0, 1.2, -1.5] }));
