@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { createPlayer, stepPlayer, type PlayerCommand } from './player';
 import { loadLevel } from '../content/level';
-import { BROUGH, CAUSEWAY } from '../content/levels/brough';
+import { CAUSEWAY } from '../content/levels/brough';
+import { HAUGSAY } from '../content/levels/haugsay';
 import { resolveCircleVsBoxes } from './collision';
 import { DEFAULT_TIDE as T } from '../config/tide';
 
-const world = loadLevel(BROUGH).sim;
+const world = loadLevel(HAUGSAY).sim;
 
 const idle = (): PlayerCommand => ({ moveX: 0, moveZ: 0, aimX: null, aimZ: null, listen: false, speedScale: 1, turn: true });
 

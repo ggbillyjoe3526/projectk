@@ -227,10 +227,10 @@ export function interactTarget(enc: Encounter, p: PlayerState): { enemy: number;
   return best < 0 ? null : { enemy: best, rite: bestRite };
 }
 
-/** Where the dead may stand: the shore and the causeway, out of the sea. They never set foot on the Brough. */
+/** Where the dead may stand: any walkable ground out of the sea, except the Brough, where they never set foot. */
 export function deadCanStand(world: WorldDef, x: number, z: number, waterLevel: number): boolean {
   const g = world.groundAt(x, z);
-  return (g.kind === 'shore' || g.kind === 'causeway') && g.height >= waterLevel;
+  return g.kind !== 'channel' && g.kind !== 'islet' && g.height >= waterLevel;
 }
 
 const pos = { x: 0, z: 0 };

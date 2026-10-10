@@ -36,6 +36,14 @@ const MAT = {
   causeway: lambert(0x4c4e4a),
   seabed: lambert(0x2a2a24),
   cliff: lambert(0x3a3a35),
+  moor: lambert(0x2b3226),
+  road: lambert(0x343638),
+  kirkyard: lambert(0x34402f),
+  flagstone: lambert(0x56544c),
+  house: lambert(0x7d7a72),
+  kirk: lambert(0x6b6a63),
+  gravestone: lambert(0x6e6f69),
+  wood: lambert(0x3a2c22),
   cottage: lambert(0x8d8a80),
   lighthouse: lambert(0xb9b6ac),
   stone: lambert(0x5d5e58),
@@ -65,7 +73,13 @@ function block(scene: Scene, minX: number, maxX: number, bottom: number, top: nu
 const SLOPE_STEP = 0.5;
 
 function groundMaterial(r: GroundRegion): MeshLambertNodeMaterial {
-  return r.kind === 'causeway' ? MAT.causeway : MAT.grass;
+  switch (r.kind) {
+    case 'causeway': return MAT.causeway;
+    case 'road': return MAT.road;
+    case 'grass': return MAT.kirkyard;
+    case 'flagstone': return MAT.flagstone;
+    default: return MAT.grass;
+  }
 }
 
 function drawGround(scene: Scene, r: GroundRegion, floor: number): void {
@@ -89,7 +103,7 @@ function drawGround(scene: Scene, r: GroundRegion, floor: number): void {
   }
 }
 
-const DRESSING_MAT: Readonly<Record<DressingMaterial, MeshLambertNodeMaterial>> = { cliff: MAT.cliff, floor: MAT.floor, stone: MAT.stone };
+const DRESSING_MAT: Readonly<Record<DressingMaterial, MeshLambertNodeMaterial>> = { cliff: MAT.cliff, moor: MAT.moor, floor: MAT.floor, stone: MAT.stone };
 
 function beamGroup(d: Extract<Dressing, { kind: 'beam' }>): Group {
   const beam = new Group();
@@ -107,6 +121,11 @@ function wallMaterial(w: Wall): MeshLambertNodeMaterial {
     case 'cottage': return MAT.cottage;
     case 'standingStone': return MAT.standingStone;
     case 'dyke': return MAT.dyke;
+    case 'house': return MAT.house;
+    case 'kirk': return MAT.kirk;
+    case 'gravestone': return MAT.gravestone;
+    case 'gate':
+    case 'pew': return MAT.wood;
     default: return MAT.stone;
   }
 }
@@ -133,7 +152,7 @@ export function buildGreybox(level: Level): GreyboxScene {
 
   // Walls and props.
   for (const w of world.walls) {
-    const base = world.groundAt((w.minX + w.maxX) / 2, (w.minZ + w.maxZ) / 2).height;
+    const base = w.base ?? world.groundAt((w.minX + w.maxX) / 2, (w.minZ + w.maxZ) / 2).height;
     if (w.kind === 'lighthouse') {
       add(scene, new CylinderGeometry(1.0, 1.25, w.height, 10), MAT.lighthouse, (w.minX + w.maxX) / 2, base + w.height / 2, (w.minZ + w.maxZ) / 2);
       continue;

@@ -8,10 +8,15 @@ export interface Box2 {
 
 export interface Wall extends Box2 {
   readonly height: number;
-  readonly kind: 'stone' | 'cottage' | 'lighthouse' | 'standingStone' | 'boulder' | 'dyke';
+  readonly kind: 'stone' | 'cottage' | 'lighthouse' | 'standingStone' | 'boulder' | 'dyke' | 'house' | 'kirk' | 'gravestone' | 'gate' | 'pew';
+  /** Where the wall stands, for one outside the walkable ground (a house front, a boundary dyke); otherwise the ground's height. */
+  readonly base?: number;
 }
 
-export type GroundKind = 'islet' | 'causeway' | 'shore' | 'channel';
+/**
+ * What the ground is. The islet is the Brough, where the dead never set foot; `channel` is deep water and never walkable.
+ */
+export type GroundKind = 'islet' | 'causeway' | 'shore' | 'road' | 'grass' | 'flagstone' | 'channel';
 
 export interface Prop {
   readonly kind: 'pebble' | 'puddle';
