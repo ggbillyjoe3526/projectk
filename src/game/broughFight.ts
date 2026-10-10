@@ -1,13 +1,15 @@
-import { BoxGeometry, Color, Group, Mesh, MeshLambertNodeMaterial, PointLight, type Scene } from 'three/webgpu';
+import { BoxGeometry, Color, Group, Mesh, MeshLambertNodeMaterial, PointLight, type Scene, Vector3 } from 'three/webgpu';
 import { CombatSounds } from '../audio/combatSounds';
 import { PLAYER_COMBAT as PC, type WeaponId } from '../config/combat';
 import { PLAYER_TUNING } from '../config/player';
+import { ClashSparks } from '../render/clashSparks';
 import { PlayerWeapon, UnburiedFigures } from '../render/fighterFigures';
 import type { GreyboxScene } from '../render/greyboxScene';
 import { applyPs1Snap } from '../render/retro/ps1Snap';
 import {
   type CombatEvent,
   createEncounter,
+  type DeflectTiming,
   type Encounter,
   type FightContext,
   type FighterInput,
@@ -61,6 +63,14 @@ export class BroughFight {
   /** The knife has dropped one of the dead and watched it get up: the note now matters. */
   private sawRise = false;
   private readonly pending: CombatEvent[] = [];
+  private readonly sparks: ClashSparks;
+  private readonly clashAt = new Vector3();
+  /** The deflect timing readout (F4); on in the prototype so the window can be learned and tuned. */
+  readout = true;
+  /** The last event shown was a guard: the timing line that follows it reads as a guard. */
+  private guarded = false;
+  /** Where the player stands, for placing the sparks between them and the enemy. */
+  private player: PlayerState | null = null;
 
   constructor(
     scene: Scene,
@@ -85,6 +95,7 @@ export class BroughFight {
     this.swordOnSlab.rotation.y = 0.4;
     this.swordOnSlab.visible = !this.swordTaken;
     scene.add(this.swordOnSlab, this.flash);
+    this.sparks = new ClashSparks(scene);
   }
 
   /** Start the fight's sounds in the island's mix. */
@@ -142,8 +153,10 @@ export class BroughFight {
   /** Per drawn frame: poses, effects, sounds, the HUD. Returns how hard the view should shake and squeeze. */
   present(p: PlayerState, alpha: number, frameDt: number, clock: number, now: number): { shake: number; squeeze: number } {
     const f = this.enc.fighter;
+    this.player = p;
     for (const e of this.pending) this.show(e, now);
     this.pending.length = 0;
+    this.sparks.update(frameDt);
 
     this.weapon.update(f, f.t + alpha);
     this.figures.update(this.enc, this.prevDead, alpha, clock);
@@ -185,11 +198,18 @@ export class BroughFight {
     switch (e.kind) {
       case 'perfectDeflect':
         this.flashLevel = 1;
-        this.shake = Math.max(this.shake, 0.07);
+        this.shake = Math.max(this.shake, 0.09);
+        this.clash('perfect', e.enemy);
+        this.hud.flashScreen(0.22);
         break;
       case 'guard':
         this.flashLevel = Math.max(this.flashLevel, 0.35);
         this.shake = Math.max(this.shake, 0.05);
+        this.clash('guard', e.enemy);
+        this.guarded = true;
+        return;
+      case 'deflectTiming':
+        if (this.readout) this.hud.showTiming(...timingLine(e.result, e.ticks, this.guarded), now);
         break;
       case 'hit':
         this.shake = Math.max(this.shake, e.heavy ? 0.1 : 0.045);
@@ -215,6 +235,25 @@ export class BroughFight {
       default:
         break;
     }
+    this.guarded = false;
+  }
+
+  /** Sparks where the blades meet: between the player and the enemy, at chest height. */
+  private clash(kind: 'perfect' | 'guard', enemy: number): void {
+    const u = this.enc.dead[enemy];
+    const p = this.player;
+    if (!u || !p) return;
+    const dx = u.x - p.x;
+    const dz = u.z - p.z;
+    const d = Math.hypot(dx, dz) || 1;
+    const along = Math.min(0.8, d * 0.5);
+    this.clashAt.set(p.x + (dx / d) * along, p.y + 1.35, p.z + (dz / d) * along);
+    this.sparks.burst(kind, this.clashAt, dx / d, dz / d);
+  }
+
+  toggleReadout(now: number): void {
+    this.readout = !this.readout;
+    this.hud.say(this.readout ? 'Deflect timing shown' : 'Deflect timing hidden', now, 2);
   }
 
   private placeHere(p: PlayerState): Place | null {
@@ -268,5 +307,24 @@ export class BroughFight {
       dead: this.enc.dead.map((u) => `${u.state}${u.state === 'downed' ? '' : ` h${u.health.toFixed(0)} b${u.break.toFixed(0)}`}`).join(' | '),
       'fight seed': this.seed,
     };
+  }
+}
+
+/** The readout's line for a deflect: what happened, and by how much, in milliseconds. */
+export function timingLine(result: DeflectTiming, ticks: number, guarded: boolean): [string, 'good' | 'near' | 'miss'] {
+  const ms = Math.round((ticks * 1000) / 60);
+  switch (result) {
+    case 'perfect':
+      return ['Deflected', 'good'];
+    case 'early':
+      // Held well before the blow: a guard by choice, not a mistimed deflect.
+      if (guarded && ms > 400) return ['Guarded', 'near'];
+      return [guarded ? `Guarded, ${ms} ms early` : `${ms} ms early`, guarded ? 'near' : 'miss'];
+    case 'late':
+      return [`${ms} ms late`, 'miss'];
+    case 'tooSoon':
+      return [guarded ? 'Guarded, pressed again too soon' : 'Pressed again too soon', guarded ? 'near' : 'miss'];
+    case 'busy':
+      return ['Mid-swing, too busy to deflect', 'miss'];
   }
 }

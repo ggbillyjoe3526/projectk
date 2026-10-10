@@ -150,6 +150,91 @@ describe('deflect', () => {
     expect(enc.fighter.perfect).toBe(0);
   });
 
+  it('says how each deflect was timed: perfect, early, late or too soon', () => {
+    const timing = (enc: Encounter) => enc.events.filter((e) => e.kind === 'deflectTiming');
+
+    const perfect = duel('sword');
+    windup(perfect.enc, 3);
+    tick(perfect.enc, perfect.p, { deflectPressed: true, deflectHeld: true });
+    run(perfect.enc, perfect.p, 5, { deflectHeld: true });
+    expect(timing(perfect.enc)).toEqual([{ kind: 'deflectTiming', result: 'perfect', ticks: 3 }]);
+
+    const early = duel('sword');
+    tick(early.enc, early.p, { deflectPressed: true, deflectHeld: true });
+    windup(early.enc, PC.deflect.perfectTicks + 4);
+    run(early.enc, early.p, PC.deflect.perfectTicks + 8, { deflectHeld: true });
+    expect(timing(early.enc)).toEqual([{ kind: 'deflectTiming', result: 'early', ticks: 6 }]);
+
+    const late = duel('sword');
+    windup(late.enc, 1);
+    run(late.enc, late.p, 4);
+    expect(late.enc.fighter.action).toBe('hurt');
+    tick(late.enc, late.p, { deflectPressed: true, deflectHeld: true });
+    expect(timing(late.enc)).toEqual([{ kind: 'deflectTiming', result: 'late', ticks: 3 }]);
+
+    const tooSoon = duel('sword');
+    tick(tooSoon.enc, tooSoon.p, { deflectPressed: true, deflectHeld: true });
+    run(tooSoon.enc, tooSoon.p, PC.deflect.minTicks + 1);
+    windup(tooSoon.enc, 2);
+    tick(tooSoon.enc, tooSoon.p, { deflectPressed: true, deflectHeld: true });
+    run(tooSoon.enc, tooSoon.p, 4, { deflectHeld: true });
+    expect(timing(tooSoon.enc)).toEqual([{ kind: 'deflectTiming', result: 'tooSoon', ticks: 0 }]);
+  });
+
+  it('a press mid-swing waits and deflects as soon as the swing allows', () => {
+    const { enc, p } = duel('sword', 6);
+    const w = WEAPONS.sword;
+    tick(enc, p, { attackPressed: true });
+    run(enc, p, w.windup + 1);
+    expect(enc.fighter.action).toBe('attack');
+    tick(enc, p, { deflectPressed: true, deflectHeld: true });
+    expect(enc.fighter.action).toBe('attack');
+    run(enc, p, w.active, { deflectHeld: true });
+    expect(enc.fighter.action).toBe('deflect');
+    expect(enc.fighter.perfect).toBe(PC.deflect.perfectTicks);
+  });
+
+  it('a press during a hit-stop still counts', () => {
+    const { enc, p } = duel('sword', 6);
+    enc.hitStop = 5;
+    tick(enc, p, { deflectPressed: true, deflectHeld: true });
+    expect(enc.fighter.action).toBe('free');
+    for (let i = 0; i < 5; i++) tick(enc, p, { deflectHeld: true });
+    expect(enc.fighter.action).toBe('deflect');
+  });
+
+  it('a press is dropped if the player is busy too long', () => {
+    const { enc, p } = duel('sword', 6);
+    enc.fighter.action = 'hurt';
+    tick(enc, p, { deflectPressed: true });
+    run(enc, p, PC.hurtTicks + 2);
+    expect(enc.fighter.action).toBe('free');
+  });
+
+  it('a perfect deflect re-arms at once for the next blow', () => {
+    const { enc, p } = duel('sword');
+    windup(enc, 1);
+    tick(enc, p, { deflectPressed: true, deflectHeld: true });
+    run(enc, p, 2, { deflectHeld: true });
+    expect(enc.fighter.met).toBe(true);
+    // Pressed again straight away, mid-deflect: a fresh window.
+    tick(enc, p, { deflectPressed: true, deflectHeld: true });
+    expect(enc.fighter.t).toBe(0);
+    expect(enc.fighter.perfect).toBe(PC.deflect.perfectTicks);
+  });
+
+  it('the dead give a tell a fixed time before the blow', () => {
+    const { enc, p } = duel('sword');
+    windup(enc, 30);
+    let tellAt = -1;
+    for (let i = 1; i <= 30; i++) {
+      tick(enc, p);
+      if (enc.events.some((e) => e.kind === 'enemyTell')) tellAt = i;
+      enc.events.length = 0;
+    }
+    expect(tellAt).toBe(30 - UT.tellTicks);
+  });
+
   it('the window narrows as Resolve runs low', () => {
     expect(perfectWindow(PC.maxResolve)).toBe(PC.deflect.perfectTicks);
     expect(perfectWindow(PC.lowResolve / 2)).toBeLessThan(PC.deflect.perfectTicks);

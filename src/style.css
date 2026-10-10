@@ -209,6 +209,44 @@ body {
   opacity: 1;
 }
 
+.hud-flash {
+  position: absolute;
+  inset: 0;
+  background: #fff6e4;
+  opacity: 0;
+}
+
+.hud-timing {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 62%;
+  text-align: center;
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 3px #000;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+.hud-timing.on {
+  opacity: 1;
+  transition: none;
+}
+
+.hud-timing.good {
+  color: #f4e6bf;
+}
+
+.hud-timing.near {
+  color: #b9c8d2;
+}
+
+.hud-timing.miss {
+  color: #c98a7e;
+}
+
 .hud-reader {
   position: absolute;
   inset: 0;

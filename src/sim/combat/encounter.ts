@@ -33,6 +33,14 @@ export interface Fighter {
   sinceDeflect: number;
   /** This deflect's perfect window in ticks (0: none, it was pressed too soon after the last). */
   perfect: number;
+  /** The last deflect met a blow perfectly: the next one is armed at once. */
+  met: boolean;
+  /** Ticks a deflect press still waits for the player to be free to deflect (0: none waiting). */
+  deflectBuffer: number;
+  /** Ticks since the last deflect started. */
+  sinceDeflectStart: number;
+  /** Ticks since a blow last landed on the player, while a deflect pressed now would be too late (999: none). */
+  sinceStruck: number;
   stepCooldown: number;
   stepX: number;
   stepZ: number;
@@ -70,6 +78,13 @@ export interface Unburied {
   readonly name: string;
 }
 
+/**
+ * How a deflect was timed, for the player to learn the rhythm: met in the window, pressed early (the window had closed
+ * when the blow landed; `ticks` past it), late (`ticks` after the blow), too soon after the last deflect (no window at
+ * all), or while busy (mid-swing, unable to deflect).
+ */
+export type DeflectTiming = 'perfect' | 'early' | 'late' | 'tooSoon' | 'busy';
+
 export type CombatEvent =
   | { kind: 'swing'; heavy: boolean }
   | { kind: 'charged' }
@@ -80,7 +95,9 @@ export type CombatEvent =
   | { kind: 'step' }
   | { kind: 'enemyNotice'; enemy: number }
   | { kind: 'enemyWindup'; enemy: number }
+  | { kind: 'enemyTell'; enemy: number }
   | { kind: 'enemyStrike'; enemy: number }
+  | { kind: 'deflectTiming'; result: DeflectTiming; ticks: number }
   | { kind: 'feint'; enemy: number }
   | { kind: 'enemyBroken'; enemy: number }
   | { kind: 'enemyDown'; enemy: number }
@@ -137,6 +154,10 @@ export function createFighter(weapon: WeaponId): Fighter {
     hitMask: 0,
     sinceDeflect: 999,
     perfect: 0,
+    met: false,
+    deflectBuffer: 0,
+    sinceDeflectStart: 999,
+    sinceStruck: 999,
     stepCooldown: 0,
     stepX: 0,
     stepZ: 0,
@@ -233,6 +254,8 @@ export function stepEncounter(
     enc.deadFor++;
     return;
   }
+  // Noted even through a hit-stop, so a press in the freeze still counts.
+  if (input.deflectPressed) noteDeflectPress(enc);
   if (enc.hitStop > 0) {
     enc.hitStop--;
     return;
@@ -248,6 +271,15 @@ export function stepEncounter(
 }
 
 // --- the player ---
+
+function noteDeflectPress(enc: Encounter): void {
+  const f = enc.fighter;
+  if (f.sinceStruck <= PC.deflect.lateTicks) {
+    enc.events.push({ kind: 'deflectTiming', result: 'late', ticks: f.sinceStruck + 1 });
+    f.sinceStruck = 999;
+  }
+  f.deflectBuffer = PC.deflect.bufferTicks;
+}
 
 function setAction(f: Fighter, action: FighterAction): void {
   f.action = action;
@@ -265,12 +297,19 @@ function updateFighter(enc: Encounter, input: FighterInput, cmd: PlayerCommand, 
   f.t++;
   f.sinceSwing++;
   if (f.action !== 'deflect') f.sinceDeflect++;
+  f.sinceDeflectStart = Math.min(999, f.sinceDeflectStart + 1);
+  f.sinceStruck = Math.min(999, f.sinceStruck + 1);
   if (f.stepCooldown > 0) f.stepCooldown--;
+  const wantsDeflect = f.deflectBuffer > 0;
+  if (f.deflectBuffer > 0) f.deflectBuffer--;
 
   if (ctx.dark && f.action !== 'broken') drainResolve(enc, PC.darknessDrain * dt);
 
   const startDeflect = (): void => {
-    f.perfect = f.sinceDeflect >= PC.deflect.rearmTicks ? perfectWindow(f.resolve) : 0;
+    f.perfect = f.met || f.sinceDeflect >= PC.deflect.rearmTicks ? perfectWindow(f.resolve) : 0;
+    f.met = false;
+    f.deflectBuffer = 0;
+    f.sinceDeflectStart = 0;
     setAction(f, 'deflect');
   };
   const startStep = (): void => {
@@ -308,7 +347,7 @@ function updateFighter(enc: Encounter, input: FighterInput, cmd: PlayerCommand, 
           break;
         }
       }
-      if (input.deflectPressed) startDeflect();
+      if (wantsDeflect) startDeflect();
       else if (input.stepPressed && f.stepCooldown === 0) startStep();
       else if (input.attackPressed) startSwing();
       break;
@@ -324,7 +363,7 @@ function updateFighter(enc: Encounter, input: FighterInput, cmd: PlayerCommand, 
       if (f.t === w.windup) enc.events.push({ kind: 'swing', heavy: false });
       const inWindup = f.t < w.windup;
       const recovering = f.t >= w.windup + w.active;
-      if ((inWindup || recovering) && input.deflectPressed) startDeflect();
+      if ((inWindup || recovering) && wantsDeflect) startDeflect();
       else if (recovering && input.stepPressed && f.stepCooldown === 0) startStep();
       else if (f.t >= w.windup + w.active + w.chainFrom && f.queued) {
         f.sinceSwing = 0;
@@ -338,7 +377,7 @@ function updateFighter(enc: Encounter, input: FighterInput, cmd: PlayerCommand, 
 
     case 'charge':
       if (f.t === PC.sained.chargeTicks) enc.events.push({ kind: 'charged' });
-      if (input.deflectPressed) startDeflect();
+      if (wantsDeflect) startDeflect();
       else if (!input.attackHeld || f.t >= PC.sained.maxHoldTicks) {
         if (f.t >= PC.sained.chargeTicks && f.resolve >= PC.sained.cost) {
           f.resolve -= PC.sained.cost;
@@ -365,16 +404,19 @@ function updateFighter(enc: Encounter, input: FighterInput, cmd: PlayerCommand, 
     }
 
     case 'deflect':
-      if (f.t >= PC.deflect.minTicks && !input.deflectHeld) {
+      // Straight after meeting a blow, a fresh press meets the next one.
+      if (f.met && wantsDeflect) startDeflect();
+      else if (f.t >= PC.deflect.minTicks && !input.deflectHeld) {
         f.sinceDeflect = 0;
         setAction(f, 'free');
       }
       break;
 
     case 'step':
-      if (f.t >= PC.step.ticks) {
+      if (f.t >= PC.step.ticks || (f.t >= PC.step.invulnerableTo && wantsDeflect)) {
         f.stepCooldown = PC.step.cooldown;
-        setAction(f, 'free');
+        if (wantsDeflect) startDeflect();
+        else setAction(f, 'free');
       }
       break;
 
@@ -607,6 +649,7 @@ function stepUnburied(enc: Encounter, i: number, p: PlayerState, world: WorldDef
 
     case 'windup':
       turnToward(u, Math.atan2(p.x - u.x, p.z - u.z), 4 * dt);
+      if (u.t === u.duration - UT.tellTicks) enc.events.push({ kind: 'enemyTell', enemy: i });
       if (u.t >= u.duration) {
         if (u.feint) {
           enc.events.push({ kind: 'feint', enemy: i });
@@ -624,8 +667,13 @@ function stepUnburied(enc: Encounter, i: number, p: PlayerState, world: WorldDef
       if (u.t >= u.duration) setState(u, 'recover', UT.attack.recovery);
       break;
 
-    case 'recover':
     case 'reel':
+      // Thrown back a step by the deflect.
+      if (u.t <= UT.reelPushTicks) walkForward(u, -UT.reelPushSpeed, world, waterLevel, dt);
+      if (u.t >= u.duration) setState(u, 'stalk');
+      break;
+
+    case 'recover':
     case 'hurt':
       if (u.t >= u.duration) setState(u, 'stalk');
       break;
@@ -674,7 +722,9 @@ function strikePlayer(enc: Encounter, i: number, p: PlayerState): void {
     if (breaks) u.break = Math.min(UT.maxBreak, u.break + UT.breakPerPerfectDeflect);
     f.resolve = Math.min(PC.maxResolve, f.resolve + PC.perfectDeflectResolve);
     enc.hitStop = UT.deflectStop;
+    f.met = true;
     enc.events.push({ kind: 'perfectDeflect', enemy: i });
+    enc.events.push({ kind: 'deflectTiming', result: 'perfect', ticks: f.t });
     if (u.break >= UT.maxBreak) {
       setState(u, 'broken', UT.brokenTicks);
       enc.events.push({ kind: 'enemyBroken', enemy: i });
@@ -686,9 +736,17 @@ function strikePlayer(enc: Encounter, i: number, p: PlayerState): void {
   if (f.action === 'deflect') {
     if (breaks) u.break = Math.min(UT.maxBreak, u.break + UT.breakPerGuard);
     enc.events.push({ kind: 'guard', enemy: i });
+    enc.events.push(f.perfect === 0 ? { kind: 'deflectTiming', result: 'tooSoon', ticks: 0 } : { kind: 'deflectTiming', result: 'early', ticks: f.t - f.perfect + 1 });
     drainResolve(enc, PC.deflect.guardResolveCost);
     return;
   }
+  // Struck: say why the deflect didn't meet it, if one was tried.
+  if (f.deflectBuffer > 0) {
+    f.deflectBuffer = 0;
+    enc.events.push({ kind: 'deflectTiming', result: 'busy', ticks: 0 });
+  } else if (f.sinceDeflectStart < 45) {
+    enc.events.push(f.perfect === 0 ? { kind: 'deflectTiming', result: 'tooSoon', ticks: 0 } : { kind: 'deflectTiming', result: 'early', ticks: f.sinceDeflectStart - f.perfect + 1 });
+  } else f.sinceStruck = 0;
   f.health = Math.max(0, f.health - a.damage);
   enc.events.push({ kind: 'hurt', enemy: i });
   if (f.health === 0) {

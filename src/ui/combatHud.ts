@@ -13,7 +13,10 @@ export class CombatHud {
   private readonly caption: HTMLDivElement;
   private readonly reader: HTMLDivElement;
   private readonly readerText: HTMLDivElement;
+  private readonly flash: HTMLDivElement;
+  private readonly timing: HTMLDivElement;
   private captionUntil = 0;
+  private timingUntil = 0;
   private lastPrompt = '';
 
   constructor(parent: HTMLElement) {
@@ -28,7 +31,9 @@ export class CombatHud {
     this.reader.appendChild(this.readerText);
     this.reader.appendChild(el('p', 'hud-reader-close', 'E to put it down'));
     this.reader.hidden = true;
-    this.root.append(bars, this.prompt, this.caption, this.reader);
+    this.flash = el('div', 'hud-flash');
+    this.timing = el('div', 'hud-timing');
+    this.root.append(this.flash, bars, this.prompt, this.timing, this.caption, this.reader);
     parent.appendChild(this.root);
   }
 
@@ -59,6 +64,20 @@ export class CombatHud {
     this.captionUntil = now + seconds * 1000;
   }
 
+  /** A flash of light over the whole view, gone in a blink: a perfect deflect. */
+  flashScreen(strength: number): void {
+    this.flash.getAnimations().forEach((a) => a.cancel());
+    const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    this.flash.animate([{ opacity: calm ? strength * 0.35 : strength }, { opacity: 0 }], { duration: 220, easing: 'ease-out' });
+  }
+
+  /** The deflect timing readout: one short line under the view's centre. `tone` colours it. */
+  showTiming(text: string, tone: 'good' | 'near' | 'miss', now: number): void {
+    this.timing.textContent = text;
+    this.timing.className = `hud-timing on ${tone}`;
+    this.timingUntil = now + 1400;
+  }
+
   read(lines: readonly string[]): void {
     this.readerText.replaceChildren(...lines.map((line) => el('p', '', line)));
     this.reader.hidden = false;
@@ -72,6 +91,10 @@ export class CombatHud {
     if (this.captionUntil && now > this.captionUntil) {
       this.caption.classList.remove('on');
       this.captionUntil = 0;
+    }
+    if (this.timingUntil && now > this.timingUntil) {
+      this.timing.classList.remove('on');
+      this.timingUntil = 0;
     }
   }
 

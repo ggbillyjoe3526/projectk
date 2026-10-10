@@ -37,15 +37,22 @@ export const PLAYER_COMBAT = {
   /** The sained strike: hold attack (sword only) for `chargeTicks`, then release. */
   sained: { chargeTicks: 30, maxHoldTicks: 120, windup: 4, active: 7, recovery: 26, cost: 20, damage: 42, breakPerHit: 34, reach: 2.3, halfArc: 1.2 },
   deflect: {
-    /** The perfect window at full nerve, shrinking to `minPerfectTicks` as Resolve falls from `lowResolve` to zero. */
-    perfectTicks: 9,
-    minPerfectTicks: 3,
+    /** The perfect window at full nerve (200 ms), shrinking to `minPerfectTicks` as Resolve falls from `lowResolve` to zero. */
+    perfectTicks: 12,
+    minPerfectTicks: 4,
     /** Holding past the perfect window guards: a blow costs Resolve instead of health. */
     guardResolveCost: 9,
-    /** A deflect pressed this soon after the last one ended has no perfect window (no spamming). */
-    rearmTicks: 14,
+    /**
+     * A deflect pressed this soon after the last one ended has no perfect window (no spamming). A perfect deflect re-arms
+     * at once, so blows in quick succession can each be met.
+     */
+    rearmTicks: 10,
     /** Shortest deflect, even on a tap. */
     minTicks: 12,
+    /** A press that comes while the player can't deflect yet (mid-swing, a hit-stop) waits this long, then is dropped. */
+    bufferTicks: 8,
+    /** A press this soon after being struck reads as a deflect that came too late. */
+    lateTicks: 15,
   },
   perfectDeflectResolve: 5,
   step: { ticks: 14, invulnerableFrom: 1, invulnerableTo: 10, distance: 3.0, cooldown: 8 },
@@ -88,9 +95,14 @@ export const UNBURIED_TUNING = {
   stillChance: 0.18,
   stillTicks: [40, 110],
   attack: { reach: 1.7, windup: [22, 50], active: 7, recovery: 34, damage: 20, spiritWound: 7, halfArc: 1.0 },
+  /** The tell: a glint and a hiss this many ticks before the wind-up ends, the cue to deflect on. */
+  tellTicks: 14,
   feintChance: 0.22,
   /** After a perfect deflect: reeling and open. */
   reelTicks: 40,
+  /** ...and thrown back: this fast (m/s) for this many ticks. */
+  reelPushSpeed: 2.6,
+  reelPushTicks: 9,
   hurtTicks: 10,
   maxBreak: 100,
   breakPerPerfectDeflect: 26,

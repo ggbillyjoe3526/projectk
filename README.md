@@ -28,10 +28,11 @@ npm run build        # static site in dist/ (relative paths; any static host)
 
 Controls: WASD to walk (relative to the camera), the mouse to aim the torch, hold F to kneel and listen to the island
 (the hum's strength and beat tell the tide), Q for the torch. Left click attacks (hold it with the sword for a sained
-strike, which costs Resolve), right click deflects (just as a blow lands), Space steps aside, and E reads, takes, rests
+strike, which costs Resolve), right click or Left Shift deflects (as the blow lands; a glint in the attacker's hand
+comes just before it), Space steps aside, and E reads, takes, rests
 at the hearth (where a death reloads to) and gives a kneeling body the Rite. Press `` ` `` or F3 for the debug overlay (frame rate,
 renderer, draw calls, GPU time, simulation tick, seed, tide, player, camera zone, hum) and `]` to run island time
-×4, ×16 or ×64.
+×4, ×16 or ×64. F4 hides or shows the deflect timing readout (early, late or perfect, in milliseconds).
 
 URL flags: `?seed=N` plays seed N; `?forceWebGL` draws with the renderer's WebGL2 back end without asking for WebGPU
 (automated browsers in containers have no WebGPU adapter); `?at=x,z` starts the player at that point and `?tide=f` at
