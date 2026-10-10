@@ -20,6 +20,7 @@ import { Keyboard } from './input/keyboard';
 import { browserKeyboardMap, watchKeyboardLayout } from './input/keyboardLayout';
 import { watchMouseButtons } from './input/mouseButtons';
 import { PointerAim } from './input/pointerAim';
+import { SprintToggle } from './input/sprintToggle';
 import { startingRenderer } from './render/rendererStart';
 import { isDeviceLossEcho, type NodeBackend } from './render/webgpu/nodeBackend';
 import { startGuardedStorage } from './save/guardedStorage';
@@ -110,9 +111,11 @@ async function main(): Promise<void> {
   fit();
   window.addEventListener('resize', fit);
 
+  const sprint = new SprintToggle();
   // Looking away (another tab, another window) pauses the game, as well as letting go of every key.
   awayWatch({ doc: document, win: window }, () => {
     keyboard.releaseAll();
+    sprint.reset();
     setPaused(true);
   });
   document.addEventListener('visibilitychange', () => {
@@ -176,6 +179,7 @@ async function main(): Promise<void> {
     paused = on;
     pauseScreen?.show(on);
     keyboard.releaseAll();
+    sprint.reset();
     part.setPaused(on);
     // Paused, the browser keeps its own keys (Space scrolls nothing, but menus and shortcuts work as usual).
     keyboard.capturing = !on;
@@ -202,7 +206,7 @@ async function main(): Promise<void> {
     intent.aim = pointer.known ? aim : null;
     intent.attackHeld = keyboard.isDown('attack');
     intent.deflectHeld = keyboard.isDown('deflect');
-    intent.sprintHeld = keyboard.isDown('sprint');
+    intent.sprintHeld = sprint.update(keyboard.wasPressed('sprint'), intent.forward);
     // A press reaches the next tick only, held over a frame that runs no tick (above 60 frames a second).
     intent.attackPressed ||= keyboard.wasPressed('attack');
     intent.deflectPressed ||= keyboard.wasPressed('deflect');
@@ -239,7 +243,7 @@ async function main(): Promise<void> {
   const sliceControls = (): [string, string][] => [
     ['Mouse', 'face and aim (the mark over one of the dead is your target)'],
     [`${key('forward')}`, 'walk toward the pointer'],
-    [`${keyboard.keysName('sprint')} (hold)`, 'sprint, while stamina lasts'],
+    [`${keyboard.keysName('sprint')} (tap)`, 'sprint on or off, while stamina lasts'],
     [`${key('attack')}`, 'attack (hold with the sword: sained strike)'],
     [keyboard.keysName('deflect'), 'deflect as the blow lands (a glint in its hand warns you)'],
     [`${key('step')}`, 'step back, quickly'],
@@ -252,7 +256,7 @@ async function main(): Promise<void> {
   const crossingControls = (): [string, string][] => [
     ['Mouse', 'face where you want to go'],
     [`${key('forward')}`, 'walk toward the pointer'],
-    [`${keyboard.keysName('sprint')} (hold)`, 'walk faster'],
+    [`${keyboard.keysName('sprint')} (tap)`, 'walk faster, until you stop'],
     [key('interact'), 'talk, look, read, use; go on in a conversation'],
     ['1–4 or click', 'choose what to say'],
     [`${key('listen')} (hold)`, 'kneel and listen to the island'],

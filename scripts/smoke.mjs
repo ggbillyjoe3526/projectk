@@ -10,7 +10,7 @@ const problems = [];
 try {
   // A new game opens chapter 1 on the ferry; ?chapter=lowwater opens the slice. Each says its opening line on the
   // first tick, so the simulation is running.
-  for (const [query, opening] of [['', 'The afternoon ferry'], ['&chapter=lowwater', 'The morning after the vigil']]) {
+  for (const [query, opening] of [['', 'The late ferry'], ['&chapter=lowwater', 'The morning after the vigil']]) {
     const page = await browser.newPage({ viewport: { width: 960, height: 540 } });
     page.on('pageerror', (e) => problems.push(`page error${query}: ${e.message}`));
     await page.goto(`http://localhost:4317/?forceWebGL&seed=1${query}`);

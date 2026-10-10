@@ -70,6 +70,18 @@ Chapters 5 to 8 can be reordered or made partly open, so the player picks their 
 - The cottage with the coffin on the bier: the letters drawer with the unsent reply and the army photo, the unopened whisky, his chair, the tide table, the pill choice, and the five customs (salt, mirror, clock, window, candle), each done once with nothing to explain it.
 - Sitting with him ends the day: lines that depend on what he did, END OF DAY 1, then on into Low water.
 
+**Reworked after William's first playtest (2026-10-10, still 0.1 Dev 1: William decides when there's a new version):**
+- **A real Orkney night.** The late ferry docks at **23:45 on the Wednesday**, half an hour after the causeway shut (23:16), so he can't get over until **Thursday morning (open 06:49 to 11:41, low water 09:15)**. The tide keeps a real rhythm: two low waters a day, 12 hours 25 minutes apart. Winter light is from about nine to four.
+- **The island is shut.** Only the Skerry Inn is open. The kirk is locked with a notice on the door (Friday, 10 a.m., the funeral service for Alan Sloan); the shop is locked. Rev. Ruth is not outside the kirk.
+- **Morag**, creepier but welcoming: directions (and that he's missed the tide), a room at her inn ("I made it up on Monday": he died on the Tuesday), and a poor lie about his death ("In his bed... out walking on the shore"). Accept and the scene cuts to the inn. Decline and she walks home to the inn on her own once he walks off; he can still talk to her, and still go to the inn himself. Upstairs he sleeps until Thursday morning.
+- **The funeral moved to Friday** ("We put it back a day, so you'd have your night with him"). Thursday is the day with his father and the vigil that night; Friday's 10:00 service is at low water (07:39 to 12:31), so the causeway is open for the run home after it.
+- **The high street** has more buildings, each with a sign to read; the kirkyard's stones can be read too (names, dates, "Loving father", and his grandparents' stone: "Your father was fifteen").
+- **His only luggage is a backpack**, with the letter in it; nothing in his hands at the start.
+- **Listening** now shows on screen: the edges move like water, gently at low tide and unsteadily at high water, and pebbles and puddles near him react.
+- The phone shows the time, the day and the tide; there is no clock on the HUD.
+
+**For chapter 2 (proposal, from William's note that the dead won't follow him to the Brough):** a lore reason could be that the dead don't cross running salt water. The causeway is the sea's twice a day, and even at low water its stones are wet with it; Alan kept a line of salt across the Brough end. Not settled.
+
 ---
 
 ## The sword's hints in the kirk (proposal)

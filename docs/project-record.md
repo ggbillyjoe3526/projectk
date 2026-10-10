@@ -279,6 +279,46 @@ What changed (PR #25):
 - **Sprinting is loud.** The dead hear a sprinting player up to 18 m off, lit or dark (sight is 15 m with the torch,
   6.5 m without), so a sprint can draw ones that wouldn't have seen you.
 
+### Chapter 1, 2026-10-10
+
+William played 0.1 Dev 1 and sent sixteen points (in the "Story summary and beats" thread): the ferry clipped the pier
+as it left; the game seemed to start with a torch in hand; the bag at the stern should be a backpack holding the
+letter; the HUD and prompts should be larger; a clock and tide readout (then: on the phone, not the HUD); Morag
+creepier yet welcoming, offering directions, a room, and a poor lie about the death; accepting the room cuts to her
+inn, declining sends her home on her own; signs on buildings; the sprint bug still there with Left Shift, and sprint
+should be a toggle; keep Tam and the text descriptions; the island shut at 23:45 except the inn, the kirk locked with
+a notice, no minister outside it; readable gravestones; more buildings on the high street; a visual cue when
+listening, with pebbles and puddles reacting; realistic Orkney tides, a night at the inn if the tide needs it, the
+funeral pushed back a day if needed, and the dead not following him to the Brough. Then: "don't automatically assign
+versions. this is not 0.1 Dev 2."
+
+What changed:
+
+- **The ferry** stands off sideways from the pier before it turns, and the moor no longer reaches under where it ties
+  up (a test checks it never swings over the pier).
+- **Nothing in hand.** The greybox hand only shows with the phone torch on or while listening; the torch starts off.
+  He wears a **backpack**, and the letter is in it (Tab, Notes).
+- **Larger HUD.** Prompts, captions, the talk box, the phone, the reader and the end card all scale with the window.
+- **Time on the phone.** The phone's header shows the time, the day and the tide ("Tide out, coming in. Causeway
+  shut."). Nothing on the HUD.
+- **The night and the tide.** Real Orkney rhythm (two low waters a day, 12 h 25 min apart). Docks Wednesday 23:45,
+  causeway shut since 23:16, open Thursday 06:49 to 11:41. The funeral is Friday at 10:00, at low water.
+- **Morag, the inn, the night.** As described in docs/story/chapters.md (chapter 1, reworked). The Skerry Inn is a
+  room you can walk into, with Isa by the fire and a stair up to sleep until Thursday morning.
+- **Shut island.** The kirk and shop doors are locked walls; the kirk door has the funeral notice. Ruth is gone from
+  the chapter.
+- **Signs and stones.** Thirteen signs along the high street (eleven buildings now line it besides the inn and
+  shop) and fifteen readable gravestones.
+- **Sprint is a toggle.** A tap of Left Shift starts it; another tap, stopping walking, pausing or looking away ends
+  it. I could not reproduce a stuck key in a headless browser, and the key handling looks right, so the likely
+  culprit is the operating system swallowing a key release (Windows' Sticky Keys prompt appears after five Shift
+  presses). The toggle means nothing is held for long, and a Shift whose release was lost is now let go at the next
+  key event that reports Shift up.
+- **Listening shows.** While kneeling, the screen's edges ripple: gently at low tide, unsteadily at high water,
+  pulsing with the beat. Pebbles near him jump and puddles shiver, even at low water.
+
+The version was left at 0.1 Dev 1: William decides versions and tags them on GitHub.
+
 ## Process
 
 ### Pull requests
@@ -294,8 +334,9 @@ Builds within a chapter are numbered Dev builds: chapter 1's first release is **
 "0.1 Dev 3" as it is iterated on, and chapter 2 starts again at "0.2 Dev 1". (William's message listed "0.1 Dev 2"
 after "0.2 Dev 1"; that reads as a typo for "0.2 Dev 2".)
 
-In the code the release lives in `src/config/release.ts`: bump `dev` for each build put out to play, and `chapter`
-(with `dev` back to 1) when a new chapter's builds begin. The start screen shows the release name under the title, and
+**Settled (William, 2026-10-10):** William decides when there is a new version and tags it on GitHub; a new playable
+build is not by itself a new version, so Claude never bumps or names one. In the code the release lives in
+`src/config/release.ts`, changed only when William says so. The start screen shows the release name under the title, and
 crash reports carry it next to the exact git version.
 
 ### The repository rename
@@ -351,3 +392,4 @@ the routine was deleted. Don't set it up again unless he asks.
 | 2026-10-10 | William set the version scheme: a minor version per chapter, numbered Dev builds within it; chapter 1 releases as "0.1 Dev 1". |
 | 2026-10-10 | Chapter 1, "The Crossing", built and released as 0.1 Dev 1 (PR #27). William settled the opening's order: the retreat is the daylight flight from the funeral, the knife fails the next day, and the sword's hints are in the kirk, not in a note that appears. |
 | 2026-10-10 | William stopped the Airsoft sync for good: the routine was deleted and nothing more is pulled from Airsoft. |
+| 2026-10-10 | Chapter 1 reworked after William's playtest: a 23:45 arrival with a night at Morag's inn, the funeral on Friday, a shut island, signs and gravestones, sprint as a toggle, a larger HUD, time and tide on the phone, and a listening cue. Still 0.1 Dev 1: William decides versions. |

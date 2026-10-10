@@ -19,6 +19,7 @@ export class Keyboard {
     target.addEventListener('keydown', this.onKeyDown);
     target.addEventListener('keyup', this.onKeyUp);
     target.addEventListener('blur', this.onBlur);
+    target.document?.addEventListener('visibilitychange', this.onBlur);
   }
 
   isDown(action: Action): boolean {
@@ -71,10 +72,12 @@ export class Keyboard {
     this.target.removeEventListener('keydown', this.onKeyDown);
     this.target.removeEventListener('keyup', this.onKeyUp);
     this.target.removeEventListener('blur', this.onBlur);
+    this.target.document?.removeEventListener('visibilitychange', this.onBlur);
   }
 
   private readonly onKeyDown = (e: KeyboardEvent): void => {
     if (this.suppress(e.code)) e.preventDefault();
+    this.syncModifiers(e);
     if (!e.repeat) this.pressedThisFrame.add(e.code);
     this.held.add(e.code);
   };
@@ -83,7 +86,22 @@ export class Keyboard {
     // Also on key up: releasing Alt is what opens the menu bar in some browsers.
     if (this.suppress(e.code)) e.preventDefault();
     this.held.delete(e.code);
+    this.syncModifiers(e);
   };
+
+  /**
+   * Every key event says which modifiers are down, so a Shift, Alt or Ctrl whose release went elsewhere (a system
+   * prompt such as Windows' Sticky Keys, a menu, another window) is let go at the next key event.
+   */
+  private syncModifiers(e: KeyboardEvent): void {
+    for (const [down, codes] of [
+      [e.shiftKey, ['ShiftLeft', 'ShiftRight']],
+      [e.altKey, ['AltLeft', 'AltRight']],
+      [e.ctrlKey, ['ControlLeft', 'ControlRight']],
+    ] as const) {
+      if (down === false) for (const code of codes) if (code !== e.code || e.type === 'keyup') this.held.delete(code);
+    }
+  }
 
   /** While playing, game keys don't do their browser thing (scrolling, find bar, menu bar...). */
   private suppress(code: string): boolean {

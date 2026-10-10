@@ -64,11 +64,18 @@ function figure(person: Person): Figure {
   return { person, root, body, hand, facing: person.facing };
 }
 
+/** Where someone is drawn this frame: `place` writes it; `facing` is the way they face when not turned to the player. */
+export interface PersonPlace {
+  x: number;
+  z: number;
+  facing: number;
+}
+
 export class PeopleFigures {
   private readonly figures: Figure[];
-  private readonly at = { x: 0, z: 0 };
+  private readonly at: PersonPlace = { x: 0, z: 0, facing: 0 };
 
-  constructor(scene: Scene, people: readonly Person[], groundAt: (x: number, z: number) => number) {
+  constructor(scene: Scene, people: readonly Person[], private readonly groundAt: (x: number, z: number) => number) {
     this.figures = people.map(figure);
     for (const f of this.figures) {
       f.root.position.y = groundAt(f.person.x, f.person.z);
@@ -78,8 +85,9 @@ export class PeopleFigures {
 
   /**
    * Per frame: who's kneeling (`kneels(id)`), who's turned to the player (near, or the one they're talking to), a
-   * visibility test (`shown(id)`) for people only there part of the chapter, and where each is drawn (`place`: writes
-   * the drawn position into `out` and returns a turn to add, for someone aboard the moving ferry).
+   * visibility test (`shown(id)`) for people only there part of the chapter, and where each is (`place`: writes where
+   * they stand in the simulation, and the way they face, into `out`, and returns where it's drawn offset by a turn, for
+   * someone aboard the moving ferry: `drawn` gets the drawn position).
    */
   update(
     px: number,
@@ -88,21 +96,27 @@ export class PeopleFigures {
     talkingTo: string | null,
     kneels: (id: string) => boolean,
     shown: (id: string) => boolean,
-    place: (p: Person, out: { x: number; z: number }) => number,
+    place: (p: Person, out: PersonPlace, drawn: { x: number; z: number }) => number,
   ): void {
+    const drawn = { x: 0, z: 0 };
     for (const f of this.figures) {
       const p = f.person;
       f.root.visible = shown(p.id);
       if (!f.root.visible) continue;
+      const at = this.at;
+      at.x = p.x;
+      at.z = p.z;
+      at.facing = p.facing;
+      const turn = place(p, at, drawn);
       const kneeling = kneels(p.id);
-      const near = Math.hypot(px - p.x, pz - p.z) < NOTICE_RANGE;
-      const want = (talkingTo === p.id || (near && !kneeling)) ? Math.atan2(px - p.x, pz - p.z) : p.facing;
+      const near = Math.hypot(px - at.x, pz - at.z) < NOTICE_RANGE;
+      const want = (talkingTo === p.id || (near && !kneeling)) ? Math.atan2(px - at.x, pz - at.z) : at.facing;
       const by = Math.atan2(Math.sin(want - f.facing), Math.cos(want - f.facing));
       const most = TURN_SPEED * dt;
       f.facing += Math.max(-most, Math.min(most, by));
-      const turn = place(p, this.at);
-      f.root.position.x = this.at.x;
-      f.root.position.z = this.at.z;
+      f.root.position.x = drawn.x;
+      f.root.position.z = drawn.z;
+      f.root.position.y = this.groundAt(at.x, at.z);
       f.root.rotation.y = f.facing + turn;
       // Kneeling: down on one knee, leaning over a palm flat on the ground.
       f.body.position.y = kneeling ? -0.5 * p.look.height : 0;

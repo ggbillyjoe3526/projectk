@@ -1,5 +1,5 @@
 import {
-  Color, DirectionalLight, HemisphereLight, PerspectiveCamera, Plane, Raycaster, type RenderPipeline, type Scene, Vector2, Vector3,
+  Color, DirectionalLight, HemisphereLight, type Object3D, PerspectiveCamera, Plane, Raycaster, type RenderPipeline, type Scene, Vector2, Vector3,
   type WebGPURenderer,
 } from 'three/webgpu';
 import { FerrySounds } from '../../audio/ferrySounds';
@@ -11,25 +11,26 @@ import { releaseName } from '../../config/release';
 import { RETRO_LOOK } from '../../config/render';
 import { TORCH } from '../../config/torch';
 import {
-  DEPARTURE_SECONDS, FERRY_START_TIDE, LINES, type Message, MESSAGES, MESSAGES_AT_START, MESSAGES_ON_FERRY, VOYAGE_SECONDS,
+  DEPARTURE_SECONDS, FERRY_START_TIDE, LINES, type Message, MESSAGES, MESSAGES_AT_START, MESSAGES_ON_FERRY, MORNING_TIDE, VOYAGE_SECONDS,
 } from '../../content/crossing/chapter';
-import { PEOPLE, type Person } from '../../content/crossing/people';
-import { COFFIN, type Custom, PILLS, type Spot, SPOTS, vigilLines } from '../../content/crossing/places';
+import { CROSSING_TIDE, dayName, daylight, tideTableText, tideWords, timeText } from '../../content/crossing/clock';
+import { FLAGS, MORAG_AT_INN, MORAG_WAY_HOME, PEOPLE, type Person } from '../../content/crossing/people';
+import { COFFIN, type Custom, FUNERAL_LETTER, PILLS, READABLES, type Spot, SPOTS, vigilLines } from '../../content/crossing/places';
 import { hasPower, isIndoors, type Level, levelLayout, loadLevel, VIGIL_MESHES } from '../../content/level';
 import { ARRIVAL, PIER_HEAD } from '../../content/levels/arrival';
+import { INN, INN_DOOR } from '../../content/levels/village';
 import { COTTAGE, CAUSEWAY } from '../../content/levels/brough';
 import { FERRY, FERRY_GANGWAY } from '../../content/levels/ferry';
 import { PIER } from '../../content/levels/pier';
 import { buildGreybox, type GreyboxScene } from '../../render/greyboxScene';
-import { PeopleFigures } from '../../render/people';
+import { PeopleFigures, type PersonPlace } from '../../render/people';
 import { Rain } from '../../render/rain';
 import { ps1Snap } from '../../render/retro/ps1Snap';
 import { internalResolution } from '../../render/retro/retroMath';
-import { createRetroPipeline } from '../../render/retro/retroPipeline';
-import { buildArrival, type ArrivalSet } from '../../render/sets/arrival';
+import { createRetroPipeline, type RetroControls, updateListenCue } from '../../render/retro/retroPipeline';
+import { buildArrival, type ArrivalSet, wornBackpack } from '../../render/sets/arrival';
 import { buildFerry, type FerrySet } from '../../render/sets/ferry';
 import { HumClock, listeningClarity } from '../../sim/humClock';
-import { islandTime } from '../../sim/islandClock';
 import { createPlayer, type PlayerCommand, type PlayerState, stepPlayer } from '../../sim/player';
 import { causewayPassable, humParams, nextCausewayOpen, tideLevel, tidePhase } from '../../sim/tide';
 import { createTorch, stepTorch, switchTorch, torchBrightness, type TorchState } from '../../sim/torch';
@@ -40,17 +41,16 @@ import { DayEnd } from '../../ui/dayEnd';
 import { DialogueBox } from '../../ui/dialogueBox';
 import { Phone } from '../../ui/phone';
 import type { SliceIntent } from '../broughSlice';
-import { tideTableLines } from '../things';
 import { advance, choose, type Conversation, currentStep, type Dialogue, type Effect, startConversation, type TalkContext } from './dialogue';
-import { daylight, departurePose, type ShipPose, shipToWorld, voyagePose, worldToShip } from './evening';
+import { departurePose, type ShipPose, shipToWorld, voyagePose, worldToShip } from './evening';
 import { clearCrossing, type CrossingCheckpoint, type CrossingProgress, freshCrossing, readCrossing, writeCrossing } from './progress';
 import { lookedFlag, type ReachState, type Target, targetHere, targetPrompt } from './reach';
 
 /**
- * Chapter 1, The Crossing: the ferry in, the village at dusk with the people who knew Alan Sloan, the wait for the
- * tide, the causeway, the cottage, and the vigil William doesn't know how to keep. No threat anywhere: it's played,
- * not watched, with the story in what people say and what he reads. It ends when he sits with the coffin and falls
- * asleep (William, 2026-10-10), and hands over to the slice's "Low water", the morning after.
+ * Chapter 1, The Crossing: the late ferry in at 23:45, the shut village and the people who knew Alan Sloan, a night at
+ * Morag's inn while the tide is in, the causeway in the morning, the cottage, and the vigil William doesn't know how to
+ * keep. No threat anywhere: it's played, not watched, with the story in what people say and what he reads. It ends
+ * when he sits with the coffin and falls asleep, and hands over to the slice's "Low water".
  *
  * It runs the way the slice does (game/broughSlice.ts): main.ts steps it at 60 Hz and draws it between steps, with the
  * same cameras, the same look, the tide and the hum, on its own map (content/levels/arrival.ts) and its own save.
@@ -58,8 +58,8 @@ import { lookedFlag, type ReachState, type Target, targetHere, targetPrompt } fr
 
 /** Island time runs this many times faster than real time, cycled by the debug key. */
 const TIME_SCALES = [1, 4, 16, 64] as const;
-/** The last of the afternoon light, for the sky and the fog (night is the slice's own colour). */
-const DUSK_SKY = new Color(0x55626a);
+/** A grey winter day, for the sky and the fog (night is the slice's own colour). */
+const DUSK_SKY = new Color(0x5f6a70);
 const NIGHT_SKY = new Color(0x0c1317);
 /** How near someone comes before their notice is said. */
 const NOTICE_RANGE = 7;
@@ -75,7 +75,14 @@ interface SaveStore {
 }
 
 const MESSAGE_BY_ID = new Map<string, Message>(Object.values(MESSAGES).map((m) => [m.id, m]));
-const SPOT_BY_ID = new Map<string, Spot>(SPOTS.map((s) => [s.id, s]));
+const SPOT_BY_ID = new Map<string, Spot>(READABLES.map((s) => [s.id, s]));
+/** Morag's walking pace home from the pier (metres a second), and how near the player stops her to talk. */
+const MORAG_PACE = 1.05;
+const MORAG_WAITS_WITHIN = 2.8;
+/** How far off the player has to be after meeting her before she sets off home. */
+const MORAG_LEAVES_BEYOND = 9;
+/** Just inside the inn door, facing in: where a yes to Morag's room cuts to. */
+const INN_INSIDE = { x: (INN.door[0] + INN.door[1]) / 2, z: INN.maxZ - 1.4, facing: Math.PI } as const;
 
 /** The tablet, asked as a choice (places.ts PILLS). */
 const PILL_TALK: Dialogue = {
@@ -88,8 +95,10 @@ const PILL_TALK: Dialogue = {
   },
 };
 
-/** A person stands in the way, like anyone would. */
-const personWall = (p: Person): Wall => ({ minX: p.x - 0.25, maxX: p.x + 0.25, minZ: p.z - 0.25, maxZ: p.z + 0.25, height: 1.7, kind: 'furniture' });
+type Mutable<T> = { -readonly [K in keyof T]: T[K] };
+
+/** A person stands in the way, like anyone would (moved with them when they walk). */
+const personWall = (p: Person): Mutable<Wall> => ({ id: `person-${p.id}`, minX: p.x - 0.25, maxX: p.x + 0.25, minZ: p.z - 0.25, maxZ: p.z + 0.25, height: 1.7, kind: 'furniture' });
 
 export class CrossingChapter {
   readonly scene: Scene;
@@ -103,6 +112,7 @@ export class CrossingChapter {
   private readonly rain = new Rain();
   private readonly ferry: FerrySet;
   private readonly arrival: ArrivalSet;
+  private readonly backpack: Object3D;
   private readonly people: PeopleFigures;
   private readonly hemi: HemisphereLight | null;
   private readonly moon: DirectionalLight | null;
@@ -110,6 +120,7 @@ export class CrossingChapter {
   private readonly moonBase: number;
   private renderer: WebGPURenderer | null = null;
   private pipeline: RenderPipeline | null = null;
+  private look: RetroControls | null = null;
   private audio: IslandHum | null = null;
   private ferrySounds: FerrySounds | null = null;
   private readonly hud: CombatHud;
@@ -120,6 +131,11 @@ export class CrossingChapter {
   /** The world with the gangway open (the ferry alongside) or shut, and the people standing in it. */
   private worldOpen: WorldDef;
   private worldShut: WorldDef;
+  private readonly personWalls = new Map<string, Mutable<Wall>>();
+  /** Where Morag is: at the pier, on her way home (along MORAG_WAY_HOME, `moragLeg` the point she's making for), or home. */
+  private moragAt: 'pier' | 'walking' | 'inn' = 'pier';
+  private moragLeg = 0;
+  private readonly morag: PersonPlace = { x: 0, z: 0, facing: 0 };
 
   private progress: CrossingProgress = freshCrossing();
   private flags = new Set<string>();
@@ -187,9 +203,14 @@ export class CrossingChapter {
     this.moonBase = (moon as DirectionalLight | null)?.intensity ?? 1;
     this.ferry = buildFerry(this.scene);
     this.arrival = buildArrival(this.scene);
+    this.backpack = wornBackpack(this.g.player);
     const groundAt = (x: number, z: number): number => this.level.sim.groundAt(x, z).height;
     this.people = new PeopleFigures(this.scene, PEOPLE, groundAt);
-    const walls = [...this.level.sim.walls, ...PEOPLE.map(personWall)];
+    for (const person of PEOPLE) this.personWalls.set(person.id, personWall(person));
+    // The inn is open: its door is taken away.
+    const innDoor = this.g.wallMeshes.get(INN_DOOR);
+    if (innDoor) innDoor.visible = false;
+    const walls = [...this.level.sim.walls.filter((w) => w.id !== INN_DOOR), ...this.personWalls.values()];
     this.worldShut = { ...this.level.sim, walls };
     this.worldOpen = { ...this.level.sim, walls: walls.filter((w) => w.id !== FERRY_GANGWAY) };
     this.hud = new CombatHud(hudParent);
@@ -200,11 +221,14 @@ export class CrossingChapter {
     this.persist = !['at', 'tide'].some((flag) => params.has(flag));
 
     this.player = createPlayer(this.level.sim);
+    this.placeMorag('pier');
     const saved = this.persist ? readCrossing(storage, this.layout) : null;
     if (saved && saved.progress.phase !== 'ferry') {
       this.progress = saved.progress;
       this.flags = new Set(saved.progress.flags);
       this.checkpoint = saved.checkpoint;
+      // Once they've met, she's gone home by the time a saved game picks up.
+      if (this.flags.has('met:morag')) this.placeMorag('inn');
       this.ashore();
       if (saved.checkpoint) this.load(saved.checkpoint);
       else this.placeAt(PIER_HEAD.x, PIER_HEAD.z, PIER_HEAD.facing);
@@ -236,6 +260,7 @@ export class CrossingChapter {
     this.flags = new Set();
     this.checkpoint = null;
     this.noticed.clear();
+    this.placeMorag('pier');
     this.begin();
     this.copyPrev();
     this.snapCamera = true;
@@ -250,6 +275,8 @@ export class CrossingChapter {
     this.departure = -1;
     this.progress.phase = 'ferry';
     for (const m of MESSAGES_AT_START) if (!this.progress.messages.includes(m.id)) this.progress.messages.push(m.id);
+    // The letter is in his backpack from the start.
+    if (!this.progress.read.includes(FUNERAL_LETTER.id)) this.progress.read.push(FUNERAL_LETTER.id);
     this.opening = true;
     this.refreshPhone();
   }
@@ -268,6 +295,7 @@ export class CrossingChapter {
     renderer.shadowMap.enabled = true;
     const retro = createRetroPipeline(renderer, this.scene, this.camera);
     this.pipeline = retro.pipeline;
+    this.look = retro.controls;
   }
 
   fit(width: number, height: number): void {
@@ -323,6 +351,7 @@ export class CrossingChapter {
     this.audio = null;
     this.pipeline?.dispose();
     this.pipeline = null;
+    this.look = null;
   }
 
   private get world(): WorldDef {
@@ -340,11 +369,73 @@ export class CrossingChapter {
   }
 
   private reach(): ReachState {
-    return { progress: this.progress, flags: this.flags, causewayOpen: causewayPassable(this.tideClock) };
+    return { progress: this.progress, flags: this.flags, causewayOpen: this.causewayOpen };
   }
 
   private talkContext(): TalkContext {
-    return { flags: this.flags, causewayOpen: causewayPassable(this.tideClock) };
+    return { flags: this.flags, causewayOpen: this.causewayOpen };
+  }
+
+  private get causewayOpen(): boolean {
+    return causewayPassable(this.tideClock, CROSSING_TIDE);
+  }
+
+  private get seaLevel(): number {
+    return tideLevel(this.tideClock, CROSSING_TIDE);
+  }
+
+  /** Who's about now, where they stand: Morag wherever she's got to; Isa gone home after the night. */
+  private peopleNow(): Person[] {
+    return PEOPLE.flatMap((p) => {
+      if (p.id === 'isa' && this.flags.has(FLAGS.slept)) return [];
+      if (p.id === 'magnus' && this.departure >= DEPARTURE_SECONDS) return [];
+      if (p.id === 'morag') return [{ ...p, x: this.morag.x, z: this.morag.z, facing: this.morag.facing }];
+      return [p];
+    });
+  }
+
+  private placeMorag(at: 'pier' | 'inn'): void {
+    this.moragAt = at;
+    this.moragLeg = 0;
+    const spot = at === 'pier' ? { x: PEOPLE.find((p) => p.id === 'morag')!.x, z: PEOPLE.find((p) => p.id === 'morag')!.z, facing: PEOPLE.find((p) => p.id === 'morag')!.facing } : MORAG_AT_INN;
+    Object.assign(this.morag, spot);
+    this.moveWall('morag', this.morag.x, this.morag.z);
+  }
+
+  private moveWall(id: string, x: number, z: number): void {
+    const w = this.personWalls.get(id);
+    if (!w) return;
+    w.minX = x - 0.25;
+    w.maxX = x + 0.25;
+    w.minZ = z - 0.25;
+    w.maxZ = z + 0.25;
+  }
+
+  /** Morag's way home, once she's met him and he's left her standing (a yes to her room takes her home at once). */
+  private walkMorag(dt: number): void {
+    const p = this.player;
+    const m = this.morag;
+    const away = Math.hypot(p.x - m.x, p.z - m.z);
+    if (this.moragAt === 'pier') {
+      if (this.flags.has('met:morag') && !this.conversation && away > MORAG_LEAVES_BEYOND) this.moragAt = 'walking';
+      return;
+    }
+    if (this.moragAt !== 'walking' || this.talkingTo === 'morag' || away < MORAG_WAITS_WITHIN) return;
+    const to = MORAG_WAY_HOME[this.moragLeg]!;
+    const dx = to.x - m.x;
+    const dz = to.z - m.z;
+    const d = Math.hypot(dx, dz);
+    const step = MORAG_PACE * dt;
+    if (d <= step) {
+      m.x = to.x;
+      m.z = to.z;
+      if (++this.moragLeg >= MORAG_WAY_HOME.length) this.placeMorag('inn');
+    } else {
+      m.x += (dx / d) * step;
+      m.z += (dz / d) * step;
+      m.facing = Math.atan2(dx, dz);
+    }
+    this.moveWall('morag', m.x, m.z);
   }
 
   tick(intent: SliceIntent, dt: number): void {
@@ -389,7 +480,7 @@ export class CrossingChapter {
       held = true;
       this.converse(intent.interactPressed);
     } else if (!held && intent.interactPressed) {
-      const target = targetHere(SPOTS, PEOPLE, this.reach(), p.x, p.z);
+      const target = targetHere(SPOTS, this.peopleNow(), this.reach(), p.x, p.z);
       if (target) this.use(target);
     }
     if (held) {
@@ -401,7 +492,8 @@ export class CrossingChapter {
     this.copyPrev();
     const scale = TIME_SCALES[this.timeScale]!;
     this.tideClock += dt * scale;
-    stepPlayer(p, this.cmd, this.world, tideLevel(this.tideClock), dt);
+    this.walkMorag(dt);
+    stepPlayer(p, this.cmd, this.world, this.seaLevel, dt);
     const torchNews = stepTorch(this.torch, hasPower(this.level, p.x, p.z), dt);
     if (torchNews === 'low') this.say('Your phone’s battery is getting low.', 3);
     else if (torchNews === 'dead') this.say('The torch goes out. The phone needs charging.', 3.5);
@@ -445,6 +537,9 @@ export class CrossingChapter {
       case 'waitForCauseway':
         this.waitForTide();
         break;
+      case 'goToInn':
+        this.toInn();
+        break;
       case 'teachListen':
         this.say(LINES.listenHint(this.keyName('listen')), 6);
         break;
@@ -477,7 +572,7 @@ export class CrossingChapter {
         this.refreshPhone();
         break;
       case 'tideTable':
-        this.hud.read(tideTableLines(this.tideClock));
+        this.hud.read(tideTableText(this.tideClock));
         break;
       case 'custom':
         this.progress.customs.push(spot.custom);
@@ -503,7 +598,9 @@ export class CrossingChapter {
         break;
       case 'wait':
         this.waitForTide();
-        this.say(LINES.waited, 6);
+        break;
+      case 'sleep':
+        this.sleep();
         break;
     }
     this.saveFlags();
@@ -511,10 +608,38 @@ export class CrossingChapter {
 
   /** Let the hours pass until the causeway clears, and save there. */
   private waitForTide(): void {
-    if (causewayPassable(this.tideClock)) return;
-    this.tideClock = nextCausewayOpen(this.tideClock) + 1;
+    if (this.causewayOpen) return;
+    this.tideClock = nextCausewayOpen(this.tideClock, CROSSING_TIDE) + 1;
     this.dayEnd.dip();
     this.toldShut = false;
+    this.rest();
+  }
+
+  /** A yes to Morag's room: straight to the inn with her, out of the rain. */
+  private toInn(): void {
+    this.dayEnd.dip();
+    this.placeMorag('inn');
+    this.placeAt(INN_INSIDE.x, INN_INSIDE.z, INN_INSIDE.facing);
+    this.tideClock += 15 * (3000 / 1440);
+    this.flags.add('atInn');
+    this.queued.push({ text: LINES.innArrive, seconds: 6 });
+    this.rest();
+  }
+
+  /** Up the inn's stair to sleep: the night passes, and it's Thursday morning with the causeway open. */
+  private sleep(): void {
+    if (this.flags.has(FLAGS.slept) || this.tideClock >= MORNING_TIDE) {
+      this.say('You’re not tired now. He’s waiting for you, over the causeway.', 4);
+      return;
+    }
+    this.flags.add(FLAGS.slept);
+    this.endConversation();
+    this.dayEnd.dip();
+    this.tideClock = MORNING_TIDE;
+    this.toldShut = false;
+    this.placeAt(INN_INSIDE.x + 5, INN_INSIDE.z - 1.6, Math.PI);
+    if (this.moragAt !== 'inn') this.placeMorag('inn');
+    this.say(LINES.slept, 7);
     this.rest();
   }
 
@@ -525,6 +650,7 @@ export class CrossingChapter {
     if (this.opening) {
       this.opening = false;
       this.say(LINES.opening, 6);
+      this.queued.push({ text: LINES.bagHint(this.keyName('phone')), seconds: 6 });
     }
     const phase = this.progress.phase;
     if (phase === 'ferry') {
@@ -561,11 +687,19 @@ export class CrossingChapter {
 
     // The causeway: say once that the sea's over it; turn back anyone the tide comes up around.
     const ground = this.level.sim.groundAt(p.x, p.z).kind;
-    const open = causewayPassable(this.tideClock);
+    const open = this.causewayOpen;
     if (open) this.toldShut = false;
     else if (ground === 'causeway' && !this.toldShut && Math.abs(p.x) < CAUSEWAY.maxX - 3) {
       this.toldShut = true;
-      this.say(LINES.causewayShut, 5);
+      const knowsRoom = this.flags.has(FLAGS.acceptedRoom) || this.flags.has(FLAGS.declinedRoom);
+      this.say(knowsRoom && !this.flags.has(FLAGS.slept) ? LINES.causewayShutRoom : LINES.causewayShut, 6);
+    }
+
+    // The inn, the first time in on his own feet.
+    if (!this.flags.has('atInn') && inBox(INN, p.x, p.z) && p.z < INN.maxZ - INN.wall) {
+      this.flags.add('atInn');
+      this.say(this.moragAt === 'inn' ? LINES.innArrive : 'The Skerry Inn. Warm, and too quiet. Nobody behind the bar yet.', 6);
+      this.saveFlags();
     }
     if (ground === 'causeway' && p.depth > PLAYER_TUNING.maxWadeDepth + 0.05) {
       const toIslet = p.x < 0;
@@ -629,8 +763,8 @@ export class CrossingChapter {
     const done = new Set<Custom>(this.progress.customs);
     this.dayEnd.end(
       vigilLines(done),
-      'END OF DAY 1',
-      'Chapter 1: The Crossing',
+      'END OF CHAPTER 1',
+      'The Crossing',
       releaseName(),
       'Chapter 2, The Funeral, isn’t built yet. You can carry on into Low water, the stage built before the chapters, which starts the morning after the vigil.',
       [
@@ -673,7 +807,7 @@ export class CrossingChapter {
     p.z = z;
     p.facing = facing;
     p.y = this.level.sim.groundAt(x, z).height;
-    p.depth = Math.max(0, tideLevel(this.tideClock) - p.y);
+    p.depth = Math.max(0, this.seaLevel - p.y);
     this.copyPrev();
     this.snapCamera = true;
   }
@@ -717,7 +851,7 @@ export class CrossingChapter {
     this.camLook.lerp(this.target.set(this.pose.lx, this.pose.ly, this.pose.lz), follow ? 1 : 1 - Math.exp(-frameDt * 9));
     this.snapCamera = false;
 
-    const hum = humParams(this.tideClock);
+    const hum = humParams(this.tideClock, CROSSING_TIDE);
     this.humClock.advance(hum, frameDt * Math.sqrt(TIME_SCALES[this.timeScale]!));
     const beat = this.humClock.beat();
     const indoors = zone.indoors === true;
@@ -749,12 +883,14 @@ export class CrossingChapter {
     const haar = this.voyage < VOYAGE_SECONDS ? 1 - this.voyage / VOYAGE_SECONDS : 0;
     g.fog.density = 0.026 + 0.012 * (0.5 + 0.5 * Math.sin(now / 9000)) + 0.03 * haar;
 
-    g.sea.position.y = tideLevel(this.tideClock);
+    g.sea.position.y = this.seaLevel;
     for (const pebble of g.pebbles) {
       const near = Math.max(0, 1 - Math.hypot(pebble.mesh.position.x - px, pebble.mesh.position.z - pz) / 6);
-      pebble.mesh.position.y = pebble.baseY + (Math.random() - 0.5) * 0.03 * hum.strength * beat * (0.3 + near);
+      // Listening, the stones near him jump with the beat, and the puddles shiver even at low water.
+      pebble.mesh.position.y = pebble.baseY + (Math.random() - 0.5) * (p.listening ? 0.09 : 0.03) * hum.strength * beat * (0.3 + near * (p.listening ? 3 : 1));
     }
-    g.ripple.amount.value = Math.min(1, hum.strength * 1.4 * (0.35 + 0.65 * beat));
+    g.ripple.amount.value = Math.min(1, (hum.strength * (p.listening ? 2 : 1.4) + (p.listening ? 0.2 : 0)) * (0.35 + 0.65 * beat));
+    if (this.look) updateListenCue(this.look, p.listening, hum.strength, beat, frameDt, now / 1000);
     g.ripple.phase.value = this.humClock.phase;
     for (const beam of g.beams) beam.rotation.y += frameDt * 0.35;
     for (const [i, f] of g.flames.entries()) f.light.intensity = f.base * (0.85 + 0.1 * Math.sin(now / 90 + i * 2.1) + 0.08 * Math.random());
@@ -773,13 +909,15 @@ export class CrossingChapter {
     show(VIGIL_MESHES.mirrorTurned, customs.includes('mirror'));
     show(VIGIL_MESHES.windowOpen, customs.includes('window'));
     this.arrival.bag.visible = this.flags.has('atCottage');
+    this.backpack.visible = !this.flags.has('atCottage');
 
     // The ferry: in, alongside, away; gone once it's out of sight.
     const underWay = this.voyage < VOYAGE_SECONDS ? 1 - Math.pow(this.voyage / VOYAGE_SECONDS, 3) : this.departure >= 0 ? Math.min(1, this.departure / 12) : 0;
     this.ferry.ship.visible = this.departure < DEPARTURE_SECONDS;
     this.ferry.update(this.ship, now / 1000, underWay, g.sea.position.y);
     this.ferry.gangway.visible = this.gangwayOpen;
-    this.ferry.bag.visible = this.progress.phase === 'ferry';
+    // His only luggage is the backpack he's wearing.
+    this.ferry.bag.visible = false;
 
     // The figure: crouched to listen, or holding the phone's torch; on the ferry, turned with it.
     const facing = p.facing + (aboard ? this.ship.yaw : 0);
@@ -790,6 +928,8 @@ export class CrossingChapter {
     g.playerBody.rotation.x = crouch * 0.35;
     if (p.listening) g.hand.position.set(-0.15 + (Math.random() - 0.5) * feel * 0.04, 0.06, 0.5);
     else g.hand.position.set(-0.3, 1.05, 0.28);
+    // Nothing in his hands: only the phone, held up while its torch is on.
+    g.hand.visible = this.torch.on || p.listening;
     g.torch.visible = this.torch.on;
     const stutter = this.torch.charge < TORCH.low && Math.random() < 0.06 ? 0.4 : 1;
     g.torch.intensity = this.torchIntensity * torchBrightness(this.torch.charge) * stutter;
@@ -806,14 +946,15 @@ export class CrossingChapter {
       frameDt,
       this.talkingTo,
       (id) => id === 'tam' && !this.flags.has('met:tam'),
-      (id) => id !== 'magnus' || this.ferry.ship.visible,
-      (person, out) => {
-        if (!this.aboard(person.x, person.z)) {
-          out.x = person.x;
-          out.z = person.z;
+      (id) => (id !== 'magnus' || this.ferry.ship.visible) && (id !== 'isa' || !this.flags.has(FLAGS.slept)),
+      (person, at, drawn) => {
+        if (person.id === 'morag') Object.assign(at, this.morag);
+        if (!this.aboard(at.x, at.z)) {
+          drawn.x = at.x;
+          drawn.z = at.z;
           return 0;
         }
-        shipToWorld(this.ship, person.x, person.z, out);
+        shipToWorld(this.ship, at.x, at.z, drawn);
         return this.ship.yaw;
       },
     );
@@ -826,10 +967,10 @@ export class CrossingChapter {
     this.ferrySounds?.setEngine(this.ferry.ship.visible ? (0.35 + 0.65 * underWay) * Math.max(0, 1 - fromShip / 45) : 0);
 
     const idle = !this.conversation && !this.hud.reading && !this.phone.open && !this.dayEnd.ended;
-    const target = idle ? targetHere(SPOTS, PEOPLE, this.reach(), p.x, p.z) : null;
+    const target = idle ? targetHere(SPOTS, this.peopleNow(), this.reach(), p.x, p.z) : null;
     this.hud.setPrompt(target ? targetPrompt(target, this.reach()) : '');
     const signal = aboard || Math.hypot(px - SIGNAL.x, pz - SIGNAL.z) < SIGNAL.range;
-    this.phone.setStatus(islandTime(this.tideClock), signal ? '1 bar' : LINES.noSignal);
+    this.phone.setStatus(timeText(this.tideClock), signal ? '1 bar' : LINES.noSignal, `${dayName(this.tideClock)}. ${tideWords(this.tideClock, this.causewayOpen)}`);
     this.hud.frame(now);
     this.phone.frame(now);
   }
@@ -842,8 +983,9 @@ export class CrossingChapter {
     const p = this.player;
     return {
       chapter: `1, The Crossing (${this.progress.phase})`,
-      'island time': `${islandTime(this.tideClock)}, ×${TIME_SCALES[this.timeScale]} (])`,
-      tide: `${tidePhase(this.tideClock)} ${tideLevel(this.tideClock).toFixed(2)} m, causeway ${causewayPassable(this.tideClock) ? 'open' : 'closed'}`,
+      'island time': `${dayName(this.tideClock)} ${timeText(this.tideClock)}, ×${TIME_SCALES[this.timeScale]} (])`,
+      tide: `${tidePhase(this.tideClock, CROSSING_TIDE)} ${this.seaLevel.toFixed(2)} m, causeway ${this.causewayOpen ? 'open' : 'closed'}`,
+      morag: this.moragAt,
       player: `${p.x.toFixed(1)}, ${p.z.toFixed(1)}, facing ${Math.round((p.facing * 180) / Math.PI)}°, water ${p.depth.toFixed(2)} m`,
       camera: this.level.cameras[this.zone]!.id,
       indoors: isIndoors(this.level, p.x, p.z) ? 'yes' : 'no',
