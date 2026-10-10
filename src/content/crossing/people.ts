@@ -2,10 +2,14 @@ import type { Dialogue } from '../../game/crossing/dialogue';
 import type { Placement } from '../level';
 
 /**
- * The people of chapter 1, the evening before the funeral: who they are, where they stand, how they look in greybox,
- * and what they say (game/crossing/dialogue.ts). Each knew Alan Sloan, says a little and holds back a little, and
- * each tells the death a different way. These are the people who turn in chapter 2, so meeting them now is what
- * makes that hurt. Names, firms and places are made up for the game.
+ * The people of chapter 1, the night William arrives: who they are, where they stand, how they look in greybox, and
+ * what they say (game/crossing/dialogue.ts). Each knew Alan Sloan, says a little and holds back a little, and each
+ * tells the death a different way. These are the people who turn in chapter 2, so meeting them now is what makes that
+ * hurt. Names, firms and places are made up for the game.
+ *
+ * It's a quarter to midnight and the island is shut: Morag meets the late boat and keeps the inn, the one place open;
+ * Isa is there with a late glass; Tam is out in the street, listening to the ground. The minister (`RUTH_HARCUS`) isn't
+ * about tonight; she's kept for the funeral.
  */
 
 export interface Look {
@@ -40,6 +44,11 @@ const RUTH = 'Ruth';
 /** Flags other things look for: what William has been told or has seen. */
 export const FLAGS = {
   toldTide: 'toldTide',
+  /** Morag offered her room, and William said yes, or said he'd find his own way. */
+  acceptedRoom: 'acceptedRoom',
+  declinedRoom: 'declinedRoom',
+  /** He spent the night at the inn. */
+  slept: 'slept',
   toldVigil: 'toldVigil',
   taughtListen: 'taughtListen',
   sawSalt: 'saw:salt',
@@ -103,6 +112,19 @@ export const MAGNUS_LINKLATER: Person = {
   },
 };
 
+/** Where Morag stands behind the bar, once she's home. */
+export const MORAG_AT_INN = { x: 73.4, z: -11.05, facing: 0 } as const;
+/** Her way home from the pier: up the shore, along the high street, in at the inn door and round behind the bar. */
+export const MORAG_WAY_HOME: readonly { x: number; z: number }[] = [
+  { x: 33.6, z: 9.5 },
+  { x: 38.5, z: 1.5 },
+  { x: 60, z: -1.5 },
+  { x: 68.8, z: -3.6 },
+  { x: 68.8, z: -6.4 },
+  { x: 69.8, z: -11 },
+  MORAG_AT_INN,
+];
+
 export const MORAG_RENDALL: Person = {
   id: 'morag',
   name: 'Morag Rendall',
@@ -111,7 +133,7 @@ export const MORAG_RENDALL: Person = {
   z: 14.2,
   facing: Math.PI / 2 + 0.6,
   look: { coat: 0x4a3a44, legs: 0x2a2626, skin: 0xb09a88, detail: 0x8a8a7a, height: 0.92 },
-  notice: 'An old woman is waiting at the top of the pier, in a good coat and a headscarf. She lifts a hand.',
+  notice: 'An old woman is waiting under the lamp at the top of the pier, at a quarter to midnight, as if it were nothing. She lifts a hand.',
   dialogue: {
     id: 'morag',
     first: 'hello',
@@ -119,43 +141,84 @@ export const MORAG_RENDALL: Person = {
     nodes: {
       hello: {
         lines: [
-          { speaker: MORAG, text: 'William. Look at you.' },
-          { speaker: MORAG, text: 'You’ll not remember me. Morag Rendall. I lived along the Brough road when you were a peedie boy. I’m the one that rang your mother.' },
-          { speaker: MORAG, text: 'I’m sorry, buddo. I’m that sorry.' },
+          { speaker: MORAG, text: 'There you are. William.' },
+          { text: 'She says your name as if she’s been practising it.' },
+          { speaker: MORAG, text: 'Morag Rendall. I keep the inn. I’m the one that rang your mother. You’ll not remember me, but I mind you fine: a peedie thing, always down at the water’s edge.' },
+          { speaker: MORAG, text: 'I’ve been waiting on this boat a long while.' },
+          { text: 'She smiles. It goes on a little too long.' },
         ],
         next: 'topics',
       },
       topics: {
-        lines: [{ speaker: MORAG, text: 'What is it, son?' }],
+        lines: [{ speaker: MORAG, text: 'What is it, buddo?' }],
         options: [
+          { label: 'How do I get to my father’s house?', to: 'directions' },
+          { label: 'Is there somewhere I can stay tonight?', to: 'room', when: { notFlag: FLAGS.acceptedRoom } },
+          { label: 'Which is my room?', to: 'whichRoom', when: { flag: FLAGS.acceptedRoom, notFlag: FLAGS.slept } },
           { label: 'How did he die?', to: 'death' },
-          { label: 'When can I get over to the house?', to: 'tide' },
-          { label: 'What happens tonight?', to: 'tonight' },
-          { label: 'What do I do, sitting with him?', to: 'whatToDo', when: { flag: 'toldVigil' } },
+          { label: 'What happens now?', to: 'now' },
+          { label: 'What do I do, sitting with him?', to: 'whatToDo', when: { flag: FLAGS.toldVigil } },
           { label: 'Why is there salt on the doorsteps?', to: 'salt', when: { flag: FLAGS.sawSalt } },
-          { label: 'Can I wait with you till it’s open?', to: 'wait', when: { flag: FLAGS.toldTide, causeway: 'shut' } },
           { label: 'I should go.', to: 'bye' },
+        ],
+      },
+      directions: {
+        lines: [
+          { speaker: MORAG, text: 'Over the causeway, out on the Brough. Along the shore from the pier and keep the sea on your right. You’ll see the lighthouse.' },
+          { speaker: MORAG, text: 'But not tonight. The sea came over the causeway at a quarter past eleven. You’ve missed it by half an hour.' },
+          { speaker: MORAG, text: 'It’ll not let you over till the morning. Seven, maybe. Your father would have told you to the minute; he had the tide table pinned by his door.' },
+          { speaker: MORAG, text: 'Don’t try it in the dark. The sea comes over that causeway faster than you’d credit.' },
+        ],
+        sets: [FLAGS.toldTide],
+      },
+      room: {
+        lines: [
+          { speaker: MORAG, text: 'I’ve a room made up for you at the inn. I made it up on Monday.' },
+          { text: 'Monday. He died on the Tuesday.' },
+          { speaker: MORAG, text: 'Come away up with me. It’s warm, and it’s no night to be out on your own.' },
+        ],
+        options: [
+          { label: 'Thank you. I’ll come with you.', to: 'accept' },
+          { label: 'I’ll find my own way.', to: 'decline' },
+        ],
+      },
+      accept: {
+        lines: [{ speaker: MORAG, text: 'Good lad. Come away in out of the wet.' }],
+        sets: [FLAGS.acceptedRoom],
+        next: 'goToInn',
+      },
+      goToInn: {
+        // The cut: the line shows once they're inside, by the fire.
+        lines: [{ speaker: MORAG, text: 'There now. Sit in by the fire and get the cold out of you. Your room’s up the stair.' }],
+        effect: 'goToInn',
+        end: true,
+      },
+      decline: {
+        lines: [
+          { speaker: MORAG, text: 'Suit yourself.' },
+          { speaker: MORAG, text: 'The Skerry Inn, on the high street. The door’s on the latch. You’ll not miss it: it’s the only light.' },
+        ],
+        sets: [FLAGS.declinedRoom],
+      },
+      whichRoom: {
+        lines: [
+          { speaker: MORAG, text: 'Up the stair, first on the left. There’s a bottle in the bed.' },
+          { speaker: MORAG, text: 'Sleep, William. The tide’ll wait for you. It waited for him.' },
         ],
       },
       death: {
         lines: [
-          { speaker: MORAG, text: 'The sea took him. That’s what I think, whatever the doctor wrote.' },
-          { speaker: MORAG, text: 'They found him on the shore below the lighthouse, Tuesday morning. Dr Spence says it was his heart, and maybe it was. But he was on the rocks, William. Not in his bed.' },
-          { speaker: MORAG, text: 'I shouldn’t have said that. You’ve only just got off the boat.' },
+          { speaker: MORAG, text: 'Oh, peacefully. In his bed, in his sleep. He’d not have known a thing.' },
+          { speaker: MORAG, text: 'He’d been out walking on the shore, you see, in the cold. It gets into you, the cold. And then his heart.' },
+          { text: 'In his bed, she said. Then on the shore.' },
+          { speaker: MORAG, text: 'It’s late, William. You’ll hear all sorts on this island, and none of it matters now.' },
         ],
       },
-      tide: {
+      now: {
         lines: [
-          { speaker: MORAG, text: 'The house is over the causeway, on the Brough. You’ll see the lighthouse.' },
-          { speaker: MORAG, text: 'The tide’s in the now. It’ll not let you over till the back of half seven. Low water’s at ten tonight.' },
-          { speaker: MORAG, text: 'Don’t try it early. The sea comes over that causeway faster than you’d credit. Your father had the tide table pinned by his door, and he never stepped out without looking at it.' },
-        ],
-        sets: [FLAGS.toldTide],
-      },
-      tonight: {
-        lines: [
-          { speaker: MORAG, text: 'He’s lying at home. They brought him over this morning, so he’d have his last night in his own house.' },
+          { speaker: MORAG, text: 'Tomorrow you’ll go over to him. He’s lying at home.' },
           { speaker: MORAG, text: 'Somebody sits up with them, the night before. That’s the custom here. It should be family.' },
+          { speaker: MORAG, text: 'The funeral’s Friday, ten o’clock at the kirk. We put it back a day, so you’d have your night with him.' },
           { text: 'She looks at you for a long moment.' },
           { speaker: MORAG, text: 'You’ll know what to do.' },
         ],
@@ -167,7 +230,7 @@ export const MORAG_RENDALL: Person = {
           { speaker: MORAG, text: 'The rest…' },
           { text: 'She stops, and starts again.' },
           { speaker: MORAG, text: 'Alan always said it can’t be taught. Only remembered.' },
-          { speaker: MORAG, text: 'Will I come with you? No. No, I don’t cross after dark. Not any more.' },
+          { speaker: MORAG, text: 'Will I come over with you? No. No, I don’t cross to the Brough. Not any more.' },
         ],
       },
       salt: {
@@ -176,15 +239,7 @@ export const MORAG_RENDALL: Person = {
           { text: 'She doesn’t look at you when she says it.' },
         ],
       },
-      wait: {
-        lines: [
-          { text: 'You sit with her on the bench at the top of the pier while the light goes. She talks about your father: a boy on the shore, a young man home from the army, the man who kept the lamp lit on the Brough.' },
-          { text: 'Some of it you remember, once she’s said it.' },
-          { speaker: MORAG, text: 'There. It’s open now. Go on over, before it shuts on you.' },
-        ],
-        effect: 'waitForCauseway',
-      },
-      bye: { lines: [{ speaker: MORAG, text: 'Aye. Go on. And mind the tide.' }], end: true },
+      bye: { lines: [{ speaker: MORAG, text: 'Aye. Go on. Mind the tide.' }], end: true },
     },
   },
 };
@@ -192,10 +247,10 @@ export const MORAG_RENDALL: Person = {
 export const ISA_MUIR: Person = {
   id: 'isa',
   name: 'Isa Muir',
-  stranger: 'the woman at the counter',
-  x: 54.5,
-  z: 11.0,
-  facing: Math.PI,
+  stranger: 'the woman by the fire',
+  x: 68.9,
+  z: -9.3,
+  facing: Math.PI / 2,
   look: { coat: 0x5a6a5a, legs: 0x2a2a30, skin: 0xb8a090, detail: 0xd8d4c4, height: 0.96 },
   dialogue: {
     id: 'isa',
@@ -205,16 +260,16 @@ export const ISA_MUIR: Person = {
       hello: {
         lines: [
           { speaker: ISA, text: 'You’re Alan’s son. I’d have known you anywhere.' },
-          { speaker: ISA, text: 'I’m Isa. I’m sorry for your loss, William. We all are.' },
+          { speaker: ISA, text: 'I’m Isa. I keep the shop across the road. I couldn’t sit in the house tonight. I’m sorry for your loss, William. We all are.' },
         ],
         next: 'topics',
       },
       topics: {
         lines: [{ speaker: ISA, text: 'Is there anything you need? Anything at all.' }],
         options: [
-          { label: 'Did he come in here much?', to: 'fridays' },
+          { label: 'Did he come into your shop much?', to: 'fridays' },
           { label: 'What was he like?', to: 'like' },
-          { label: 'The notice says you’re shut tomorrow.', to: 'shut' },
+          { label: 'Is your shop open tomorrow?', to: 'shut' },
           { label: 'Why the rowan over the doors?', to: 'rowan', when: { flag: FLAGS.sawRowan } },
           { label: 'Goodbye.', to: 'bye' },
         ],
@@ -222,7 +277,7 @@ export const ISA_MUIR: Person = {
       fridays: {
         lines: [
           { speaker: ISA, text: 'Every Friday, regular as the boat. Bread, tea, his tobacco, and a bottle of whisky. Twenty years, near enough.' },
-          { speaker: ISA, text: 'Then last summer he stood just where you’re standing and asked me to stop selling it to him.' },
+          { speaker: ISA, text: 'Then last summer he stood at my counter and asked me to stop selling it to him.' },
           { speaker: ISA, text: 'If he came in asking, I was to say no, and he’d thank me for it. He did ask, twice. I said no. And he did thank me.' },
         ],
       },
@@ -234,7 +289,7 @@ export const ISA_MUIR: Person = {
       },
       shut: {
         lines: [
-          { speaker: ISA, text: 'Everyone’s going. The whole island will be in the kirk.' },
+          { speaker: ISA, text: 'Not tomorrow, and not Friday. Everyone’s going. The whole island will be in the kirk.' },
           { speaker: ISA, text: 'He’d have hated that.' },
         ],
       },
@@ -253,8 +308,8 @@ export const TAM_DREVER: Person = {
   id: 'tam',
   name: 'Tam Drever',
   stranger: 'the kneeling man',
-  x: 70,
-  z: -3.4,
+  x: 75.2,
+  z: -2.6,
   facing: Math.PI,
   look: { coat: 0x2a2a2e, legs: 0x26242a, skin: 0xa88a78, detail: 0xd8d4cc, height: 1.06 },
   kneeling: true,
@@ -268,7 +323,7 @@ export const TAM_DREVER: Person = {
         lines: [
           { speaker: TAM, text: 'Hush a minute.' },
           { text: 'He stays down, still as a stone, then nods to himself and gets up, wiping his hand on his trousers.' },
-          { speaker: TAM, text: 'Tam Drever. I’ve the inn. And you’re William. Everybody knows you’re here, son. It’s a small island.' },
+          { speaker: TAM, text: 'Tam Drever. I’ve the croft out past the hall. And you’re William. Everybody knows you’re here, son. It’s a small island.' },
         ],
         next: 'topics',
       },
@@ -277,8 +332,8 @@ export const TAM_DREVER: Person = {
         options: [
           { label: 'What were you doing down there?', to: 'listening' },
           { label: 'How did he die?', to: 'death' },
-          { label: 'Did he drink in here?', to: 'drink' },
-          { label: 'Is the inn open?', to: 'open' },
+          { label: 'Did he drink at the inn?', to: 'drink' },
+          { label: 'What are you doing out at this hour?', to: 'open' },
           { label: 'Goodbye.', to: 'bye' },
         ],
       },
@@ -300,14 +355,14 @@ export const TAM_DREVER: Person = {
       drink: {
         lines: [
           { speaker: TAM, text: 'He did. More than he should have, for a lot of years.' },
-          { speaker: TAM, text: 'Then last summer he came in, ordered a pint, and looked at it a full hour. Walked out and left it on the bar. Never came back in.' },
-          { speaker: TAM, text: 'I thought he’d fallen out with me. He hadn’t. He’d fallen out with something, but it wasn’t me.' },
+          { speaker: TAM, text: 'Then last summer he came in, ordered a pint, and looked at it a full hour. Walked out and left it on the bar. Never went back in.' },
+          { speaker: TAM, text: 'I was sat beside him. I thought he’d fallen out with me. He hadn’t. He’d fallen out with something, but it wasn’t me.' },
         ],
       },
       open: {
         lines: [
-          { speaker: TAM, text: 'Not tonight. Not with Alan lying at home.' },
-          { speaker: TAM, text: 'Come by after tomorrow. I’ll stand you a dram in his name.' },
+          { speaker: TAM, text: 'Same as you. Can’t settle.' },
+          { speaker: TAM, text: 'The sea’s restless tonight. It’s been restless since Tuesday. I keep coming out to check on it, like you’d check on a bairn.' },
         ],
       },
       bye: { lines: [{ speaker: TAM, text: 'Mind the tide, son.' }], end: true },
@@ -375,5 +430,5 @@ export const RUTH_HARCUS: Person = {
   },
 };
 
-/** Everyone in chapter 1. */
-export const PEOPLE: readonly Person[] = [MAGNUS_LINKLATER, MORAG_RENDALL, ISA_MUIR, TAM_DREVER, RUTH_HARCUS];
+/** Everyone about in chapter 1 (the minister isn't, the night William arrives). */
+export const PEOPLE: readonly Person[] = [MAGNUS_LINKLATER, MORAG_RENDALL, ISA_MUIR, TAM_DREVER];

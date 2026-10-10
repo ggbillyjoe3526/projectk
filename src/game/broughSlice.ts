@@ -12,7 +12,7 @@ import { buildGreybox, type GreyboxScene } from '../render/greyboxScene';
 import { Rain } from '../render/rain';
 import { ps1Snap } from '../render/retro/ps1Snap';
 import { internalResolution } from '../render/retro/retroMath';
-import { createRetroPipeline, type RetroControls } from '../render/retro/retroPipeline';
+import { createRetroPipeline, type RetroControls, updateListenCue } from '../render/retro/retroPipeline';
 import type { CombatEvent, FighterInput } from '../sim/combat/encounter';
 import { HumClock, listeningClarity } from '../sim/humClock';
 import { createPlayer, type PlayerCommand, type PlayerState } from '../sim/player';
@@ -453,9 +453,11 @@ export class BroughSlice {
     g.sea.position.y = tideLevel(this.tideClock);
     for (const pebble of g.pebbles) {
       const near = Math.max(0, 1 - Math.hypot(pebble.mesh.position.x - px, pebble.mesh.position.z - pz) / 6);
-      pebble.mesh.position.y = pebble.baseY + (Math.random() - 0.5) * 0.03 * hum.strength * beat * (0.3 + near);
+      // Listening, the stones near him jump with the beat, and the puddles shiver even at low water.
+      pebble.mesh.position.y = pebble.baseY + (Math.random() - 0.5) * (p.listening ? 0.09 : 0.03) * hum.strength * beat * (0.3 + near * (p.listening ? 3 : 1));
     }
-    g.ripple.amount.value = Math.min(1, hum.strength * 1.4 * (0.35 + 0.65 * beat));
+    g.ripple.amount.value = Math.min(1, (hum.strength * (p.listening ? 2 : 1.4) + (p.listening ? 0.2 : 0)) * (0.35 + 0.65 * beat));
+    if (this.look) updateListenCue(this.look, p.listening, hum.strength, beat, frameDt, now / 1000);
     g.ripple.phase.value = this.humClock.phase;
     for (const beam of g.beams) beam.rotation.y += frameDt * 0.35;
     // Fire and candle light flicker.

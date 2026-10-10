@@ -1,21 +1,17 @@
-import { DEPARTURE_SECONDS, DUSK, VOYAGE_SECONDS } from '../../content/crossing/chapter';
+import { DEPARTURE_SECONDS, VOYAGE_SECONDS } from '../../content/crossing/chapter';
 import { FERRY_CENTRE } from '../../content/levels/ferry';
 
 /**
- * The evening's two clocks, pure: how much daylight is left at a tide clock, and where the ferry is drawn while it
- * sails in and pulls away again. The ferry's deck lies alongside the pier in the simulation; out at sea the set, the
- * player on it and the camera are drawn through `ShipPose`, turned about the deck's middle and moved by an offset.
+ * Where the ferry is drawn while it sails in and pulls away again, pure. The ferry's deck lies alongside the pier in the
+ * simulation; out at sea the set, the player on it and the camera are drawn through `ShipPose`, turned about the deck's
+ * middle and moved by an offset. It never swings near the pier: it comes in straight up the pier's side, and leaves by
+ * standing off sideways first, turning only once it's clear.
  */
 
 const smooth = (k: number): number => {
   const c = Math.min(1, Math.max(0, k));
   return c * c * (3 - 2 * c);
 };
-
-/** 1 in the last of the afternoon light, 0 in full night (and for the rest of the night). */
-export function daylight(tideClock: number): number {
-  return 1 - smooth((tideClock - DUSK.from) / (DUSK.to - DUSK.from));
-}
 
 /** Where the ferry is drawn: moved by `dx`, `dz` from where it ties up, turned by `yaw` about the deck's middle. */
 export interface ShipPose {
@@ -24,10 +20,13 @@ export interface ShipPose {
   yaw: number;
 }
 
-/** Where the voyage starts, from where the ferry ties up: out in the sound to the south, a little west. */
-const AT_SEA = { dx: -14, dz: 72 } as const;
-/** Where it pulls away to, and how far it turns, before it's lost in the dark. */
-const AWAY = { dx: 24, dz: 84, turn: Math.PI * 0.85 } as const;
+/** Where the voyage starts, from where the ferry ties up: out in the sound to the south, a little east (away from the pier). */
+const AT_SEA = { dx: 6, dz: 72 } as const;
+/**
+ * Leaving: it stands off east until its ends can swing clear of the pier (the deck is 28 m long, the pier's edge 6.5 m
+ * from its middle), turns about for the sound, and goes.
+ */
+const AWAY = { standOff: 12, dz: 90, drift: 10, turn: Math.PI } as const;
 
 /** The ferry `seconds` into the voyage: in from the sound, slowing as it comes alongside, then tied up. */
 export function voyagePose(seconds: number, out: ShipPose): ShipPose {
@@ -44,13 +43,15 @@ export function voyagePose(seconds: number, out: ShipPose): ShipPose {
   return out;
 }
 
-/** The ferry `seconds` after it starts pulling away: backing off the pier and turning for the sound. */
+/** The ferry `seconds` after it starts pulling away: standing off the pier, turning for the sound, and away. */
 export function departurePose(seconds: number, out: ShipPose): ShipPose {
   const k = Math.min(1, Math.max(0, seconds / DEPARTURE_SECONDS));
-  const e = k * k;
-  out.dx = AWAY.dx * e * e;
-  out.dz = AWAY.dz * e;
-  out.yaw = AWAY.turn * smooth(k * 1.4);
+  const off = smooth(k / 0.3);
+  const turn = smooth((k - 0.25) / 0.4);
+  const go = smooth((k - 0.45) / 0.55);
+  out.dx = AWAY.standOff * off + AWAY.drift * go;
+  out.dz = 6 * turn + (AWAY.dz - 6) * go * go;
+  out.yaw = AWAY.turn * turn;
   return out;
 }
 

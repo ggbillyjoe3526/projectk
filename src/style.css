@@ -166,7 +166,8 @@ body {
   inset: 0;
   z-index: 5;
   pointer-events: none;
-  font: 13px/1.5 ui-monospace, 'SF Mono', Consolas, monospace;
+  /* Large enough to read from the sofa (William, 2026-10-10): every HUD size grows with the window. */
+  font: clamp(15px, 1.25vw + 6px, 20px) / 1.5 ui-monospace, 'SF Mono', Consolas, monospace;
 }
 
 .hud-bars {
@@ -175,7 +176,7 @@ body {
   bottom: 20px;
   display: grid;
   gap: 5px;
-  width: min(220px, 40vw);
+  width: min(280px, 40vw);
 }
 
 .hud-track {
@@ -269,21 +270,34 @@ body {
 
 .hud-prompt {
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 22px;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%);
+  max-width: calc(100vw - 32px);
+  box-sizing: border-box;
+  padding: 0.35em 0.9em;
+  background: rgb(6 9 11 / 0.72);
+  border: 1px solid rgb(255 255 255 / 0.12);
+  font-size: clamp(18px, 1.6vw + 8px, 26px);
+  white-space: pre;
   text-align: center;
-  color: #d9d6cf;
+  color: #ece8df;
   text-shadow: 0 1px 2px #000;
+}
+
+.hud-prompt:empty {
+  display: none;
 }
 
 .hud-caption {
   position: absolute;
   left: 0;
   right: 0;
-  top: 18%;
+  top: 16%;
+  box-sizing: border-box;
+  padding: 0 16px;
   text-align: center;
-  font-size: 15px;
+  font-size: clamp(18px, 1.5vw + 8px, 26px);
   letter-spacing: 0.08em;
   color: #c9d4da;
   text-shadow: 0 1px 3px #000;
@@ -308,7 +322,7 @@ body {
   right: 0;
   top: 62%;
   text-align: center;
-  font-size: 13px;
+  font-size: clamp(15px, 1vw + 8px, 20px);
   letter-spacing: 0.12em;
   text-transform: uppercase;
   text-shadow: 0 1px 3px #000;
@@ -344,9 +358,9 @@ body {
 }
 
 .hud-reader-text {
-  max-width: 30rem;
+  max-width: 38rem;
   padding: 0 16px;
-  font: italic 16px/1.6 Georgia, 'Times New Roman', serif;
+  font: italic clamp(19px, 1.4vw + 9px, 26px) / 1.6 Georgia, 'Times New Roman', serif;
   color: #e3dccb;
 }
 
@@ -377,15 +391,15 @@ body {
 .talk {
   position: fixed;
   left: 50%;
-  bottom: 56px;
+  bottom: 40px;
   z-index: 7;
   box-sizing: border-box;
-  width: min(40rem, calc(100vw - 32px));
+  width: min(52rem, calc(100vw - 32px));
   transform: translateX(-50%);
-  padding: 14px 18px 10px;
+  padding: 18px 24px 12px;
   background: rgb(6 9 11 / 0.86);
   border: 1px solid rgb(255 255 255 / 0.08);
-  font: 14px/1.55 ui-monospace, 'SF Mono', Consolas, monospace;
+  font: clamp(17px, 1.3vw + 7px, 23px) / 1.55 ui-monospace, 'SF Mono', Consolas, monospace;
   color: #e3e0d8;
   cursor: pointer;
 }
@@ -400,7 +414,7 @@ body {
   color: #d9a35a;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  font-size: 12px;
+  font-size: 0.8em;
 }
 
 .talk-text {
@@ -408,7 +422,7 @@ body {
 }
 
 .talk-text.narration {
-  font: italic 15px/1.55 Georgia, 'Times New Roman', serif;
+  font: italic 1.05em/1.55 Georgia, 'Times New Roman', serif;
   color: #c5ccd0;
 }
 
@@ -421,7 +435,7 @@ body {
 .talk-option {
   display: block;
   width: 100%;
-  padding: 3px 0;
+  padding: 5px 0;
   border: 0;
   background: none;
   color: #e8e6e1;
@@ -441,8 +455,8 @@ body {
 
 .talk-hint {
   margin: 0;
-  font-size: 11px;
-  color: #6e7679;
+  font-size: 0.72em;
+  color: #868d90;
   text-align: right;
 }
 
@@ -452,25 +466,40 @@ body {
   top: 50%;
   z-index: 7;
   box-sizing: border-box;
-  width: min(20rem, calc(100vw - 32px));
-  max-height: min(34rem, calc(100vh - 40px));
+  width: min(27rem, calc(100vw - 32px));
+  max-height: min(44rem, calc(100vh - 40px));
   display: flex;
   flex-direction: column;
   transform: translateY(-50%);
-  padding: 10px 12px;
+  padding: 14px 16px;
   background: #0b0f12;
   border: 2px solid #262c30;
-  border-radius: 14px;
-  font: 13px/1.45 ui-monospace, 'SF Mono', Consolas, monospace;
+  border-radius: 18px;
+  font: clamp(16px, 1.1vw + 7px, 20px) / 1.45 ui-monospace, 'SF Mono', Consolas, monospace;
   color: #d9dcdc;
 }
 
 .phone-head {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 8px;
-  font-size: 11px;
+  align-items: baseline;
+  margin-bottom: 2px;
   color: #8a9295;
+}
+
+.phone-clock {
+  font-size: 1.6em;
+  color: #e8e6e1;
+}
+
+.phone-tide {
+  margin: 0 0 10px;
+  font-size: 0.85em;
+  color: #9fb4bf;
+}
+
+.phone-tide[hidden] {
+  display: none;
 }
 
 .phone-tabs {
@@ -508,7 +537,7 @@ body {
 .phone-message-top {
   display: flex;
   justify-content: space-between;
-  font-size: 11px;
+  font-size: 0.8em;
 }
 
 .phone-from {
@@ -531,7 +560,7 @@ body {
   border-bottom: 1px solid rgb(255 255 255 / 0.06);
   background: none;
   color: #e3dccb;
-  font: italic 14px/1.4 Georgia, 'Times New Roman', serif;
+  font: italic 1.05em/1.4 Georgia, 'Times New Roman', serif;
   text-align: left;
   cursor: pointer;
 }
@@ -546,9 +575,9 @@ body {
 }
 
 .phone-close {
-  margin: 8px 0 0;
-  font-size: 11px;
-  color: #6e7679;
+  margin: 10px 0 0;
+  font-size: 0.8em;
+  color: #868d90;
   text-align: center;
 }
 
@@ -557,11 +586,11 @@ body {
   right: 20px;
   top: 18px;
   z-index: 6;
-  max-width: min(24rem, calc(100vw - 32px));
-  padding: 8px 12px;
+  max-width: min(32rem, calc(100vw - 32px));
+  padding: 10px 16px;
   background: rgb(11 15 18 / 0.9);
-  border-left: 2px solid #d9a35a;
-  font: 13px/1.45 ui-monospace, 'SF Mono', Consolas, monospace;
+  border-left: 3px solid #d9a35a;
+  font: clamp(16px, 1.1vw + 7px, 20px) / 1.45 ui-monospace, 'SF Mono', Consolas, monospace;
   color: #d9dcdc;
   opacity: 0;
   transition: opacity 0.6s ease;
@@ -591,17 +620,17 @@ body {
 }
 
 .day-end-lines {
-  max-width: 32rem;
+  max-width: 40rem;
   padding: 0 16px;
-  font: italic 17px/1.7 Georgia, 'Times New Roman', serif;
+  font: italic clamp(19px, 1.4vw + 9px, 26px) / 1.7 Georgia, 'Times New Roman', serif;
   color: #d8d2c4;
 }
 
 .day-end-card {
-  max-width: 34rem;
+  max-width: 40rem;
   padding: 0 16px;
   text-align: center;
-  font: 14px/1.6 ui-monospace, 'SF Mono', Consolas, monospace;
+  font: clamp(16px, 1.1vw + 7px, 20px) / 1.6 ui-monospace, 'SF Mono', Consolas, monospace;
   color: #a9b0b3;
 }
 
@@ -612,7 +641,7 @@ body {
 
 .day-end-card h1 {
   margin: 0 0 0.5rem;
-  font-size: 1.8rem;
+  font-size: clamp(1.8rem, 3vw, 2.8rem);
   letter-spacing: 0.3em;
   color: #e8e6e1;
 }
@@ -625,7 +654,7 @@ body {
 
 .day-end-version {
   margin: 0.25rem 0 1.5rem;
-  font-size: 12px;
+  font-size: 0.8em;
   color: #6e7679;
 }
 

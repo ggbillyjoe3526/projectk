@@ -16,6 +16,18 @@ function setup() {
 }
 
 describe('Keyboard', () => {
+  it('lets go of a Shift whose release it never heard, at the next key event that says Shift is up', () => {
+    const { target, keyboard } = setup();
+    const send = (type: string, code: string, shiftKey: boolean): void => {
+      target.dispatchEvent(Object.assign(new Event(type, { cancelable: true }), { code, repeat: false, shiftKey }));
+    };
+    send('keydown', 'ShiftLeft', true);
+    expect(keyboard.isDown('sprint')).toBe(true);
+    send('keydown', 'KeyW', false);
+    expect(keyboard.isDown('sprint')).toBe(false);
+    expect(keyboard.isDown('forward')).toBe(true);
+  });
+
   it('reports a press once per frame and holds the key until it is let go', () => {
     const { keyboard, key } = setup();
     key('keydown', 'KeyE');

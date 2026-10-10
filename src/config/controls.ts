@@ -10,8 +10,9 @@ export const DEFAULT_BINDINGS = {
   /** Right click. (Left Shift deflected too until sprint took it.) */
   deflect: ['Mouse2'],
   /**
-   * Hold while walking: sprint, spending stamina (William, 2026-10-10). Left Shift only: on Left Alt, letting go opened
-   * the browser's menu on Windows, which swallowed the release of W and left the player walking.
+   * Tap while walking: sprint on until tapped again or the player stops, spending stamina (William, 2026-10-10: a
+   * toggle, input/sprintToggle.ts). Left Shift only: on Left Alt, letting go opened the browser's menu on Windows,
+   * which swallowed the release of W and left the player walking.
    */
   sprint: ['ShiftLeft'],
   /** The quick step back, away from the pointer. */
@@ -41,7 +42,7 @@ export const REBINDABLE: readonly { action: Action; label: string }[] = [
   { action: 'forward', label: 'Walk' },
   { action: 'attack', label: 'Attack' },
   { action: 'deflect', label: 'Deflect' },
-  { action: 'sprint', label: 'Sprint (hold)' },
+  { action: 'sprint', label: 'Sprint (toggle)' },
   { action: 'step', label: 'Step back' },
   { action: 'listen', label: 'Listen (hold)' },
   { action: 'swapOffHand', label: 'Swap off-hand item' },

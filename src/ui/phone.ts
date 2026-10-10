@@ -3,7 +3,8 @@ import { el } from './dom';
 /**
  * William's phone, a first version (chapter 1 plan: messages and the document log; the full menu comes later): his
  * texts, newest first, and his notes, the letters and notices he has read, which open again in the reader. A text
- * arriving shows a short notice at the top of the view. The phone's signal shows in its header.
+ * arriving shows a short notice at the top of the view. The phone's header shows the time, its signal and, in chapter 1, the tide (the time is only on the phone, never the
+ * HUD: William, 2026-10-10).
  */
 
 export interface PhoneMessage {
@@ -21,6 +22,7 @@ export class Phone {
   private readonly root: HTMLDivElement;
   private readonly signal: HTMLSpanElement;
   private readonly clock: HTMLSpanElement;
+  private readonly tideLine: HTMLParagraphElement;
   private readonly list: HTMLDivElement;
   private readonly tabs: Record<'messages' | 'notes', HTMLButtonElement>;
   private readonly toastBox: HTMLDivElement;
@@ -36,11 +38,12 @@ export class Phone {
     this.clock = el('span', 'phone-clock');
     this.signal = el('span', 'phone-signal');
     head.append(this.clock, this.signal);
+    this.tideLine = el('p', 'phone-tide');
     const tabRow = el('div', 'phone-tabs');
     this.tabs = { messages: this.tabButton('Messages', 'messages'), notes: this.tabButton('Notes', 'notes') };
     tabRow.append(this.tabs.messages, this.tabs.notes);
     this.list = el('div', 'phone-list');
-    this.root.append(head, tabRow, this.list, el('p', 'phone-close', closeHint));
+    this.root.append(head, this.tideLine, tabRow, this.list, el('p', 'phone-close', closeHint));
     this.root.hidden = true;
     this.root.addEventListener('mousedown', (e) => e.stopPropagation());
     this.toastBox = el('div', 'phone-toast');
@@ -71,9 +74,12 @@ export class Phone {
     if (this.open) this.render();
   }
 
-  setStatus(time: string, signal: string): void {
+  /** The header: the time, the signal, and (where the chapter keeps one) what the tide is doing. */
+  setStatus(time: string, signal: string, tide = ''): void {
     if (this.clock.textContent !== time) this.clock.textContent = time;
     if (this.signal.textContent !== signal) this.signal.textContent = signal;
+    if (this.tideLine.textContent !== tide) this.tideLine.textContent = tide;
+    this.tideLine.hidden = tide === '';
   }
 
   /** A notice at the top of the view: a text arriving. */
