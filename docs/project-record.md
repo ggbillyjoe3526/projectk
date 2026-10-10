@@ -252,7 +252,7 @@ William, 2026-10-10, after #22: "1. add sprint button (left shift or left alt). 
 player dies a message "DEAD" appears in large text appears 3. add pause screen 4. add a visual cue that shows the
 player which enemy they are targeting."
 
-What changed (PR #23):
+What changed (PR #24):
 
 - **Sprint.** Hold Left Shift or Left Alt while walking: 1.8 times walking speed, spending stamina (a new thin bar under
   Resolve). It comes back after a short pause. Run it dry and sprinting waits until it's back to 30%. Not while
