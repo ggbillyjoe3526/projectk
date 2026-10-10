@@ -70,7 +70,7 @@ describe('level validation', () => {
   it('catches a place the player can never walk to', () => {
     // A wall across the lychgate shuts the kirk, and the sword in it, off from the village.
     const shut = broken((d) => ({ ...d, world: { ...d.world, walls: [...d.world.walls, { minX: 60, maxX: 68, minZ: -9, maxZ: -8.5, height: 2, kind: 'gate' }] } }));
-    expect(shut).toEqual([expect.stringContaining("sword (62, -33.2) can't be reached")]);
+    expect(shut).toContainEqual(expect.stringContaining('The sword "sword" (62, -33.2) can\'t be reached'));
   });
 
   it('catches a wall standing in the sea with nowhere to stand on', () => {
@@ -79,7 +79,7 @@ describe('level validation', () => {
   });
 
   it('catches the dead placed in the sea or in a wall', () => {
-    const problems = broken((d) => ({ ...d, places: { ...d.places, dead: [{ x: 0, z: 8, facing: 0 }, { x: 22.5, z: 5.5, facing: 0 }] } }));
+    const problems = broken((d) => ({ ...d, dead: [{ x: 0, z: 8, facing: 0 }, { x: 22.5, z: 5.5, facing: 0 }] }));
     expect(problems).toEqual([expect.stringContaining('(0, 8) is in deep water'), expect.stringContaining('(22.5, 5.5) is inside a wall')]);
   });
 
@@ -87,6 +87,12 @@ describe('level validation', () => {
     const problems = broken((d) => ({ ...d, cameras: d.cameras.filter((c) => c.id !== 'causeway') }));
     expect(problems).toHaveLength(1);
     expect(problems[0]).toMatch(/walkable spots have no camera zone/);
+  });
+
+  it('catches a gate with no wall to open, and things defined twice', () => {
+    const gate = HAUGSAY.things.find((t) => t.kind === 'gate')!;
+    const problems = broken((d) => ({ ...d, things: [...d.things, { ...gate, wall: 'nowhere' }] }));
+    expect(problems).toEqual(['Thing "kirk-back-gate" is defined twice.', 'Gate "kirk-back-gate" opens a wall "nowhere" that doesn\'t exist.']);
   });
 
   it('catches a camera zone defined twice', () => {

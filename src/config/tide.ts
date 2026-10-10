@@ -23,3 +23,12 @@ export const DEFAULT_TIDE: TideConfig = {
   maxWadeDepth: 0.45,
   slackFraction: 0.06,
 };
+
+/**
+ * The island's clock. A day is two tide cycles (as real tides roughly are), so each low and high water falls at the
+ * same hour every day; the tide clock's zero, a low water, is at `hourAtZero`. A visit starts in the early morning.
+ */
+export const ISLAND_CLOCK = {
+  hourAtZero: 22,
+  daySeconds: 2 * DEFAULT_TIDE.cycleSeconds,
+} as const;

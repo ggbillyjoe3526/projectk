@@ -77,3 +77,32 @@ function smooth(e0: number, e1: number, x: number): number {
   const k = Math.min(1, Math.max(0, (x - e0) / (e1 - e0)));
   return k * k * (3 - 2 * k);
 }
+
+/** Fraction of the cycle either side of low water during which the causeway can be crossed. */
+export function causewayOpenFraction(cfg: TideConfig = DEFAULT_TIDE): number {
+  const fillLimit = (cfg.causewayTop + cfg.maxWadeDepth - cfg.lowLevel) / (cfg.highLevel - cfg.lowLevel);
+  if (fillLimit >= 1) return 0.5;
+  if (fillLimit <= 0) return 0;
+  return Math.acos(1 - 2 * fillLimit) / (2 * Math.PI);
+}
+
+/** The first tide clock at or after `t` when the causeway can be crossed (`t` itself when it can be now). */
+export function nextCausewayOpen(t: number, cfg: TideConfig = DEFAULT_TIDE): number {
+  if (causewayPassable(t, cfg)) return t;
+  const p = tideCyclePosition(t, cfg);
+  return t + (1 - causewayOpenFraction(cfg) - p) * cfg.cycleSeconds;
+}
+
+export interface TideTime {
+  readonly kind: 'low' | 'high';
+  /** Tide clock (seconds). */
+  readonly at: number;
+}
+
+/** The next `count` low and high waters after `t`. */
+export function nextTides(t: number, count: number, cfg: TideConfig = DEFAULT_TIDE): TideTime[] {
+  const half = cfg.cycleSeconds / 2;
+  const out: TideTime[] = [];
+  for (let k = Math.floor(t / half) + 1; out.length < count; k++) out.push({ kind: k % 2 === 0 ? 'low' : 'high', at: k * half });
+  return out;
+}

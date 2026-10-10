@@ -197,6 +197,33 @@ export function createEncounter(seed: number, weapon: WeaponId, spawns: readonly
   return { fighter: createFighter(weapon), dead: spawns.map((s) => createUnburied(s.x, s.z, s.facing, rng)), rng, hitStop: 0, deadFor: 0, events: [] };
 }
 
+/**
+ * Hours pass (resting at the hearth, waiting out the tide in a refuge): the player is at rest, and every one of the dead
+ * not laid to rest is back where it stood, whole. Any that were down have risen, stronger, as they would have.
+ */
+export function passTime(enc: Encounter): void {
+  const f = enc.fighter;
+  f.action = 'free';
+  f.t = 0;
+  f.queued = false;
+  f.deflectBuffer = 0;
+  f.target = -1;
+  enc.hitStop = 0;
+  for (const u of enc.dead) {
+    if (u.state === 'rested') continue;
+    if (u.state === 'downed' || u.state === 'rising') {
+      u.rises++;
+      u.maxHealth = Math.round(u.maxHealth * UT.riseHealthGain);
+    }
+    u.health = u.maxHealth;
+    u.break = 0;
+    u.x = u.homeX;
+    u.z = u.homeZ;
+    u.facing = u.homeFacing;
+    setState(u, 'idle');
+  }
+}
+
 /** The perfect-deflect window for this much Resolve: full above `lowResolve`, narrowing toward zero. */
 export function perfectWindow(resolve: number): number {
   const d = PC.deflect;

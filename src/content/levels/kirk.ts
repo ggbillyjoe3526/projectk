@@ -36,6 +36,8 @@ function kirkWalls(): Wall[] {
     { minX: v.minX - 0.4, maxX: v.minX, minZ: v.minZ, maxZ: v.door[0], height: 3, kind: 'kirk' },
     { minX: v.minX - 0.4, maxX: v.maxX, minZ: v.maxZ, maxZ: v.maxZ + 0.4, height: 3, kind: 'kirk' },
     { ...SLAB, kind: 'stone' },
+    // The vestry bench, where you can wait out the tide.
+    { minX: 67.4, maxX: 69.4, minZ: VESTRY.minZ, maxZ: VESTRY.minZ + 0.5, height: 0.45, kind: 'pew' },
     // Pews either side of the aisle that leads to the slab.
     ...[-31, -29, -27].flatMap((z) => [pew(56, 60.4, z), pew(63.6, 65.8, z)]),
   ];
@@ -53,7 +55,7 @@ export const KIRK_AREA: LevelArea = {
     dyke(KIRKYARD.minX, LANE.minX, -12.6, KIRKYARD.maxZ),
     dyke(LANE.maxX, KIRKYARD.maxX, -12.6, KIRKYARD.maxZ),
     dyke(KIRKYARD.minX, KIRKYARD.minX + 0.6, KIRKYARD.minZ, BACK_GATE.minZ),
-    { minX: KIRKYARD.minX, maxX: KIRKYARD.minX + 0.6, minZ: BACK_GATE.minZ, maxZ: BACK_GATE.maxZ, height: 1.6, kind: 'gate' },
+    { id: 'kirk-back-gate', minX: KIRKYARD.minX, maxX: KIRKYARD.minX + 0.6, minZ: BACK_GATE.minZ, maxZ: BACK_GATE.maxZ, height: 1.6, kind: 'gate' },
     dyke(KIRKYARD.minX, KIRKYARD.maxX, KIRKYARD.minZ, KIRKYARD.minZ + 0.6),
     dyke(KIRKYARD.maxX - 0.6, KIRKYARD.maxX, KIRKYARD.minZ + 0.6, -12.6),
     ...kirkWalls(),
@@ -89,6 +91,12 @@ export const KIRK_AREA: LevelArea = {
       fov: 50,
       lookOffset: [0, 0.4, -1],
     },
+  ],
+  things: [
+    { id: 'sword', kind: 'sword', x: (SLAB.minX + SLAB.maxX) / 2, z: (SLAB.minZ + SLAB.maxZ) / 2, top: top + SLAB.height },
+    { id: 'vestry', kind: 'refuge', x: 68.4, z: VESTRY.minZ + 0.25 },
+    // Barred on the kirkyard side: it opens from inside, and then it's the short way down to the shore.
+    { id: 'kirk-back-gate', kind: 'gate', wall: 'kirk-back-gate', x: KIRKYARD.minX + 0.3, z: (BACK_GATE.minZ + BACK_GATE.maxZ) / 2, side: { minX: KIRKYARD.minX + 0.6, maxX: KIRKYARD.minX + 3, minZ: BACK_GATE.minZ, maxZ: BACK_GATE.maxZ } },
   ],
   dead: [
     { x: 52, z: -26, facing: 0 },

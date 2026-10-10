@@ -20,6 +20,8 @@ export interface GreyboxScene {
   readonly torch: SpotLight;
   readonly pebbles: readonly { mesh: Mesh; baseY: number }[];
   readonly ripple: { amount: { value: number }; phase: { value: number } };
+  /** Walls with an id (gates), so an opened one can be hidden. */
+  readonly wallMeshes: ReadonlyMap<string, Mesh>;
   /** Lighthouse beams, each turning about its own origin. */
   readonly beams: readonly Object3D[];
   readonly fog: FogExp2;
@@ -151,13 +153,15 @@ export function buildGreybox(level: Level): GreyboxScene {
   scene.add(bed);
 
   // Walls and props.
+  const wallMeshes = new Map<string, Mesh>();
   for (const w of world.walls) {
     const base = w.base ?? world.groundAt((w.minX + w.maxX) / 2, (w.minZ + w.maxZ) / 2).height;
     if (w.kind === 'lighthouse') {
       add(scene, new CylinderGeometry(1.0, 1.25, w.height, 10), MAT.lighthouse, (w.minX + w.maxX) / 2, base + w.height / 2, (w.minZ + w.maxZ) / 2);
       continue;
     }
-    block(scene, w.minX, w.maxX, base, base + w.height, w.minZ, w.maxZ, wallMaterial(w), true);
+    const mesh = block(scene, w.minX, w.maxX, base, base + w.height, w.minZ, w.maxZ, wallMaterial(w), true);
+    if (w.id) wallMeshes.set(w.id, mesh);
   }
   // Set dressing: what the simulation never touches.
   const beams: Object3D[] = [];
@@ -223,5 +227,5 @@ export function buildGreybox(level: Level): GreyboxScene {
   const sea = createSea();
   scene.add(sea);
 
-  return { scene, sea, player, playerBody, hand, torch, pebbles, ripple, beams, fog };
+  return { scene, sea, player, playerBody, hand, torch, pebbles, ripple, wallMeshes, beams, fog };
 }

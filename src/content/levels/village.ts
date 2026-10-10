@@ -93,6 +93,21 @@ export const VILLAGE_AREA: LevelArea = {
       lookOffset: [1.5, 0.4, -1.5],
     },
   ],
+  things: [
+    {
+      id: 'shop-notice',
+      kind: 'document',
+      x: 54.5,
+      z: 9.9,
+      title: 'A notice on the counter',
+      lines: [
+        'A notice, handwritten, propped against the till:',
+        'CLOSED FRIDAY for Alan Sloan’s funeral.',
+        'Service at the kirk, ten o’clock. Low water’s at nine, so come over early from the Brough side.',
+        'Honesty box as usual. Back Saturday. — I.',
+      ],
+    },
+  ],
   dead: [
     { x: 58, z: 1.5, facing: -Math.PI / 2 },
     { x: 82, z: -2, facing: -Math.PI / 2 },

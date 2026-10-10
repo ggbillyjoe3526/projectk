@@ -40,13 +40,24 @@ export interface Interior extends Box2 {
   readonly refuge?: boolean;
 }
 
-/** Where the slice's things are: the hearth, the note, the old sword (on a slab `top` high) and the dead. */
-export interface LevelPlaces {
-  readonly hearth: Point;
-  readonly note: Point;
-  readonly sword: Point & { readonly top: number };
-  readonly dead: readonly Placement[];
-}
+/**
+ * Things the player can use with E, each at a point:
+ * - `hearth`: rest, recover fully and save; if the causeway is under water, rest until it clears.
+ * - `refuge`: wait out the tide and save, at a cost in Resolve; no recovery.
+ * - `document`: something to read (`lines`, shown in the reader).
+ * - `tideTable`: the printed tide times, and the time now.
+ * - `sword`: the old sword, lying `top` high.
+ * - `gate`: opens the wall named `wall`, but only from inside `side` (it's barred from the other side).
+ */
+export type Thing = { readonly id: string } & Point &
+  (
+    | { readonly kind: 'hearth' }
+    | { readonly kind: 'refuge' }
+    | { readonly kind: 'document'; readonly title: string; readonly lines: readonly string[] }
+    | { readonly kind: 'tideTable' }
+    | { readonly kind: 'sword'; readonly top: number }
+    | { readonly kind: 'gate'; readonly wall: string; readonly side: Box2 }
+  );
 
 export interface LevelDef {
   readonly id: string;
@@ -54,13 +65,30 @@ export interface LevelDef {
   readonly interiors: readonly Interior[];
   /** Camera zones, most specific first (an earlier zone wins where two overlap). */
   readonly cameras: readonly LevelCamera[];
-  readonly places: LevelPlaces;
+  readonly things: readonly Thing[];
+  /** Where the dead stand. */
+  readonly dead: readonly Placement[];
   readonly dressing: readonly Dressing[];
 }
 
 /** A level ready to play: its data, and the simulation's view of it. */
 export interface Level extends LevelDef {
   readonly sim: WorldDef;
+}
+
+/**
+ * A fingerprint of the level's layout (the ground, walls, props and where the dead stand): a saved checkpoint is only
+ * used in the layout it was taken in.
+ */
+export function levelLayout(def: LevelDef): string {
+  const text = JSON.stringify({ world: def.world, dead: def.dead });
+  // FNV-1a, 32 bits.
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h.toString(16).padStart(8, '0');
 }
 
 export function loadLevel(def: LevelDef): Level {
@@ -88,6 +116,7 @@ export interface LevelArea {
   readonly listeningPosts?: WorldData['listeningPosts'];
   readonly interiors?: readonly Interior[];
   readonly cameras: readonly LevelCamera[];
+  readonly things?: readonly Thing[];
   readonly dead?: readonly Placement[];
   readonly dressing?: readonly Dressing[];
 }
@@ -96,7 +125,6 @@ export interface LevelFrame {
   readonly id: string;
   readonly channelFloor: number;
   readonly spawn: WorldData['spawn'];
-  readonly places: Omit<LevelPlaces, 'dead'>;
 }
 
 export function composeLevel(frame: LevelFrame, areas: readonly LevelArea[]): LevelDef {
@@ -113,7 +141,8 @@ export function composeLevel(frame: LevelFrame, areas: readonly LevelArea[]): Le
     },
     interiors: all((a) => a.interiors),
     cameras: all((a) => a.cameras),
-    places: { ...frame.places, dead: all((a) => a.dead) },
+    things: all((a) => a.things),
+    dead: all((a) => a.dead),
     dressing: all((a) => a.dressing),
   };
 }
@@ -194,11 +223,13 @@ export function validateLevel(def: LevelDef): string[] {
   const spawn = def.world.spawn;
   if (!walkable(spawn)) problems.push(`The spawn ${where(spawn)} is in deep water.`);
   if (inWall(spawn)) problems.push(`The spawn ${where(spawn)} is inside a wall.`);
-  const { hearth, note, sword, dead } = def.places;
-  for (const [name, p] of [['hearth', hearth], ['note', note], ['sword', sword]] as const) {
-    if (!walkable(p)) problems.push(`The ${name} ${where(p)} is in deep water.`);
+  const thingIds = new Set<string>();
+  for (const t of def.things) {
+    if (thingIds.has(t.id)) problems.push(`Thing "${t.id}" is defined twice.`);
+    thingIds.add(t.id);
+    if (t.kind === 'gate' && !def.world.walls.some((w) => w.id === t.wall)) problems.push(`Gate "${t.id}" opens a wall "${t.wall}" that doesn't exist.`);
   }
-  for (const d of dead) {
+  for (const d of def.dead) {
     if (!walkable(d)) problems.push(`A dead spawn ${where(d)} is in deep water.`);
     if (inWall(d)) problems.push(`A dead spawn ${where(d)} is inside a wall.`);
   }
@@ -210,8 +241,15 @@ export function validateLevel(def: LevelDef): string[] {
 
   // The player must be able to walk to every place from the spawn.
   const canReach = reachability(def);
-  for (const [name, p] of [['hearth', hearth], ['note', note], ['sword', sword]] as const) {
-    if (walkable(p) && !canReach(p.x, p.z, PLACE_REACH)) problems.push(`The ${name} ${where(p)} can't be reached from the spawn.`);
+  for (const t of def.things) {
+    if (t.kind === 'gate') {
+      const s = t.side;
+      if (!canReach((s.minX + s.maxX) / 2, (s.minZ + s.maxZ) / 2, Math.hypot(s.maxX - s.minX, s.maxZ - s.minZ) / 2)) {
+        problems.push(`Gate "${t.id}" can't be reached from the side it opens from.`);
+      }
+    } else if (!canReach(t.x, t.z, PLACE_REACH)) {
+      problems.push(`The ${t.kind} "${t.id}" ${where(t)} can't be reached from the spawn.`);
+    }
   }
 
   // Every walkable spot needs a camera, or walking there would leave the last one stuck in place.

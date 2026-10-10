@@ -7,6 +7,8 @@ export interface Box2 {
 }
 
 export interface Wall extends Box2 {
+  /** Names a wall something else refers to (a gate that can be opened). */
+  readonly id?: string;
   readonly height: number;
   readonly kind: 'stone' | 'cottage' | 'lighthouse' | 'standingStone' | 'boulder' | 'dyke' | 'house' | 'kirk' | 'gravestone' | 'gate' | 'pew';
   /** Where the wall stands, for one outside the walkable ground (a house front, a boundary dyke); otherwise the ground's height. */
