@@ -4,7 +4,9 @@ A web survival-horror game (Project Outbound is its working title): TypeScript, 
 keyboard and mouse. The design lives in the [concept document](docs/concept/concept-v0.6.md) (v0.6) and the
 [story summary](docs/story/story-so-far.md).
 
-Work is on the vertical slice ([plan](docs/vertical-slice-plan.md)). The [project record](docs/project-record.md)
+Work is chapter by chapter ([chapter plan](docs/story/chapters.md)). Chapter 1, "The Crossing", is built: a new game
+opens on it, and Low water (the vertical slice, [plan](docs/vertical-slice-plan.md), which becomes chapter 3) follows
+once it's done. The [project record](docs/project-record.md)
 has every decision, what's still open and how the project got here, and [docs/](docs/README.md) has everything else:
 the concept versions, the story, the art direction shots and their tools, and the camera lab.
 
@@ -16,7 +18,11 @@ deflect, Resolve, Break and the Rite. The first stage of the vertical slice adds
 lane up to the kirkyard, and the kirk, where the sword lies on the howe slab, with the vestry as a refuge, and plays
 the opening's beats with no cutscenes: you first go over with only the torch and have to turn back, take the kitchen
 knife from the dresser, watch one it cut down get up again, find your father's notebook, and bring the sword home from
-the kirk. All of it is greybox, and there is no story beyond that yet.
+the kirk. All of it is greybox. Chapter 1 (`src/game/crossing`, `src/content/crossing`) is the night before: the late ferry
+docks at 23:45 after the causeway has shut, Morag offers a room at her inn, the island is shut, the night passes at
+the inn, and on Thursday he crosses to his father's cottage for the vigil, which ends the chapter. It has people to
+talk to, signs and gravestones to read, texts and notes on the phone (Tab, which also shows the time and the tide),
+and a real Orkney tide.
 
 ## Run it
 
@@ -32,12 +38,12 @@ npm run smoke        # after a build: start the game in headless Chromium on the
                      # (needs `npx playwright install chromium` once)
 ```
 
-Controls: the player faces the pointer and W walks toward it (there is no strafing; the mouse steers), and holding
-Left Shift sprints while stamina lasts (the pale green mark under Resolve), loudly enough that the dead hear it from
+Controls: the player faces the pointer and W walks toward it (there is no strafing; the mouse steers), and a tap of
+Left Shift sprints (another tap, or stopping, ends it) while stamina lasts (the pale green mark under Resolve), loudly enough that the dead hear it from
 further off than they can see you; a small mark over one of the
 dead shows which one an attack goes for, turning red once it's in reach; Escape or P pauses; the mouse
 also aims the torch, hold F to kneel and listen to the island
-(the hum's strength and beat tell the tide), Q for the torch (its battery, the thin amber mark under Resolve, runs down
+(the hum's strength and beat tell the tide, and the screen's edges ripple with it), Q for the torch (its battery, the thin amber mark under Resolve, runs down
 while it's lit and charges in the cottage). Left click attacks (hold it with the sword for a sained
 strike, which costs Resolve), right click deflects (as the blow lands; a glint in the attacker's hand
 comes just before it), Space steps quickly back, away from the pointer (the only defence empty-handed), and E reads (the notebook, the tide table by the cottage door), takes, opens
@@ -46,7 +52,7 @@ where a death returns to), and gives a kneeling body the Rite. Press `` ` `` or 
 renderer, draw calls, GPU time, simulation tick, seed, tide, player, camera zone, hum) and `]` to run island time
 ×4, ×16 or ×64. F4 hides or shows the deflect timing readout (early, late or perfect, in milliseconds).
 
-URL flags: `?seed=N` plays seed N; `?forceWebGL` draws with the renderer's WebGL2 back end without asking for WebGPU
+URL flags: `?chapter=1` or `?chapter=lowwater` starts that part; `?seed=N` plays seed N; `?forceWebGL` draws with the renderer's WebGL2 back end without asking for WebGPU
 (automated browsers in containers have no WebGPU adapter); `?at=x,z` starts the player at that point and `?tide=f` at
 fraction f of the tide's cycle (0 low water, 0.5 high water); `?weapon=knife` or `?weapon=sword` starts with that in hand, the story as far on as it would be. Any of
 `at`, `tide` and `weapon` sets up a test visit that neither loads nor overwrites the saved game.
