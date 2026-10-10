@@ -3,17 +3,20 @@ import { el } from './dom';
 /**
  * The pane over the first frame: the title, the controls, and a click to begin. The click is also what lets the page
  * start its sound (browsers keep audio silent until the player interacts with the page). With a saved game it says
- * the click continues it, and offers to start over (`startOver`), which takes a second click to confirm.
+ * the click continues it, and offers to start over (`startOver`), which takes a second click to confirm. `version`, when
+ * given, is the release's name under the title.
  */
 export function startGate(
   parent: HTMLElement,
   title: string,
   controls: readonly (readonly [string, string])[],
   startOver?: () => void,
+  version?: string,
 ): Promise<void> {
   const pane = el('div', 'start-gate');
   const box = el('div', 'start-gate-box');
   box.appendChild(el('h1', '', title));
+  if (version) box.appendChild(el('p', 'start-gate-version', version));
   const list = el('dl', 'start-gate-controls');
   for (const [keys, what] of controls) {
     list.appendChild(el('dt', '', keys));
