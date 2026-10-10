@@ -66,6 +66,7 @@ bosses and puzzles until he can make the final journey to the ferry, or stay and
 | The **phone is offline**: it is the in-game menu (notes, discoveries). Signal and charging (phone, torch, other electronics) are available only in safe areas. | 2026-10-09 |
 | **Camera A**: authored high-angle tracking cameras per zone, with the mouse aiming the torch. Movement keeps its direction across camera cuts. Chosen after trying all five in the camera lab. | 2026-10-09 |
 | Death reloads the last hearth checkpoint. This is the prototype's rule; the final death rule hasn't been decided. | 2026-10-09 |
+| The **vertical slice is built in two playable stages**: "Low water" (the torch retreat to taking the sword, about 15 minutes), then "The funeral" (the ferry, vigil, kirk service and the Hogboon). See [vertical-slice-plan.md](vertical-slice-plan.md). | 2026-10-10 |
 
 ### Story
 
@@ -151,6 +152,7 @@ The game code is in this repository. See the [main README](../README.md) to run 
 | M1: combat prototype | Three of the dead on the shore, the knife that can't keep them down, the note, the sword on the howe slab, with deflect, Resolve, Break and the Rite. William: "quite good for a first test". | #4 |
 | M1 deflect fixes | The deflect made reliable and readable after William's playtest (see below). | #8 |
 | M1 deflect timing | The dead's blow lands when the arm visibly reaches the player; the tell re-timed to it. | #10 |
+| Levels as data | The map moved from code into level data (`src/content/levels`), checked by the unit tests. First step of the vertical slice. | #12 |
 
 Playable builds and the camera lab were published as claude.ai artifacts, which only William's account can open:
 [camera lab](https://claude.ai/artifact/AeiT4iTYDFGWtLZhDpbzBU),
@@ -264,3 +266,4 @@ just disabled, and can be turned back on when he asks.
 | 2026-10-10 | William put the project on hold: no new work, no more concept images, the Airsoft routine paused. Everything was brought into this repository. |
 | 2026-10-10 | Work resumed. William's M1 playtest: the deflect felt clunky and he couldn't tell if it worked. Fixed in PR #8. |
 | 2026-10-10 | Still felt off: the blow counted before the arm came down. Fixed in PR #10; William: "that feels much better." |
+| 2026-10-10 | William started the vertical slice and chose to build it in two stages, "Low water" first ([plan](vertical-slice-plan.md)). Levels became data (PR #12). |
