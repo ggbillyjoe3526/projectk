@@ -281,8 +281,8 @@ clear fixes by hand while keeping this game's adaptations, and opens a sync pull
 reports in the project's "Airsoft sync" thread, and its check log is section 6 of the Airsoft review (the copy here is a
 snapshot from 2026-10-10).
 
-**The routine is paused.** William asked for that when he put the project on hold (2026-10-10). It is still set up,
-just disabled, and can be turned back on when he asks.
+**The routine is stopped for good.** On 2026-10-10 William said he no longer wants anything pulled from Airsoft, so
+the routine was deleted. Don't set it up again unless he asks.
 
 ## History
 
@@ -305,3 +305,4 @@ just disabled, and can be turned back on when he asks.
 | 2026-10-10 | Work resumed. William's M1 playtest: the deflect felt clunky and he couldn't tell if it worked. Fixed in PR #8. |
 | 2026-10-10 | Still felt off: the blow counted before the arm came down. Fixed in PR #10; William: "that feels much better." |
 | 2026-10-10 | William started the vertical slice and chose to build it in two stages, "Low water" first ([plan](vertical-slice-plan.md)). Levels became data (PR #12). |
+| 2026-10-10 | William stopped the Airsoft sync for good: the routine was deleted and nothing more is pulled from Airsoft. |

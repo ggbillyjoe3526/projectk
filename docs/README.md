@@ -16,7 +16,7 @@ Work is on the vertical slice; start with the project record.
 | [prototypes/camera-lab.html](prototypes/camera-lab.html) | The playable camera comparison used to choose camera A. Open it in a browser. |
 | [reference/](reference/README.md) | The inspiration images William shared at the start, described. |
 | [reuse/airsoft-review.md](reuse/airsoft-review.md) | The review of William's Airsoft repository: what was copied, what is a reference, what was skipped. |
-| [airsoft-sync.md](airsoft-sync.md) | The record the weekly Airsoft sync check works from: the last synced Airsoft commit and every file taken. |
+| [airsoft-sync.md](airsoft-sync.md) | What was taken from Airsoft and from which commit. Syncing from Airsoft stopped on 2026-10-10. |
 
 The concept and story documents are copied as they were written during the project, including their questions to
 William; the project record says which of those questions have since been answered.
