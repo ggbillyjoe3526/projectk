@@ -17,12 +17,12 @@ describe('guarded storage', () => {
     const g = new GuardedStorage(backing);
     const heard: string[] = [];
     g.onWrite((k) => heard.push(k));
-    g.setItem('projectk.settings', '{"version":1}');
+    g.setItem('outbound.settings', '{"version":1}');
     g.setItem('other', 'x');
-    g.removeItem('projectk.settings');
+    g.removeItem('outbound.settings');
     expect(backing.getItem('other')).toBe('x');
-    expect(backing.getItem('projectk.settings')).toBeNull();
-    expect(heard).toEqual(['projectk.settings', 'projectk.settings']);
+    expect(backing.getItem('outbound.settings')).toBeNull();
+    expect(heard).toEqual(['outbound.settings', 'outbound.settings']);
     expect(g.keeping).toBe(true);
   });
 
@@ -32,10 +32,10 @@ describe('guarded storage', () => {
     let problems = 0;
     g.onProblem(() => problems++);
     backing.full = true;
-    g.setItem('projectk.progress', 'a');
-    g.setItem('projectk.progress', 'b');
-    expect(g.getItem('projectk.progress')).toBe('b');
-    expect(backing.getItem('projectk.progress')).toBeNull();
+    g.setItem('outbound.progress', 'a');
+    g.setItem('outbound.progress', 'b');
+    expect(g.getItem('outbound.progress')).toBe('b');
+    expect(backing.getItem('outbound.progress')).toBeNull();
     expect(problems).toBe(1);
     expect(g.blocked).toBe(true);
     expect(g.keeping).toBe(false);
@@ -43,26 +43,26 @@ describe('guarded storage', () => {
 
   it('works over memory alone when the browser blocks storage', () => {
     const g = new GuardedStorage(null);
-    g.setItem('projectk.notes', 'r');
-    expect(g.getItem('projectk.notes')).toBe('r');
+    g.setItem('outbound.notes', 'r');
+    expect(g.getItem('outbound.notes')).toBe('r');
     expect(g.length).toBe(1);
-    expect(g.key(0)).toBe('projectk.notes');
+    expect(g.key(0)).toBe('outbound.notes');
     expect(g.blocked).toBe(true);
-    expect(g.trySet('projectk.save.meta', '{}')).toBe(false);
+    expect(g.trySet('outbound.save.meta', '{}')).toBe(false);
   });
 
   it('frozen, holds the game\'s writes in memory for the visit; writeThrough still reaches the browser', () => {
     const backing = new MemoryStorage();
-    backing.setItem('projectk.settings', 'old');
+    backing.setItem('outbound.settings', 'old');
     const g = new GuardedStorage(backing);
     g.freeze('otherTab');
-    g.setItem('projectk.settings', 'new');
-    expect(g.getItem('projectk.settings')).toBe('new');
-    expect(backing.getItem('projectk.settings')).toBe('old');
-    expect(g.trySet('projectk.save.meta', '{}')).toBe(false);
-    g.writeThrough('projectk.settings', 'loaded');
-    expect(backing.getItem('projectk.settings')).toBe('loaded');
-    expect(g.getItem('projectk.settings')).toBe('loaded');
+    g.setItem('outbound.settings', 'new');
+    expect(g.getItem('outbound.settings')).toBe('new');
+    expect(backing.getItem('outbound.settings')).toBe('old');
+    expect(g.trySet('outbound.save.meta', '{}')).toBe(false);
+    g.writeThrough('outbound.settings', 'loaded');
+    expect(backing.getItem('outbound.settings')).toBe('loaded');
+    expect(g.getItem('outbound.settings')).toBe('loaded');
     // The first reason stays.
     g.freeze('reloading');
     expect(g.frozen).toBe('otherTab');
@@ -72,8 +72,8 @@ describe('guarded storage', () => {
     const backing = new FillingStorage();
     const g = new GuardedStorage(backing);
     backing.full = true;
-    expect(g.trySet('projectk.save.restore', '[]')).toBe(false);
+    expect(g.trySet('outbound.save.restore', '[]')).toBe(false);
     expect(g.blocked).toBe(false);
-    expect(g.getItem('projectk.save.restore')).toBeNull();
+    expect(g.getItem('outbound.save.restore')).toBeNull();
   });
 });

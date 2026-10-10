@@ -1,4 +1,4 @@
-import { STORAGE_PREFIX } from '../config/save';
+import { LEGACY_STORAGE_PREFIX, STORAGE_PREFIX } from '../config/save';
 /**
  * The browser storage every save goes through: localStorage, with three things added.
  *
@@ -209,8 +209,32 @@ export function startGuardedStorage(): GuardedStorage {
   } catch {
     refusing = true;
   }
+  if (backing && !refusing) moveLegacyKeys(backing);
   started = new GuardedStorage(backing, refusing);
   return started;
+}
+
+/**
+ * Moves the keys written under the game's first working title (LEGACY_STORAGE_PREFIX) to STORAGE_PREFIX, one at a time
+ * so the browser never holds both copies of the save at once. A key already under the new prefix wins. A refused write
+ * stops the move and leaves the rest where it was, for the next visit to try again.
+ */
+function moveLegacyKeys(backing: Storage): void {
+  try {
+    const legacy: string[] = [];
+    for (let i = 0; i < backing.length; i++) {
+      const key = backing.key(i);
+      if (key?.startsWith(LEGACY_STORAGE_PREFIX)) legacy.push(key);
+    }
+    for (const key of legacy) {
+      const moved = STORAGE_PREFIX + key.slice(LEGACY_STORAGE_PREFIX.length);
+      const value = backing.getItem(key);
+      if (value !== null && backing.getItem(moved) === null) backing.setItem(moved, value);
+      backing.removeItem(key);
+    }
+  } catch {
+    // Refused part-way (full): what is left moves on a later visit.
+  }
 }
 
 /** The guarded storage once the save system has started it, else null (unit tests, before start-up). */

@@ -1,7 +1,7 @@
-# ProjectK
+# Project Outbound
 
-A web survival-horror game (working title UNBURIED): TypeScript, Vite and Three.js's `WebGPURenderer`, keyboard and
-mouse. The design lives in the project's concept document (v0.6).
+A web survival-horror game (Project Outbound is its working title): TypeScript, Vite and Three.js's `WebGPURenderer`,
+keyboard and mouse. The design lives in the project's concept document (v0.6).
 
 The engine skeleton (the loop, saving, input, renderer start-up and diagnostics) runs the first playable slice, M0:
 the father's cottage, the Brough and the tidal causeway in greybox, under authored tracking cameras (concept camera A),
@@ -67,6 +67,6 @@ src/ui         start pane, debug overlay, crash pane
 
 Most modules here were brought over from William's other game, Airsoft
 ([ggbillyjoe3526/Airsoft](https://github.com/ggbillyjoe3526/Airsoft), MIT), together with their tests, and adapted:
-storage keys moved to the `projectk.` prefix, the controls are ProjectK's (concept section 7), and the renderer
-start-up was reworked because ProjectK has one renderer (`WebGPURenderer`, WebGPU or its WebGL2 back end) where
-Airsoft keeps a separate WebGL renderer. Airsoft's gameplay, art, physics and WebGL-era rendering were left behind.
+storage keys moved to the game's own prefix (`outbound.`), the controls are Project Outbound's (concept section 7),
+and the renderer start-up was reworked because Project Outbound has one renderer (`WebGPURenderer`, WebGPU or its
+WebGL2 back end) where Airsoft keeps a separate WebGL renderer. Airsoft's gameplay, art, physics and WebGL-era rendering were left behind.

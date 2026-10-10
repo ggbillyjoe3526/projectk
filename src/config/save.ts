@@ -4,7 +4,13 @@
  */
 
 /** Every key the game writes in browser storage starts with this, so the guarded storage can tell its own writes apart. */
-export const STORAGE_PREFIX = 'projectk.';
+export const STORAGE_PREFIX = 'outbound.';
+
+/**
+ * The prefix the game's keys had under its first working title. A browser that still holds keys under it has them
+ * moved across once, at start-up (save/guardedStorage.ts), so settings, bindings and the save carry over.
+ */
+export const LEGACY_STORAGE_PREFIX = 'projectk.';
 
 /** The save layer's own keys in the browser, beside the stores it bundles (save/stores.ts). */
 export const SAVE_KEYS = {
@@ -17,7 +23,10 @@ export const SAVE_KEYS = {
 } as const;
 
 /** What a save file says it is (`game`), so a stray JSON file is told apart. */
-export const SAVE_GAME_ID = 'ProjectK';
+export const SAVE_GAME_ID = 'Project Outbound';
+
+/** What save files written under the game's first working title say, still read as this game's. */
+export const LEGACY_SAVE_GAME_IDS: readonly string[] = ['ProjectK'];
 
 /** Restore points kept, one per day the game is opened. */
 export const RESTORE_POINTS = 3;
@@ -25,8 +34,8 @@ export const RESTORE_POINTS = 3;
 /** A file bigger than this (bytes) is refused before it is read. */
 export const SAVE_FILE_MAX_BYTES = 2 * 1024 * 1024;
 
-/** The downloaded file's name, for a date ("projectk-save-2026-10-09.json"). */
-export const SAVE_FILE_PREFIX = 'projectk-save-';
+/** The downloaded file's name, for a date ("project-outbound-save-2026-10-09.json"). */
+export const SAVE_FILE_PREFIX = 'project-outbound-save-';
 
 /**
  * The tab lock: the Web Lock's name, the channel's, the session key a tab sets as Play here reloads it (so the reloaded

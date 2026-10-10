@@ -1,4 +1,4 @@
-import { SAVE_GAME_ID, SAVE_FILE_PREFIX } from '../config/save';
+import { LEGACY_SAVE_GAME_IDS, SAVE_GAME_ID, SAVE_FILE_PREFIX } from '../config/save';
 import { sha256 } from './sha256';
 import { SAVE_STORES, type StoreData } from './stores';
 
@@ -6,7 +6,7 @@ import { SAVE_STORES, type StoreData } from './stores';
  * The save file: readable JSON a player can keep and load in any browser. Pure: no DOM, no storage.
  *
  * ```
- * { "game": "ProjectK", "format": 1, "build": "abc1234", "savedAt": "2026-10-09T16:40:00.000Z",
+ * { "game": "Project Outbound", "format": 1, "build": "abc1234", "savedAt": "2026-10-09T16:40:00.000Z",
  *   "stores": { "settings": {...}, "keyBindings": {...} }, "checksum": "sha256:..." }
  * ```
  *
@@ -68,7 +68,7 @@ export function saveFileText(save: SaveData): string {
 }
 
 /**
- * Reads a save file's text: refused when it isn't JSON, isn't a ProjectK save or comes from a newer format; otherwise
+ * Reads a save file's text: refused when it isn't JSON, isn't a save of this game or comes from a newer format; otherwise
  * brought up to SAVE_FORMAT, with `checksumOk` false when the file was changed or damaged since it was written.
  * `migrations` and `current` are for tests.
  */
@@ -84,7 +84,7 @@ export function parseSaveText(text: string, migrations = MIGRATIONS, current = S
 
 /** parseSaveText for a value already parsed. */
 export function parseSaveObject(raw: unknown, migrations = MIGRATIONS, current = SAVE_FORMAT): ParsedSave {
-  if (!isObject(raw) || raw.game !== SAVE_GAME_ID) return { ok: false, error: 'notSave' };
+  if (!isObject(raw) || !isGameId(raw.game)) return { ok: false, error: 'notSave' };
   const format = raw.format;
   const build = typeof raw.build === 'string' ? raw.build : '';
   if (typeof format !== 'number' || !Number.isInteger(format) || format < 1 || !isObject(raw.stores)) return { ok: false, error: 'notSave' };
@@ -141,7 +141,7 @@ export function canonicalJson(v: unknown): string {
   return JSON.stringify(v) ?? 'null';
 }
 
-/** The download's file name for a moment, by the player's own calendar ("projectk-save-2026-10-09.json"). */
+/** The download's file name for a moment, by the player's own calendar ("project-outbound-save-2026-10-09.json"). */
 export function saveFileName(at: Date): string {
   const two = (n: number) => String(n).padStart(2, '0');
   return `${SAVE_FILE_PREFIX}${at.getFullYear()}-${two(at.getMonth() + 1)}-${two(at.getDate())}.json`;
@@ -149,4 +149,9 @@ export function saveFileName(at: Date): string {
 
 function isObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
+}
+
+/** This game's save, under its title now or an earlier working title. */
+function isGameId(v: unknown): boolean {
+  return v === SAVE_GAME_ID || (typeof v === 'string' && LEGACY_SAVE_GAME_IDS.includes(v));
 }

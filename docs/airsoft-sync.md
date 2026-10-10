@@ -1,16 +1,17 @@
 # Airsoft sync record
 
-ProjectK's engine skeleton came from William's other game, Airsoft
+Project Outbound's engine skeleton came from William's other game, Airsoft
 ([ggbillyjoe3526/Airsoft](https://github.com/ggbillyjoe3526/Airsoft), MIT). Both games keep being worked on, so a weekly
-check compares new Airsoft commits against the modules ProjectK took and opens a pull request here when one of them
-gained a fix or improvement worth having. This file is that check's record: what was taken, and from which Airsoft
+check compares new Airsoft commits against the modules Project Outbound took and opens a pull request here when one of
+them gained a fix or improvement worth having. This file is that check's record: what was taken, and from which Airsoft
 commit.
 
 **Last synced Airsoft commit:** `324602b813e89def3aa41cfd12252d455c9d3d86` (main, "WebGPU step 3", 0.1 Dev 4)
 
-Every file below matches Airsoft at that commit apart from ProjectK's own adaptations (the `projectk.` storage prefix,
-ProjectK's controls, the single-renderer start-up). A sync pull request updates the commit above in the same change
-that brings the code across.
+Every file below matches Airsoft at that commit apart from Project Outbound's own adaptations (the `outbound.` storage
+prefix and the one-time move of keys from the first working title's `projectk.` prefix in `guardedStorage.ts`, which
+also reads save files marked `ProjectK`; Project Outbound's controls; the single-renderer start-up). A sync pull request
+updates the commit above in the same change that brings the code across.
 
 ## How to check
 
@@ -20,7 +21,7 @@ git -C ../airsoft log --oneline <last synced>..origin/main -- <paths below>
 git -C ../airsoft diff <last synced>..origin/main -- <path>
 ```
 
-Then port the Airsoft change onto the ProjectK file by hand, keeping ProjectK's adaptations, and run `npm run check`.
+Then port the Airsoft change onto the Project Outbound file by hand, keeping its adaptations, and run `npm run check`.
 
 ## Taken as-is (same path in both repos, with their tests)
 
@@ -35,16 +36,16 @@ Tests beside a module (`x.test.ts`, `x.qa.test.ts` and so on) are at the same pa
 | Quality | `src/render/qualityStepDown.ts`, `src/render/gpuCheck.ts` |
 | Diagnostics | `src/core/crashReport.ts`, `src/ui/crashScreen.ts`, `src/ui/debugOverlay.ts`, `src/ui/clipboard.ts` |
 | Saving | `src/save/guardedStorage.ts`, `src/save/tabLock.ts`, `src/save/saveFile.ts`, `src/save/sha256.ts`, `src/save/overStored.ts`, `src/save/saveManager.ts`, `src/save/stores.ts` |
-| Settings | `src/settings/storage.ts` (ProjectK's settings list) |
+| Settings | `src/settings/storage.ts` (Project Outbound's settings list) |
 | Input | `src/input/keyBindings.ts`, `src/input/keyboard.ts`, `src/input/keyboardLayout.ts` |
 | Audio | `src/audio/voiceLimit.ts` |
-| Config | `src/config/sim.ts`, `src/config/render.ts`, `src/config/renderBackend.ts`, `src/config/save.ts`, `src/config/crash.ts`, `src/config/controls.ts` (ProjectK's values; only structural changes carry over) |
+| Config | `src/config/sim.ts`, `src/config/render.ts`, `src/config/renderBackend.ts`, `src/config/save.ts`, `src/config/crash.ts`, `src/config/controls.ts` (this game's values; only structural changes carry over) |
 
-`src/ui/dom.ts` and `src/testSupport/memoryStorage.ts` are ProjectK's own.
+`src/ui/dom.ts` and `src/testSupport/memoryStorage.ts` are Project Outbound's own.
 
 ## Not taken yet: rewrite references
 
-These are read, not copied, when a ProjectK feature reaches them. A check only notes changes to them.
+These are read, not copied, when a Project Outbound feature reaches them. A check only notes changes to them.
 
 `src/render/retroFilter.ts` (dither and low-res maths, to be rewritten in TSL), `src/sim/simulation.ts`,
 `src/sim/commands.ts`, `src/sim/events.ts`, `src/input/playerInput.ts`, `src/input/pointerLock.ts`,

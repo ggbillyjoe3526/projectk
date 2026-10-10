@@ -5,7 +5,7 @@ export type ReportField = readonly [label: string, value: string | number | bool
 
 /** What a crash or diagnostics report says. Plain data, so the report is a pure function of it. */
 export interface ReportInfo {
-  /** The report's first line, e.g. "ProjectK crash report". */
+  /** The report's first line, e.g. "Project Outbound crash report". */
   title: string;
   /** The build label (config/buildVersion.ts). */
   build: string;
