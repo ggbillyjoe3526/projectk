@@ -82,6 +82,11 @@ export class IslandHum {
     return this.ctx.resume();
   }
 
+  /** Silence everything in the mix (the game is paused) until `resume`. */
+  suspend(): Promise<void> {
+    return this.ctx.suspend();
+  }
+
   /**
    * Per frame. `beat` and `hiss` come from HumClock; `clarity` is how well the
    * ground carries the sound here; `listening` brings the hum forward and

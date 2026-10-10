@@ -206,6 +206,11 @@ export class BroughSlice {
     }
   }
 
+  /** Paused: the island's sound and the fight's go quiet until it resumes. */
+  setPaused(on: boolean): void {
+    void (on ? this.audio?.suspend() : this.audio?.resume())?.catch(() => undefined);
+  }
+
   /** The off-hand light on or off (the off-hand swap, until there are other items to swap to). */
   toggleTorch(): void {
     if (!switchTorch(this.torch) && this.torch.charge === 0) this.hud.say('The torch is dead. It needs charging at the cottage.', this.now, 3);

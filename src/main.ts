@@ -21,6 +21,7 @@ import { startGuardedStorage } from './save/guardedStorage';
 import { browserStorage, flushSettings, loadSetting, oneOf } from './settings/storage';
 import { CrashScreen } from './ui/crashScreen';
 import { DebugOverlay } from './ui/debugOverlay';
+import { PauseScreen } from './ui/pauseScreen';
 import { startGate } from './ui/startGate';
 
 /**
@@ -88,7 +89,11 @@ async function main(): Promise<void> {
   const keyboard = new Keyboard(window, bindings);
   const pointer = new PointerAim(window, container);
   watchMouseButtons(container, keyboard);
-  awayWatch({ doc: document, win: window }, () => keyboard.releaseAll());
+  // Looking away (another tab, another window) pauses the game, as well as letting go of every key.
+  awayWatch({ doc: document, win: window }, () => {
+    keyboard.releaseAll();
+    setPaused(true);
+  });
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) flushSettings();
   });
@@ -137,11 +142,27 @@ async function main(): Promise<void> {
     deflectHeld: false,
     deflectPressed: false,
     stepPressed: false,
+    sprintHeld: false,
     interactPressed: false,
   };
   const aim = { x: 0, y: 0 };
-  /** The simulation waits behind the start pane. */
+  /** The simulation waits behind the start pane, and while paused. */
   let playing = false;
+  let paused = false;
+  let pauseScreen: PauseScreen | null = null;
+  const setPaused = (on: boolean): void => {
+    if (!playing || on === paused) return;
+    paused = on;
+    pauseScreen?.show(on);
+    keyboard.releaseAll();
+    slice.setPaused(on);
+    // Paused, the browser keeps its own keys (Space scrolls nothing, but menus and shortcuts work as usual).
+    keyboard.capturing = !on;
+  };
+  // Escape can't be bound (in fullscreen the browser takes it first), so it's heard here rather than through the bindings.
+  window.addEventListener('keydown', (e) => {
+    if (e.code === 'Escape' && !e.repeat) setPaused(!paused);
+  });
   const pacer = new FramePacer();
   let last = performance.now();
   let lastDrawn = last;
@@ -151,7 +172,7 @@ async function main(): Promise<void> {
   const frame = (now: number): void => {
     const dt = Math.min(Math.max(0, (now - last) / 1000), SIM.maxFrameDt);
     last = now;
-    const ticks = playing ? advanceStepper(stepper, dt) : 0;
+    const ticks = playing && !paused ? advanceStepper(stepper, dt) : 0;
     facts.tick += ticks;
     intent.forward = keyboard.isDown('forward');
     intent.listen = keyboard.isDown('listen');
@@ -160,6 +181,7 @@ async function main(): Promise<void> {
     intent.aim = pointer.known ? aim : null;
     intent.attackHeld = keyboard.isDown('attack');
     intent.deflectHeld = keyboard.isDown('deflect');
+    intent.sprintHeld = keyboard.isDown('sprint');
     // A press reaches the next tick only, held over a frame that runs no tick (above 60 frames a second).
     intent.attackPressed ||= keyboard.wasPressed('attack');
     intent.deflectPressed ||= keyboard.wasPressed('deflect');
@@ -169,7 +191,8 @@ async function main(): Promise<void> {
       slice.tick(intent, SIM_DT);
       intent.attackPressed = intent.deflectPressed = intent.stepPressed = intent.interactPressed = false;
     }
-    if (keyboard.wasPressed('swapOffHand')) slice.toggleTorch();
+    if (keyboard.wasPressed('pause')) setPaused(!paused);
+    if (keyboard.wasPressed('swapOffHand') && !paused) slice.toggleTorch();
     if (keyboard.wasPressed('debugTimeScale')) slice.cycleTimeScale();
     if (keyboard.wasPressed('debugFightReadout')) slice.toggleFightReadout();
     if (keyboard.wasPressed('debugOverlay')) {
@@ -191,17 +214,21 @@ async function main(): Promise<void> {
   requestAnimationFrame(frame);
 
   const key = (action: Action): string => keyboard.keyName(action);
-  await startGate(container, 'PROJECT OUTBOUND', [
-    ['Mouse', 'face and aim'],
+  const controls = (): [string, string][] => [
+    ['Mouse', 'face and aim (the mark over one of the dead is your target)'],
     [`${key('forward')}`, 'walk toward the pointer'],
+    [`${keyboard.keysName('sprint')} (hold)`, 'sprint, while stamina lasts'],
     [`${key('attack')}`, 'attack (hold with the sword: sained strike)'],
     [keyboard.keysName('deflect'), 'deflect as the blow lands (a glint in its hand warns you)'],
     [`${key('step')}`, 'step back, quickly'],
     [key('interact'), 'read, take, open, rest, the Rite'],
     [`${key('listen')} (hold)`, 'kneel and listen to the island'],
     [key('swapOffHand'), 'torch on or off'],
+    [`Esc / ${key('pause')}`, 'pause'],
     [`${key('debugOverlay')} / ${key('debugTimeScale')} / ${key('debugFightReadout')}`, 'debug readout / faster island time / deflect timing'],
-  ], slice.continuing ? () => slice.startOver() : undefined);
+  ];
+  await startGate(container, 'PROJECT OUTBOUND', controls(), slice.continuing ? () => slice.startOver() : undefined);
+  pauseScreen = new PauseScreen(container, controls(), 'Click, Esc or P to carry on', () => setPaused(false));
   slice.startAudio();
   playing = true;
 }

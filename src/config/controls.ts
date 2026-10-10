@@ -7,8 +7,13 @@ export const DEFAULT_BINDINGS = {
   /** Walk toward the pointer. There is no strafing or walking back: the mouse steers (William, 2026-10-10). */
   forward: ['KeyW', 'ArrowUp'],
   attack: ['Mouse0'],
-  /** Right click, or Left Shift for a player who'd rather deflect from the keyboard hand. */
-  deflect: ['Mouse2', 'ShiftLeft'],
+  /** Right click. (Left Shift deflected too until sprint took it.) */
+  deflect: ['Mouse2'],
+  /**
+   * Hold while walking: sprint, spending stamina (William, 2026-10-10). Left Shift only: on Left Alt, letting go opened
+   * the browser's menu on Windows, which swallowed the release of W and left the player walking.
+   */
+  sprint: ['ShiftLeft'],
   /** The quick step back, away from the pointer. */
   step: ['Space'],
   /** Hold: kneel, palm on stone, and listen to the island. */
@@ -18,6 +23,8 @@ export const DEFAULT_BINDINGS = {
   interact: ['KeyE'],
   /** The phone: notes, photos, map, tide times, messages. Also the menu. */
   phone: ['Tab'],
+  /** Pause (Escape pauses too, but can't be bound: in fullscreen the browser takes it). */
+  pause: ['KeyP'],
   /** F11 is the browser's own and would leave the page's fullscreen; F10 is free once the game takes it. */
   fullscreen: ['F10'],
   debugOverlay: ['Backquote', 'F3'],
@@ -34,21 +41,25 @@ export const REBINDABLE: readonly { action: Action; label: string }[] = [
   { action: 'forward', label: 'Walk' },
   { action: 'attack', label: 'Attack' },
   { action: 'deflect', label: 'Deflect' },
+  { action: 'sprint', label: 'Sprint (hold)' },
   { action: 'step', label: 'Step back' },
   { action: 'listen', label: 'Listen (hold)' },
   { action: 'swapOffHand', label: 'Swap off-hand item' },
   { action: 'interact', label: 'Interact' },
   { action: 'phone', label: 'Phone' },
+  { action: 'pause', label: 'Pause' },
   { action: 'fullscreen', label: 'Fullscreen' },
 ];
 
 /**
  * Default keys that moved when a later action took them: bindings saved before `added` existed, with `action` still on
  * its `old` keys, give `action` its new default instead, so `added` gets its default key rather than none (the player
- * never chose `old`; input/keyBindings.ts). Saved sets that have `added` are left as they are. Empty until a default
- * moves.
+ * never chose `old`; input/keyBindings.ts). Saved sets that have `added` are left as they are.
  */
-export const MOVED_DEFAULTS: readonly { action: Action; old: readonly string[]; added: Action }[] = [];
+export const MOVED_DEFAULTS: readonly { action: Action; old: readonly string[]; added: Action }[] = [
+  // Sprint took Left Shift from deflect (2026-10-10).
+  { action: 'deflect', old: ['Mouse2', 'ShiftLeft'], added: 'sprint' },
+];
 
 /**
  * Keys that can't be bound: Escape pauses (the browser releases the pointer), Meta/OS keys, and keys the browser can't

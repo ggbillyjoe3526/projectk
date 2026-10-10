@@ -5,7 +5,7 @@ import type { PlayerCommand, PlayerState } from '../player';
 import { loadLevel } from '../../content/level';
 import { HAUGSAY } from '../../content/levels/haugsay';
 import type { WorldDef } from '../world/types';
-import { createEncounter, deadCanStand, passTime, type Encounter, type FightContext, type FighterInput, interactTarget, perfectWindow, stepEncounter } from './encounter';
+import { createEncounter, deadCanStand, focusOf, passTime, type Encounter, type FightContext, type FighterInput, interactTarget, perfectWindow, stepEncounter } from './encounter';
 
 /** Open flat shore with no walls. */
 const flat: WorldDef = {
@@ -18,7 +18,7 @@ const flat: WorldDef = {
 const broughGreybox = loadLevel(HAUGSAY).sim;
 const ctx: FightContext = { lit: true, dark: false, inRefuge: false };
 
-const none = (): FighterInput => ({ attackHeld: false, attackPressed: false, deflectHeld: false, deflectPressed: false, stepPressed: false, interactPressed: false });
+const none = (): FighterInput => ({ attackHeld: false, attackPressed: false, deflectHeld: false, deflectPressed: false, stepPressed: false, sprintHeld: false, interactPressed: false });
 const still = (): PlayerCommand => ({ moveX: 0, moveZ: 0, aimX: null, aimZ: null, listen: false, speedScale: 1, turn: true });
 
 /** The player at the origin facing +z, one of the dead `d` metres in front facing back at them. */
@@ -421,5 +421,91 @@ describe('time passing', () => {
     expect(downed.health).toBe(downed.maxHealth);
     expect(rested.state).toBe('rested');
     expect(enc.fighter.action).toBe('free');
+  });
+});
+
+describe('sprinting', () => {
+  const walkAway = (): PlayerCommand => ({ ...still(), moveZ: -1 });
+
+  it('is faster than walking and spends stamina, which comes back after a pause', () => {
+    const walk = duel('sword', 40);
+    const dash = duel('sword', 40);
+    for (let i = 0; i < 60; i++) {
+      tick(walk.enc, walk.p, {}, walkAway());
+      tick(dash.enc, dash.p, { sprintHeld: true }, walkAway());
+    }
+    expect(-dash.p.z).toBeCloseTo(-walk.p.z * PC.sprint.speed, 1);
+    expect(dash.enc.fighter.stamina).toBeCloseTo(PC.maxStamina - PC.sprint.drain, 0);
+    expect(walk.enc.fighter.stamina).toBe(PC.maxStamina);
+    const spent = dash.enc.fighter.stamina;
+    run(dash.enc, dash.p, PC.sprint.regenDelay - 1);
+    expect(dash.enc.fighter.stamina).toBe(spent);
+    run(dash.enc, dash.p, 60);
+    expect(dash.enc.fighter.stamina).toBeGreaterThan(spent);
+  });
+
+  it('runs dry, and can’t be used again until stamina is back up', () => {
+    const { enc, p } = duel('sword', 80);
+    for (let i = 0; i < 60 * (PC.maxStamina / PC.sprint.drain) + 5; i++) tick(enc, p, { sprintHeld: true }, walkAway());
+    expect(enc.fighter.stamina).toBe(0);
+    expect(enc.fighter.winded).toBe(true);
+    tick(enc, p, { sprintHeld: true }, walkAway());
+    expect(enc.fighter.sprinting).toBe(false);
+    while (enc.fighter.winded) tick(enc, p);
+    expect(enc.fighter.stamina).toBeGreaterThanOrEqual(PC.sprint.recoverAt);
+    tick(enc, p, { sprintHeld: true }, walkAway());
+    expect(enc.fighter.sprinting).toBe(true);
+  });
+
+  it('is loud: the dead hear it further off than they would see the player, even in the dark', () => {
+    const dark: FightContext = { lit: false, dark: true, inRefuge: false };
+    const d = (UT.sightLit + UT.hearSprint) / 2;
+    for (const sprintHeld of [false, true]) {
+      const { enc, p } = duel('sword', d);
+      for (let i = 0; i < 10; i++) stepEncounter(enc, { ...none(), sprintHeld }, { ...still(), moveZ: -1 }, p, flat, -10, dark, SIM_DT);
+      expect(enc.dead[0]!.state === 'stalk', `sprinting ${sprintHeld}`).toBe(sprintHeld);
+    }
+  });
+
+  it('needs the player walking and free: not standing, not mid-swing', () => {
+    const { enc, p } = duel('sword', 40);
+    tick(enc, p, { sprintHeld: true });
+    expect(enc.fighter.sprinting).toBe(false);
+    tick(enc, p, { attackPressed: true });
+    tick(enc, p, { sprintHeld: true }, walkAway());
+    expect(enc.fighter.action).toBe('attack');
+    expect(enc.fighter.sprinting).toBe(false);
+    expect(enc.fighter.stamina).toBe(PC.maxStamina);
+  });
+});
+
+describe('the target mark', () => {
+  it('marks the nearest of the dead in front, only with a blade in hand', () => {
+    const enc = createEncounter(7, 'sword', [
+      { x: 0, z: 6, facing: Math.PI },
+      { x: 0.5, z: 4, facing: Math.PI },
+      { x: 0, z: -2, facing: 0 },
+    ]);
+    const p: PlayerState = { x: 0, z: 0, y: 0, facing: 0, listening: false, depth: 0 };
+    expect(focusOf(enc, p)).toBe(1);
+    p.facing = Math.PI;
+    expect(focusOf(enc, p)).toBe(2);
+    enc.fighter.weapon = 'none';
+    expect(focusOf(enc, p)).toBe(-1);
+  });
+
+  it('keeps its mark unless another is clearly nearer, and drops one laid to rest', () => {
+    const enc = createEncounter(7, 'sword', [
+      { x: 0, z: 4, facing: Math.PI },
+      { x: 0.3, z: 3.6, facing: Math.PI },
+    ]);
+    const p: PlayerState = { x: 0, z: 0, y: 0, facing: 0, listening: false, depth: 0 };
+    enc.focus = 0;
+    expect(focusOf(enc, p)).toBe(0);
+    enc.dead[1]!.z = 2;
+    expect(focusOf(enc, p)).toBe(1);
+    enc.focus = 1;
+    enc.dead[1]!.state = 'rested';
+    expect(focusOf(enc, p)).toBe(0);
   });
 });

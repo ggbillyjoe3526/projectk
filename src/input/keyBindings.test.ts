@@ -13,7 +13,7 @@ class MemoryStore implements KeyValueStore {
 }
 
 describe('KeyBindings', () => {
-  it('starts with the defaults: WASD and the arrows move, the mouse buttons attack and deflect', () => {
+  it('starts with the defaults: W and the up arrow walk, the mouse buttons attack and deflect', () => {
     const b = new KeyBindings(null);
     expect(b.codes('forward')).toEqual(['KeyW', 'ArrowUp']);
     expect(b.actionOf('KeyW')).toBe('forward');
@@ -21,7 +21,7 @@ describe('KeyBindings', () => {
     expect(b.primary('attack')).toBe('Mouse0');
     expect(b.primary('deflect')).toBe('Mouse2');
     expect(b.primary('listen')).toBe('KeyF');
-    expect(b.actionOf('KeyP')).toBeUndefined();
+    expect(b.actionOf('KeyO')).toBeUndefined();
   });
 
   it('lists every action but the debug keys for rebinding', () => {
@@ -145,6 +145,19 @@ describe('KeyBindings', () => {
     expect(notified).toBe(2);
     expect(b.primary('step')).toBe('Space');
     expect(new KeyBindings(store).primary('step')).toBe('Space');
+  });
+
+  it('gives Left Shift to sprint in a set saved while it still deflected, but keeps a deflect the player chose', () => {
+    const store = new MemoryStore();
+    store.setItem(KEY_BINDINGS_KEY, JSON.stringify({ deflect: ['Mouse2', 'ShiftLeft'], step: ['KeyC'] }));
+    const b = new KeyBindings(store);
+    expect(b.codes('deflect')).toEqual(['Mouse2']);
+    expect(b.codes('sprint')).toEqual(['ShiftLeft']);
+    expect(b.primary('step')).toBe('KeyC');
+    store.setItem(KEY_BINDINGS_KEY, JSON.stringify({ deflect: ['ShiftLeft'] }));
+    const c = new KeyBindings(store);
+    expect(c.codes('deflect')).toEqual(['ShiftLeft']);
+    expect(c.codes('sprint')).toEqual([]);
   });
 
   it('ignores corrupt or invalid saved data', () => {

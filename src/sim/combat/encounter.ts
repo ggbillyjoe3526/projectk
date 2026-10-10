@@ -46,6 +46,13 @@ export interface Fighter {
   stepZ: number;
   /** The enemy being given the Rite or laid down (-1: none). */
   target: number;
+  stamina: number;
+  /** Sprinting this tick. */
+  sprinting: boolean;
+  /** Ticks since stamina was last spent. */
+  sinceSprint: number;
+  /** Ran out of stamina: no sprinting until it is back to `sprint.recoverAt`. */
+  winded: boolean;
 }
 
 export type UnburiedState = 'idle' | 'stalk' | 'still' | 'windup' | 'strike' | 'recover' | 'reel' | 'hurt' | 'broken' | 'downed' | 'rising' | 'rested' | 'home';
@@ -116,6 +123,8 @@ export interface Encounter {
   hitStop: number;
   /** Ticks since the player died. */
   deadFor: number;
+  /** The enemy the player is marked as facing up to, that an attack turns toward when it is close enough (-1: none). */
+  focus: number;
   /** What happened since the presentation last read it; the presentation empties it. */
   events: CombatEvent[];
 }
@@ -127,6 +136,8 @@ export interface FighterInput {
   deflectHeld: boolean;
   deflectPressed: boolean;
   stepPressed: boolean;
+  /** Left Shift or Left Alt held: sprint while walking, for as long as stamina lasts. */
+  sprintHeld: boolean;
   /** E near a broken or fallen body: the Rite or laying it down. */
   interactPressed: boolean;
 }
@@ -162,6 +173,10 @@ export function createFighter(weapon: WeaponId): Fighter {
     stepX: 0,
     stepZ: 0,
     target: -1,
+    stamina: PC.maxStamina,
+    sprinting: false,
+    sinceSprint: 999,
+    winded: false,
   };
 }
 
@@ -194,7 +209,7 @@ export function createUnburied(x: number, z: number, facing: number, rng: RngSta
 
 export function createEncounter(seed: number, weapon: WeaponId, spawns: readonly { x: number; z: number; facing: number }[]): Encounter {
   const rng = createRng(seed);
-  return { fighter: createFighter(weapon), dead: spawns.map((s) => createUnburied(s.x, s.z, s.facing, rng)), rng, hitStop: 0, deadFor: 0, events: [] };
+  return { fighter: createFighter(weapon), dead: spawns.map((s) => createUnburied(s.x, s.z, s.facing, rng)), rng, hitStop: 0, deadFor: 0, focus: -1, events: [] };
 }
 
 /**
@@ -279,6 +294,8 @@ export function stepEncounter(
   const f = enc.fighter;
   if (f.action === 'dead') {
     enc.deadFor++;
+    enc.focus = -1;
+    f.sprinting = false;
     return;
   }
   // Noted even through a hit-stop, so a press in the freeze still counts.
@@ -290,11 +307,31 @@ export function stepEncounter(
 
   updateFighter(enc, input, player, ctx, dt);
   shapeCommand(f, cmd);
+  sprint(f, input, cmd, dt);
   stepPlayer(player, cmd, world, waterLevel, dt);
   if (f.action === 'attack' || f.action === 'sained') swingHits(enc, player);
 
   for (let i = 0; i < enc.dead.length; i++) stepUnburied(enc, i, player, world, waterLevel, ctx, dt);
   separate(enc, player, world);
+  enc.focus = focusOf(enc, player);
+}
+
+/** Sprinting: only walking free (not mid-swing, guarding or stepping), and only while there's stamina for it. */
+function sprint(f: Fighter, input: FighterInput, cmd: PlayerCommand, dt: number): void {
+  const S = PC.sprint;
+  const moving = cmd.moveX !== 0 || cmd.moveZ !== 0;
+  f.sprinting = input.sprintHeld && moving && f.action === 'free' && !f.winded && f.stamina > 0;
+  if (f.sprinting) {
+    cmd.speedScale *= S.speed;
+    cmd.listen = false;
+    f.stamina = Math.max(0, f.stamina - S.drain * dt);
+    f.sinceSprint = 0;
+    if (f.stamina === 0) f.winded = true;
+    return;
+  }
+  if (f.sinceSprint < 999) f.sinceSprint++;
+  if (f.sinceSprint >= S.regenDelay) f.stamina = Math.min(PC.maxStamina, f.stamina + S.regen * dt);
+  if (f.winded && f.stamina >= S.recoverAt) f.winded = false;
 }
 
 // --- the player ---
@@ -521,19 +558,41 @@ function shapeCommand(f: Fighter, cmd: PlayerCommand): void {
   cmd.listen = cmd.listen && f.action === 'free';
 }
 
-/** Turn an attack toward the nearest enemy close in front, so swings don't whiff past a target the aim almost has. */
-function lockOn(enc: Encounter, p: PlayerState): void {
-  let best = -1;
-  let bestD: number = PC.lockReach;
-  enc.dead.forEach((u, i) => {
-    if (!targetable(u)) return;
+/** The enemy to mark as the target: the nearest in front within `focusReach`, keeping the last one unless another is clearly nearer. */
+export function focusOf(enc: Encounter, p: PlayerState): number {
+  if (!WEAPONS[enc.fighter.weapon].armed) return -1;
+  const inFront = (u: Unburied): number => {
+    if (!targetable(u)) return Infinity;
     const d = Math.hypot(u.x - p.x, u.z - p.z);
-    if (d < bestD && Math.abs(angleTo(p.facing, p.x, p.z, u.x, u.z)) <= PC.lockHalfAngle) {
-      best = i;
-      bestD = d;
-    }
+    return d <= PC.focusReach && Math.abs(angleTo(p.facing, p.x, p.z, u.x, u.z)) <= PC.lockHalfAngle ? d : Infinity;
+  };
+  let best = -1;
+  let bestD = Infinity;
+  enc.dead.forEach((u, i) => {
+    const d = inFront(u);
+    if (d < bestD) (best = i), (bestD = d);
   });
-  if (best >= 0) p.facing = Math.atan2(enc.dead[best]!.x - p.x, enc.dead[best]!.z - p.z);
+  const kept = enc.dead[enc.focus];
+  if (kept && best !== enc.focus && inFront(kept) <= bestD * PC.focusKeep) return enc.focus;
+  return best;
+}
+
+/**
+ * Turn an attack toward the marked target when it is close, else the nearest close in front, so swings don't whiff
+ * past a target the aim almost has.
+ */
+function lockOn(enc: Encounter, p: PlayerState): void {
+  const reach = (u: Unburied | undefined): number => (u && targetable(u) ? Math.hypot(u.x - p.x, u.z - p.z) : Infinity);
+  let best = enc.dead[enc.focus];
+  if (reach(best) > PC.lockReach) {
+    best = undefined;
+    let bestD: number = PC.lockReach;
+    for (const u of enc.dead) {
+      const d = reach(u);
+      if (d < bestD && Math.abs(angleTo(p.facing, p.x, p.z, u.x, u.z)) <= PC.lockHalfAngle) (best = u), (bestD = d);
+    }
+  }
+  if (best) p.facing = Math.atan2(best.x - p.x, best.z - p.z);
 }
 
 function targetable(u: Unburied): boolean {
@@ -617,7 +676,8 @@ function stepUnburied(enc: Encounter, i: number, p: PlayerState, world: WorldDef
   const f = enc.fighter;
   u.t++;
   const dist = Math.hypot(p.x - u.x, p.z - u.z);
-  const sight = ctx.lit ? UT.sightLit : UT.sightDark;
+  // Seen within sight (further with the torch lit), or heard further still while the player sprints.
+  const sight = Math.max(ctx.lit ? UT.sightLit : UT.sightDark, f.sprinting ? UT.hearSprint : 0);
   const canReach = !ctx.inRefuge && f.action !== 'dead';
 
   if (u.state === 'idle' || u.state === 'stalk' || u.state === 'still' || u.state === 'home') {
