@@ -153,6 +153,10 @@ The game code is in this repository. See the [main README](../README.md) to run 
 | M1 deflect fixes | The deflect made reliable and readable after William's playtest (see below). | #8 |
 | M1 deflect timing | The dead's blow lands when the arm visibly reaches the player; the tell re-timed to it. | #10 |
 | Levels as data | The map moved from code into level data (`src/content/levels`), checked by the unit tests. First step of the vertical slice. | #12 |
+| Stage 1 spaces | The village street and shop, the lane, the kirkyard and the kirk, with the sword on the howe slab and the vestry as a refuge. | #14 |
+| Stage 1 expedition loop | Things to use with E (hearth, refuge, documents, tide table, sword, the kirkyard gate), the island clock, waiting out the tide, saving in the browser. | #15 |
+| Torch battery | The torch drains while lit and charges in the cottage; the static greybox merged to cut draw calls. | #16 |
+| The opening's beats | Empty-handed first trip and retreat, the knife from the dresser, the rise that sends you to the notebook, the sword brought home. | #17 |
 
 Playable builds and the camera lab were published as claude.ai artifacts, which only William's account can open:
 [camera lab](https://claude.ai/artifact/AeiT4iTYDFGWtLZhDpbzBU),

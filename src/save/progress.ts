@@ -1,4 +1,5 @@
 import { STORAGE_PREFIX } from '../config/save';
+import type { Beat } from '../content/level';
 import type { Progress } from '../game/things';
 import type { Encounter } from '../sim/combat/encounter';
 import type { PlayerState } from '../sim/player';
@@ -50,8 +51,12 @@ export function readSavedGame(store: Store | null, layout: string, deadCount: nu
 export function parseSavedGame(raw: unknown, layout: string, deadCount: number): SavedGame | null {
   if (!isObject(raw) || raw.version !== PROGRESS_VERSION || !isObject(raw.progress)) return null;
   const p = raw.progress;
+  // A game saved before the opening's beats started with the knife in hand and the story under way.
+  const beforeBeats = !('knifeTaken' in p);
   const progress: Progress = {
+    knifeTaken: p.knifeTaken === true || beforeBeats,
     swordTaken: p.swordTaken === true,
+    beats: beforeBeats ? ['sawDead', 'sawRise'] : strings(p.beats).filter(isBeat),
     read: strings(p.read),
     opened: strings(p.opened),
   };
@@ -79,6 +84,10 @@ function checkpointOk(c: unknown, deadCount: number): boolean {
   const f = encounter.fighter;
   if (![f.health, f.resolve].every(finite) || typeof f.action !== 'string') return false;
   return encounter.dead.every((u: unknown) => isObject(u) && [u.x, u.z, u.health, u.maxHealth].every(finite) && typeof u.state === 'string');
+}
+
+function isBeat(s: string): s is Beat {
+  return s === 'sawDead' || s === 'sawRise' || s === 'swordHome';
 }
 
 function isObject(v: unknown): v is Record<string, unknown> {

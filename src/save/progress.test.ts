@@ -9,7 +9,7 @@ const memory = () => {
 
 const spawns = [{ x: 1, z: 1, facing: 0 }, { x: 2, z: 2, facing: 0 }];
 const game = (): SavedGame => ({
-  progress: { swordTaken: true, read: ['note'], opened: ['gate'] },
+  progress: { knifeTaken: true, swordTaken: true, beats: ['sawDead', 'sawRise'], read: ['note'], opened: ['gate'] },
   checkpoint: { encounter: createEncounter(3, 'sword', spawns), player: { x: 1, y: 2, z: 3, facing: 0, listening: false, depth: 0 }, tideClock: 99 },
 });
 
@@ -32,11 +32,17 @@ describe('the saved game', () => {
     const damaged = JSON.parse(JSON.stringify({ version: 1, layout: 'a', ...game() }));
     damaged.checkpoint.player.x = 'east';
     expect(parseSavedGame(damaged, 'a', 2)).toEqual({ progress: game().progress, checkpoint: null });
-    const odd = { version: 1, layout: 'a', progress: { swordTaken: 'yes', read: ['a', 3], opened: 'gate' }, checkpoint: null };
-    expect(parseSavedGame(odd, 'a', 2)).toEqual({ progress: { swordTaken: false, read: ['a'], opened: [] }, checkpoint: null });
+    const odd = { version: 1, layout: 'a', progress: { knifeTaken: 1, swordTaken: 'yes', beats: ['sawDead', 'flew', 4], read: ['a', 3], opened: 'gate' }, checkpoint: null };
+    const oddProgress = { knifeTaken: false, swordTaken: false, beats: ['sawDead'], read: ['a'], opened: [] };
+    expect(parseSavedGame(odd, 'a', 2)).toEqual({ progress: oddProgress, checkpoint: null });
     const store = memory();
     store.setItem(PROGRESS_KEY, '{not json');
     expect(readSavedGame(store, 'a', 2)).toBeNull();
+  });
+
+  it('reads a game saved before the opening’s beats as armed and under way', () => {
+    const old = { version: 1, layout: 'a', progress: { swordTaken: false, read: [], opened: [] }, checkpoint: null };
+    expect(parseSavedGame(old, 'a', 2)?.progress).toMatchObject({ knifeTaken: true, beats: ['sawDead', 'sawRise'] });
   });
 
   it('never overwrites a newer build’s save, and keeps fields it doesn’t know', () => {

@@ -2,7 +2,7 @@ import { causewayOpenFraction, nextTides } from '../sim/tide';
 import { islandTime } from '../sim/islandClock';
 import { DEFAULT_TIDE, ISLAND_CLOCK } from '../config/tide';
 import { PLAYER_TUNING } from '../config/player';
-import type { Thing } from '../content/level';
+import type { Beat, Thing } from '../content/level';
 import { inBox } from '../sim/world/ground';
 
 /**
@@ -13,9 +13,15 @@ import { inBox } from '../sim/world/ground';
 /** How far from a thing's point the player can use it (beyond their own radius). */
 export const THING_REACH = 1.6;
 
+/** How near a thing the player comes before its nudge is said. */
+export const NUDGE_REACH = 4;
+
 /** What has changed for good: kept through death and saved at once, unlike the checkpoint. */
 export interface Progress {
+  knifeTaken: boolean;
   swordTaken: boolean;
+  /** The story's beats so far, in the order they happened. */
+  beats: Beat[];
   /** Documents read, by id. */
   read: string[];
   /** Gates opened, by the wall each opened. */
@@ -23,16 +29,24 @@ export interface Progress {
 }
 
 export function freshProgress(): Progress {
-  return { swordTaken: false, read: [], opened: [] };
+  return { knifeTaken: false, swordTaken: false, beats: [], read: [], opened: [] };
 }
 
-/** The nearest thing in reach that can still be used: not the sword once taken, nor a gate once open. */
+/** Whether a thing is there to use: its beat has come, and it isn't a blade already taken or a gate already open. */
+export function thingThere(t: Thing, progress: Progress): boolean {
+  if (t.after && !progress.beats.includes(t.after)) return false;
+  if (t.kind === 'knife') return !progress.knifeTaken;
+  if (t.kind === 'sword') return !progress.swordTaken;
+  if (t.kind === 'gate') return !progress.opened.includes(t.wall);
+  return true;
+}
+
+/** The nearest thing in reach that is there to use. */
 export function thingHere(things: readonly Thing[], progress: Progress, x: number, z: number): Thing | null {
   let best: Thing | null = null;
   let bestD = THING_REACH + PLAYER_TUNING.radius;
   for (const t of things) {
-    if (t.kind === 'sword' && progress.swordTaken) continue;
-    if (t.kind === 'gate' && progress.opened.includes(t.wall)) continue;
+    if (!thingThere(t, progress)) continue;
     const d = Math.hypot(t.x - x, t.z - z);
     if (d < bestD) {
       best = t;
@@ -40,6 +54,19 @@ export function thingHere(things: readonly Thing[], progress: Progress, x: numbe
     }
   }
   return best;
+}
+
+/**
+ * A thing near the player with a nudge to say: there, not yet used (a document unread), and not nudged already
+ * (`nudged`, the ids said this visit).
+ */
+export function nudgeHere(things: readonly Thing[], progress: Progress, nudged: ReadonlySet<string>, x: number, z: number): Thing | null {
+  for (const t of things) {
+    if (!t.nudge || nudged.has(t.id) || !thingThere(t, progress)) continue;
+    if (t.kind === 'document' && progress.read.includes(t.id)) continue;
+    if (Math.hypot(t.x - x, t.z - z) < NUDGE_REACH) return t;
+  }
+  return null;
 }
 
 /** Whether the player stands where the gate opens from. */
@@ -58,6 +85,8 @@ export function thingPrompt(t: Thing, progress: Progress, x: number, z: number):
       return progress.read.includes(t.id) ? `E  Read again: ${t.title}` : `E  Read: ${t.title}`;
     case 'tideTable':
       return 'E  Read the tide table';
+    case 'knife':
+      return 'E  Take the kitchen knife';
     case 'sword':
       return 'E  Take the sword';
     case 'gate':

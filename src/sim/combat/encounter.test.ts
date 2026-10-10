@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PLAYER_COMBAT as PC, UNBURIED_TUNING as UT, WEAPONS } from '../../config/combat';
+import { PLAYER_COMBAT as PC, UNBURIED_TUNING as UT, WEAPONS, type WeaponId } from '../../config/combat';
 import { SIM_DT } from '../../config/sim';
 import type { PlayerCommand, PlayerState } from '../player';
 import { loadLevel } from '../../content/level';
@@ -22,7 +22,7 @@ const none = (): FighterInput => ({ attackHeld: false, attackPressed: false, def
 const still = (): PlayerCommand => ({ moveX: 0, moveZ: 0, aimX: null, aimZ: null, listen: false, speedScale: 1, turn: true });
 
 /** The player at the origin facing +z, one of the dead `d` metres in front facing back at them. */
-function duel(weapon: 'knife' | 'sword', d = 1.5): { enc: Encounter; p: PlayerState } {
+function duel(weapon: WeaponId, d = 1.5): { enc: Encounter; p: PlayerState } {
   const enc = createEncounter(7, weapon, [{ x: 0, z: d, facing: Math.PI }]);
   const p: PlayerState = { x: 0, z: 0, y: 0, facing: 0, listening: false, depth: 0 };
   return { enc, p };
@@ -109,6 +109,22 @@ describe('the knife', () => {
     expect(u.rises).toBe(1);
     expect(u.maxHealth).toBeGreaterThan(UT.health);
     expect(u.state).not.toBe('downed');
+  });
+
+  it('empty-handed, the player can neither swing nor deflect, only step aside', () => {
+    const { enc, p } = duel('none');
+    tick(enc, p, { attackPressed: true, attackHeld: true });
+    expect(enc.fighter.action).toBe('free');
+    windup(enc, 3);
+    tick(enc, p, { deflectPressed: true, deflectHeld: true });
+    run(enc, p, 4, { deflectHeld: true });
+    expect(enc.fighter.health).toBeLessThan(PC.maxHealth);
+    expect(enc.dead[0]!.health).toBe(UT.health);
+    const { enc: e2, p: p2 } = duel('none');
+    windup(e2, 3);
+    tick(e2, p2, { stepPressed: true });
+    run(e2, p2, PC.step.ticks);
+    expect(e2.fighter.health).toBe(PC.maxHealth);
   });
 });
 

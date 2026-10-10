@@ -1,6 +1,6 @@
 import { BoxGeometry, Color, Group, Mesh, MeshLambertNodeMaterial, PointLight, type Scene, Vector3 } from 'three/webgpu';
 import { CombatSounds } from '../audio/combatSounds';
-import { PLAYER_COMBAT as PC } from '../config/combat';
+import { PLAYER_COMBAT as PC, type WeaponId } from '../config/combat';
 import type { Placement } from '../content/level';
 import { ClashSparks } from '../render/clashSparks';
 import { PlayerWeapon, UnburiedFigures } from '../render/fighterFigures';
@@ -22,18 +22,20 @@ import type { WorldDef } from '../sim/world/types';
 import type { CombatHud } from '../ui/combatHud';
 
 /**
- * The fight (concept v0.6 sections 3.2 to 3.4): the player starts with the kitchen knife, which cuts the dead down but
- * never keeps them down, until they take the old sword from the howe slab in the kirk. This presents the encounter
+ * The fight (concept v0.6 sections 3.2 to 3.4): the player starts empty-handed, then has the kitchen knife, which cuts
+ * the dead down but never keeps them down, until they take the old sword from the howe slab in the kirk. This presents the encounter
  * (bodies, the blade, sparks, sounds, the gauges) and gives the rest of the game what it needs to rest and reload.
  */
 
 /** Ticks after dying before waking at the last place rested. */
 const WAKE_AFTER = 150;
+const NO_EVENTS: readonly CombatEvent[] = [];
 
 export class BroughFight {
   enc: Encounter;
-  private hasSword = false;
-  private readonly weapon: PlayerWeapon;
+  /** The blade in hand, kept through deaths and reloads. */
+  private weaponId: WeaponId = 'none';
+  private readonly arms: PlayerWeapon;
   private readonly figures: UnburiedFigures;
   private readonly swordOnSlab: Group;
   private readonly flash = new PointLight(0xfff4dc, 0, 7, 1.8);
@@ -42,8 +44,6 @@ export class BroughFight {
   private sounds: CombatSounds | null = null;
   /** Each body's position at the previous tick, for interpolation. */
   private readonly prevDead: { x: number; z: number }[];
-  /** The knife has dropped one of the dead and watched it get up: the note now matters. */
-  private sawRise = false;
   private readonly pending: CombatEvent[] = [];
   private readonly sparks: ClashSparks;
   private readonly clashAt = new Vector3();
@@ -64,8 +64,8 @@ export class BroughFight {
   ) {
     const sword = swordAt;
     const dead = deadAt;
-    this.enc = createEncounter(seed, 'knife', dead);
-    this.weapon = new PlayerWeapon(g.player);
+    this.enc = createEncounter(seed, 'none', dead);
+    this.arms = new PlayerWeapon(g.player);
     this.figures = new UnburiedFigures(scene, dead.length);
     this.prevDead = this.enc.dead.map((u) => ({ x: u.x, z: u.z }));
 
@@ -92,31 +92,30 @@ export class BroughFight {
     return structuredClone({ ...this.enc, events: [] });
   }
 
-  /** Back to a checkpoint. The sword stays in hand once taken, whatever the checkpoint says. */
+  /** Back to a checkpoint. A blade stays in hand once taken, whatever the checkpoint says. */
   restore(encounter: Encounter): void {
     this.enc = structuredClone(encounter);
-    this.enc.fighter.weapon = this.hasSword ? 'sword' : 'knife';
+    this.enc.fighter.weapon = this.weaponId;
     this.syncPrev();
   }
 
-  /** A new game: the dead as they first stood, the knife in hand and the sword back on its slab. */
+  /** A new game: the dead as they first stood, empty-handed, and the sword back on its slab. */
   reset(): void {
-    this.enc = createEncounter(this.seed, 'knife', this.deadAt);
-    this.hasSword = false;
+    this.enc = createEncounter(this.seed, 'none', this.deadAt);
+    this.weaponId = 'none';
     this.swordOnSlab.visible = this.swordAt !== null;
-    this.sawRise = false;
     this.syncPrev();
   }
 
-  get swordTaken(): boolean {
-    return this.hasSword;
+  get weapon(): WeaponId {
+    return this.weaponId;
   }
 
-  /** The sword in hand (taken from the slab, or already taken in a saved game). */
-  takeSword(): void {
-    this.hasSword = true;
-    this.swordOnSlab.visible = false;
-    this.enc.fighter.weapon = 'sword';
+  /** A blade in hand (just taken, or already taken in a saved game). The sword leaves its slab. */
+  arm(weapon: WeaponId): void {
+    this.weaponId = weapon;
+    this.enc.fighter.weapon = weapon;
+    if (weapon === 'sword') this.swordOnSlab.visible = false;
   }
 
   /** Resting: health and Resolve back to full (the hearth), or only what's left (a refuge). */
@@ -155,15 +154,15 @@ export class BroughFight {
     return this.enc.fighter.action === 'free';
   }
 
-  /** One fixed tick. The caller has already spent E on anything the player used. */
-  tick(input: FighterInput, cmd: PlayerCommand, p: PlayerState, world: WorldDef, waterLevel: number, ctx: FightContext, dt: number): void {
+  /** One fixed tick, returning what happened in it. The caller has already spent E on anything the player used. */
+  tick(input: FighterInput, cmd: PlayerCommand, p: PlayerState, world: WorldDef, waterLevel: number, ctx: FightContext, dt: number): readonly CombatEvent[] {
     this.syncPrev();
     stepEncounter(this.enc, input, cmd, p, world, waterLevel, ctx, dt);
+    if (!this.enc.events.length) return NO_EVENTS;
     // Events wait here until the next drawn frame plays and shows them.
-    if (this.enc.events.length) {
-      this.pending.push(...this.enc.events);
-      this.enc.events.length = 0;
-    }
+    const events = this.enc.events.splice(0);
+    this.pending.push(...events);
+    return events;
   }
 
   /** Per drawn frame: poses, effects, sounds, the HUD. Returns how hard the view should shake and squeeze. */
@@ -175,7 +174,7 @@ export class BroughFight {
     this.pending.length = 0;
     this.sparks.update(frameDt);
 
-    this.weapon.update(f, f.t + alpha);
+    this.arms.update(f, f.t + alpha);
     this.figures.update(this.enc, this.prevDead, alpha, clock);
 
     // The player's body: kneeling for the Rite, slumped when broken, down when dead.
@@ -196,7 +195,7 @@ export class BroughFight {
 
     this.flashLevel = Math.max(0, this.flashLevel - frameDt * 7);
     this.flash.intensity = this.flashLevel * 9;
-    const tip = this.weapon.arm.localToWorld(this.flash.position.set(0, -1.2, 0));
+    const tip = this.arms.arm.localToWorld(this.flash.position.set(0, -1.2, 0));
     this.flash.position.copy(tip);
     this.shake = Math.max(0, this.shake - frameDt * 0.9);
 
@@ -233,12 +232,6 @@ export class BroughFight {
         break;
       case 'hurt':
         this.shake = Math.max(this.shake, 0.16);
-        break;
-      case 'enemyRise':
-        if (!this.sawRise && this.enc.fighter.weapon === 'knife') {
-          this.sawRise = true;
-          this.hud.say('It’s getting up again.', now);
-        }
         break;
       case 'rested':
         this.hud.say(e.rite ? `${e.name}. At rest.` : `${e.name}. Laid down.`, now, 6);

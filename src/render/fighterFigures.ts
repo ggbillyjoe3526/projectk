@@ -61,9 +61,8 @@ export class PlayerWeapon {
 
   /** Pose the arm for the fighter's action; `t` is ticks into it, with the frame's fraction of a tick added. */
   update(f: Fighter, t: number): void {
-    const hasSword = f.weapon === 'sword';
-    this.sword.visible = hasSword;
-    this.knife.visible = !hasSword;
+    this.sword.visible = f.weapon === 'sword';
+    this.knife.visible = f.weapon === 'knife';
     setArm(this.arm, armPose(f, t));
     // The sained strike's blessing: the blade warms as the charge builds.
     const glow = f.action === 'charge' ? Math.min(1, t / PC.sained.chargeTicks) : f.action === 'sained' ? 1 - t / 40 : 0;

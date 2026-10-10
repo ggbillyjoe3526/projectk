@@ -282,7 +282,7 @@ export function stepEncounter(
     return;
   }
   // Noted even through a hit-stop, so a press in the freeze still counts.
-  if (input.deflectPressed) noteDeflectPress(enc);
+  if (input.deflectPressed && WEAPONS[enc.fighter.weapon].armed) noteDeflectPress(enc);
   if (enc.hitStop > 0) {
     enc.hitStop--;
     return;
@@ -376,7 +376,7 @@ function updateFighter(enc: Encounter, input: FighterInput, cmd: PlayerCommand, 
       }
       if (wantsDeflect) startDeflect();
       else if (input.stepPressed && f.stepCooldown === 0) startStep();
-      else if (input.attackPressed) startSwing();
+      else if (input.attackPressed && w.armed) startSwing();
       break;
 
     case 'attack': {
