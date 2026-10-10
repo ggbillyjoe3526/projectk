@@ -41,6 +41,8 @@ export class CombatSounds {
         return this.groan(0.6, 0.18, 220);
       case 'enemyWindup':
         return this.groan(0.45, 0.22, 330);
+      case 'enemyStrike':
+        return this.whoosh(0.12, 0.28, 260);
       case 'enemyTell':
         this.crack(5200, 0.16, 0.22);
         return this.tone(900, 1700, 0.12, 0.05, 'triangle');

@@ -184,16 +184,26 @@ class UnburiedFigure {
         sway = 0.35;
         break;
       case 'windup': {
-        const k = ease(t / Math.max(1, u.duration));
+        // Up quickly, then held, trembling, until the blow: the glint marks when it will fall.
+        const k = ease(t / UT.attack.raiseTicks);
+        const tremble = k >= 1 ? Math.sin(t * 2.3) * 0.04 : 0;
         hunch = lerp(0.4, -0.15, k);
-        armR = { sweep: -0.3, lift: lerp(-0.4, -2.9, k) };
+        armR = { sweep: -0.3 + tremble, lift: lerp(-0.4, -2.9, k) };
         armL = { sweep: 0.2, lift: -0.8 };
         break;
       }
       case 'strike': {
-        const k = t / UT.attack.active;
-        hunch = lerp(-0.15, 0.7, k);
-        armR = { sweep: lerp(-0.3, 0.2, k), lift: lerp(-2.9, -0.4, k) };
+        // Down onto the player by the impact tick, accelerating, then the follow-through.
+        const a = UT.attack;
+        if (t < a.impactTick) {
+          const k = (t / a.impactTick) ** 2;
+          hunch = lerp(-0.15, 0.45, k);
+          armR = { sweep: lerp(-0.3, 0, k), lift: lerp(-2.9, -1.35, k) };
+        } else {
+          const k = Math.min(1, (t - a.impactTick) / (a.active - a.impactTick));
+          hunch = lerp(0.45, 0.7, k);
+          armR = { sweep: lerp(0, 0.2, k), lift: lerp(-1.35, -0.4, k) };
+        }
         armL = { sweep: 0.2, lift: -0.6 };
         break;
       }
@@ -239,7 +249,7 @@ class UnburiedFigure {
     setArm(this.armL, armL);
 
     // Flares at the tell, then holds until the blow.
-    const tellFrom = u.duration - UT.tellTicks;
+    const tellFrom = u.duration - (UT.tellTicks - UT.attack.impactTick);
     this.glint.visible = u.state === 'windup' && t >= tellFrom;
     if (this.glint.visible) this.glint.scale.setScalar(Math.max(0.8, 2.2 - (t - tellFrom) * 0.35));
 
