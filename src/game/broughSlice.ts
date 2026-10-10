@@ -23,7 +23,7 @@ import { type Checkpoint, readSavedGame, writeSavedGame } from '../save/progress
 import { CombatHud } from '../ui/combatHud';
 import { BEAT_LINES, beatsFrom, END_LINES, weaponFor } from './beats';
 import { BroughFight } from './broughFight';
-import { freshProgress, nudgeHere, onGateSide, type Progress, thingHere, thingPrompt, tideTableLines } from './things';
+import { freshProgress, nudgeHere, onGateSide, type Progress, thingHere, thingPrompt, thingThere, tideTableLines } from './things';
 
 /**
  * The playable slice: the father's cottage, the Brough and the tidal causeway in greybox, under the authored cameras
@@ -194,7 +194,7 @@ export class BroughSlice {
     this.renderer?.setSize(size.width, size.height, false);
     this.camera.aspect = size.width / size.height;
     this.camera.updateProjectionMatrix();
-    ps1Snap.grid.value.set(size.width / 2, size.height / 2);
+    ps1Snap.grid.value.set(size.width * RETRO_LOOK.snapScale, size.height * RETRO_LOOK.snapScale);
   }
 
   /** Start the island's sound; call from a click (browsers keep audio silent until one). */
@@ -455,6 +455,12 @@ export class BroughSlice {
     g.ripple.amount.value = Math.min(1, hum.strength * 1.4 * (0.35 + 0.65 * beat));
     g.ripple.phase.value = this.humClock.phase;
     for (const beam of g.beams) beam.rotation.y += frameDt * 0.35;
+    // Fire and candle light flicker.
+    for (const [i, f] of g.flames.entries()) f.light.intensity = f.base * (0.85 + 0.1 * Math.sin(now / 90 + i * 2.1) + 0.08 * Math.random());
+    for (const [id, mesh] of g.thingMeshes) {
+      const thing = this.level.things.find((t) => t.id === id);
+      mesh.visible = thing !== undefined && thingThere(thing, this.progress);
+    }
     g.fog.density = 0.026 + 0.012 * (0.5 + 0.5 * Math.sin(now / 9000));
 
     // The figure: crouched to listen with a hand on the ground trembling with the beat, otherwise holding the torch.
