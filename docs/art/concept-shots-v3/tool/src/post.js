@@ -6,19 +6,23 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 
 /**
- * Direction B, "Lamplight", rebuilt for realism: HDR linear render with MSAA, ground-truth AO,
- * physically-based bloom, then a filmic grade with grain, halation, vignette and slight lens
- * fringing. `mono` is the low-Resolve state: the world drains to the haar grey and only red survives.
+ * Direction B, "Lamplight", with the round-2 detail: the realistic lighting (AO, bloom, filmic grade)
+ * is rendered at PS2 resolution, 640x360 with no anti-aliasing, then posterised through an ordered
+ * Bayer dither and blown up with hard pixels. `mono` is the low-Resolve state: the world drains to
+ * the haar grey and only red survives.
  */
 export const LOOK = {
-  w: 1280, h: 720,
-  exposure: 1.0, sat: 0.86, contrast: 1.08, lift: 0.006, tint: [1.035, 1.0, 0.94],
-  bloom: 0.35, bloomRadius: 0.55, bloomThreshold: 0.9, grain: 0.055, vignette: 0.5, fringe: 0.00025,
+  w: 640, h: 360,
+  exposure: 1.0, sat: 0.9, contrast: 1.08, lift: 0.006, tint: [1.035, 1.0, 0.94],
+  bloom: 0.4, bloomRadius: 0.5, bloomThreshold: 0.9, grain: 0.035, vignette: 0.5, fringe: 0,
+  levels: 32, dither: 0.9,
 };
 
 const gradeFS = `uniform sampler2D tDiffuse; uniform vec2 res;
-uniform float exposure, sat, contrast, lift, grain, vignette, mono, seed, fringe;
+uniform float exposure, sat, contrast, lift, grain, vignette, mono, seed, fringe, levels, dither;
 uniform vec3 tint; varying vec2 vUv;
+float bayer2(vec2 a){ a = floor(a); return fract(a.x*0.5 + a.y*a.y*0.75); }
+float bayer4(vec2 a){ return bayer2(0.5*a)*0.25 + bayer2(a); }
 float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233)) + seed) * 43758.5453); }
 vec3 aces(vec3 x){ return clamp((x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14), 0.0, 1.0); }
 vec3 toSRGB(vec3 c){ return mix(c*12.92, 1.055*pow(c, vec3(1.0/2.4)) - 0.055, step(0.0031308, c)); }
@@ -45,15 +49,17 @@ void main(){
   // film grain: stronger in the mids and shadows
   float g = hash(gl_FragCoord.xy) + hash(gl_FragCoord.xy + 17.3) - 1.0;
   c += g * grain * (1.0 - l * 0.6);
-  // dither against banding
-  c += (hash(gl_FragCoord.yx + 3.1) - 0.5) / 255.0;
+  // PS2 frame buffer: posterise through a 4x4 ordered dither
+  float steps = levels - 1.0;
+  float t = (bayer4(gl_FragCoord.xy) - 0.5) * dither + 0.5;
+  c = floor(clamp(c, 0.0, 1.0) * steps + t) / steps;
   gl_FragColor = vec4(clamp(c, 0.0, 1.0), 1.0);
 }`;
 
 export function createPipeline(renderer, scene, camera, o = {}) {
   const L = { ...LOOK, ...o };
   const { w, h } = L;
-  const rt = new THREE.WebGLRenderTarget(w, h, { type: THREE.HalfFloatType, samples: 4 });
+  const rt = new THREE.WebGLRenderTarget(w, h, { type: THREE.HalfFloatType, samples: 0 });
   const composer = new EffectComposer(renderer, rt);
   composer.setPixelRatio(1);
   composer.setSize(w, h);
@@ -79,7 +85,7 @@ export function createPipeline(renderer, scene, camera, o = {}) {
     uniforms: {
       tDiffuse: { value: null }, res: { value: new THREE.Vector2(w, h) }, exposure: { value: L.exposure }, sat: { value: L.sat },
       contrast: { value: L.contrast }, lift: { value: L.lift }, grain: { value: L.grain }, vignette: { value: L.vignette },
-      mono: { value: L.mono ?? 0 }, seed: { value: 1.7 }, fringe: { value: L.fringe }, tint: { value: new THREE.Vector3(...L.tint) },
+      mono: { value: L.mono ?? 0 }, seed: { value: 1.7 }, fringe: { value: L.fringe }, levels: { value: L.levels }, dither: { value: L.dither }, tint: { value: new THREE.Vector3(...L.tint) },
     },
     vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
     fragmentShader: gradeFS,

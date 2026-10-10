@@ -1,12 +1,12 @@
 import * as THREE from 'three';
-import { mesh, rbox, plain, rng, hdri, jitter, shadowLight } from '../lib.js';
+import { mesh, rbox, plain, rng, skyEnv, jitter, shadowLight } from '../lib.js';
 import { glow, beam, point, candle, coffin, coffinLid, trestle, sashWindow, phone, softTex } from '../props.js';
 import { person } from '../cast.js';
 
 /** Alan Sloan's cottage on the Brough: the room where the coffin lies. Shared by the vigil and the note. */
 async function cottage({ renderer, M }) {
   const scene = new THREE.Scene();
-  const { env } = await hdri(renderer, 'moonless_golf_1k.hdr');
+  const { env } = await skyEnv(renderer, 'night');
   scene.environment = env; scene.environmentIntensity = 0.25;
   scene.background = new THREE.Color('#020304');
   scene.fog = new THREE.FogExp2('#06070a', 0.03);

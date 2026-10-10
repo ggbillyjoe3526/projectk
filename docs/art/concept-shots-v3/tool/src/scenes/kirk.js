@@ -1,12 +1,12 @@
 import * as THREE from 'three';
-import { mesh, rbox, plain, rng, hdri, jitter, shadowLight } from '../lib.js';
+import { mesh, rbox, plain, rng, skyEnv, jitter, shadowLight } from '../lib.js';
 import { glow, beam, point, candle, coffin, coffinLid, trestle, sword } from '../props.js';
 import { person } from '../cast.js';
 
 /** The island kirk at the service: the coffin is empty and the congregation has turned. */
 export async function kirk({ renderer, M }) {
   const scene = new THREE.Scene();
-  const { env } = await hdri(renderer, 'quarry_01_1k.hdr');
+  const { env } = await skyEnv(renderer, 'overcast');
   scene.environment = env; scene.environmentIntensity = 0.12;
   scene.background = new THREE.Color('#0a0c0e');
   scene.fog = new THREE.FogExp2('#262c32', 0.04);

@@ -67,6 +67,10 @@ export async function person(id, M, o = {}) {
     }
     default: throw new Error('no person ' + id);
   }
-  if (head.pale) { for (const k of ['skin']) { mats[k] = mats[k].clone(); mats[k].color.set(head.pale); } }
-  return character(id, mats, { head: { ...head, ...(o.head || {}) }, pos: o.pos, rotY: o.rotY });
+  // the head is sculpted into the body mesh, so its look comes through the materials
+  const h = { ...head, ...(o.head || {}) };
+  if (h.pale) { mats.skin = mats.skin.clone(); mats.skin.color.set(h.pale); }
+  if (h.hair) mats.hair = h.hair;
+  if (h.glow) { const g = await personMats({ glow: h.glow }); mats.eyes = g.eyes; mats.iris = g.iris; }
+  return character(id, mats, { head: h, pos: o.pos, rotY: o.rotY });
 }

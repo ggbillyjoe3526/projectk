@@ -1,10 +1,10 @@
 import * as THREE from 'three';
-import { hdri, shadowLight, mesh } from '../lib.js';
+import { skyEnv, shadowLight, mesh } from '../lib.js';
 import { person } from '../cast.js';
 
 export async function lineup({ renderer, M }) {
   const scene = new THREE.Scene();
-  const { env } = await hdri(renderer, 'quarry_01_1k.hdr');
+  const { env } = await skyEnv(renderer, 'overcast');
   scene.environment = env; scene.background = new THREE.Color('#2a2c30'); scene.environmentIntensity = 0.5;
   const ids = new URLSearchParams(location.search).get('ids').split(',');
   scene.add(mesh(new THREE.PlaneGeometry(30, 10).rotateX(-Math.PI / 2), M.flags));

@@ -152,44 +152,48 @@ class Field:
         # --- neck and head ---
         neck = sd_round_cone(X, P('neck', (0, -0.04, 0)), P('head', (0, 0.0, -0.005)), 0.054 * sc, 0.043 * sc)
         H = 'head'; Rh = R(H)
-        if s.get('scan', True):
-            # the photo-scanned head is attached at runtime; only the neck stump is sculpted
-            out.append(('skin', neck))
-        else:
-            H = 'head'; Rh = R(H)
-            cran = sd_ellipsoid(X, P(H, (0, 0.105, -0.012)), Rh, np.array([0.079, 0.098, 0.098]) * sc)
-            jaw = sd_ellipsoid(X, P(H, (0, 0.035, 0.028)), Rh, np.array([0.062, 0.07, 0.068]) * sc * np.array([s.get('jaw', 1.0), 1, 1]))
-            chin = sd_ellipsoid(X, P(H, (0, -0.012, 0.072)), Rh, np.array([0.024, 0.02, 0.02]) * sc)
-            cheeks = np.minimum(sd_ellipsoid(X, P(H, (0.046, 0.075, 0.062)), Rh, np.array([0.024, 0.02, 0.022]) * sc),
-                                sd_ellipsoid(X, P(H, (-0.046, 0.075, 0.062)), Rh, np.array([0.024, 0.02, 0.022]) * sc))
-            brow = sd_round_cone(X, P(H, (-0.045, 0.118, 0.077)), P(H, (0.045, 0.118, 0.077)), 0.013 * sc, 0.013 * sc)
-            nose = sd_round_cone(X, P(H, (0, 0.108, 0.088)), P(H, (0, 0.066, 0.106)), 0.008 * sc, 0.0145 * s.get('nose', 1.0) * sc)
-            nostr = np.minimum(sd_ellipsoid(X, P(H, (0.012, 0.064, 0.096)), Rh, np.array([0.01, 0.008, 0.01]) * sc),
-                               sd_ellipsoid(X, P(H, (-0.012, 0.064, 0.096)), Rh, np.array([0.01, 0.008, 0.01]) * sc))
-            lips = sd_round_cone(X, P(H, (-0.021, 0.04, 0.09)), P(H, (0.021, 0.04, 0.09)), 0.0075 * sc, 0.0075 * sc)
-            ears = np.minimum(sd_ellipsoid(X, P(H, (0.08, 0.085, 0.0)), Rh, np.array([0.011, 0.03, 0.02]) * sc),
-                              sd_ellipsoid(X, P(H, (-0.08, 0.085, 0.0)), Rh, np.array([0.011, 0.03, 0.02]) * sc))
-            head = smin(cran, jaw, 0.03 * sc)
-            head = smin(head, chin, 0.015 * sc); head = smin(head, cheeks, 0.02 * sc); head = smin(head, brow, 0.012 * sc)
-            head = smin(head, nose, 0.01 * sc); head = smin(head, nostr, 0.006 * sc); head = smin(head, lips, 0.008 * sc)
-            head = smin(head, ears, 0.006 * sc)
-            sockets = np.minimum(sd_ellipsoid(X, P(H, (0.033, 0.097, 0.086)), Rh, np.array([0.018, 0.011, 0.012]) * sc),
-                                 sd_ellipsoid(X, P(H, (-0.033, 0.097, 0.086)), Rh, np.array([0.018, 0.011, 0.012]) * sc))
-            head = ssub(head, sockets, 0.008 * sc)
-            mouth = sd_round_cone(X, P(H, (-0.018, 0.034, 0.098)), P(H, (0.018, 0.034, 0.098)), 0.002 * sc, 0.002 * sc)
-            head = ssub(head, mouth, 0.003 * sc)
-            head = smin(head, neck, 0.025 * sc)
-            out.append(('skin', head))
-            e0, e1 = P(H, (0.033, 0.097, 0.077)), P(H, (-0.033, 0.097, 0.077))
-            eyes = np.minimum(length(X - e0) - 0.0118 * sc, length(X - e1) - 0.0118 * sc)
-            out.append(('eyes', eyes))
-            look = Rh @ np.array(s.get('look', (0, 0, 1.0))); look = look / np.linalg.norm(look)
-            iris = np.minimum(length(X - (e0 + look * 0.0092 * sc)) - 0.0052 * sc, length(X - (e1 + look * 0.0092 * sc)) - 0.0052 * sc)
-            out.append(('iris', iris))
-            # eyelids: thin shells over the top of each eye
-            lids = np.minimum(np.maximum(length(X - e0) - 0.0135 * sc, -((X - e0) @ Rh)[:, 1] + 0.0035 * sc),
-                              np.maximum(length(X - e1) - 0.0135 * sc, -((X - e1) @ Rh)[:, 1] + 0.0035 * sc))
-            out.append(('skin', lids))
+        w = s.get('width', 1.0); fem = s.get('fem', 0.0); jw = s.get('jaw', 1.0); nz = s.get('nose', 1.0)
+        hp = lambda x, y, z: P(H, (x * w, y, z))
+        E = lambda c, r: sd_ellipsoid(X, hp(*c), Rh, np.array(r) * sc * np.array([w, 1, 1]))
+        C = lambda a, b_, r0, r1: sd_round_cone(X, hp(*a), hp(*b_), r0 * sc, r1 * sc)
+        pair = lambda f: np.minimum(f(1), f(-1))
+        cran = E((0, 0.108, -0.015), (0.077, 0.097, 0.1))
+        face = E((0, 0.074, 0.045), (0.056, 0.05, 0.05))
+        jaw = pair(lambda k: C((k * 0.058 * jw, 0.062, -0.008), (k * 0.016, 0.006 + 0.004 * fem, 0.068), 0.017 * jw, 0.013))
+        chin = E((0, 0.002 + 0.004 * fem, 0.07), (0.021 * (1 - 0.15 * fem), 0.017, 0.017))
+        cheek = pair(lambda k: E((k * 0.049, 0.082, 0.058), (0.021, 0.013, 0.019)))
+        brow = C((-0.042, 0.121, 0.079), (0.042, 0.121, 0.079), 0.011 * (1 - 0.35 * fem), 0.011 * (1 - 0.35 * fem))
+        nose = C((0, 0.112, 0.087), (0, 0.072, 0.1 + 0.007 * nz), 0.0065, 0.0115 * nz)
+        alae = pair(lambda k: E((k * 0.0115, 0.067, 0.096), (0.0085, 0.0068, 0.0085)))
+        ulip = C((-0.02, 0.047, 0.093), (0.02, 0.047, 0.093), 0.0058, 0.0058)
+        llip = C((-0.016, 0.035, 0.09), (0.016, 0.035, 0.09), 0.0072 + 0.0012 * fem, 0.0072 + 0.0012 * fem)
+        ears = pair(lambda k: E((k * 0.078, 0.088, -0.006), (0.0095, 0.03, 0.019)))
+        head = smin(cran, face, 0.035 * sc)
+        head = smin(head, jaw, 0.02 * sc); head = smin(head, chin, 0.016 * sc); head = smin(head, cheek, 0.02 * sc)
+        head = smin(head, brow, 0.014 * sc); head = smin(head, nose, 0.009 * sc); head = smin(head, alae, 0.006 * sc)
+        head = smin(head, ulip, 0.007 * sc); head = smin(head, llip, 0.006 * sc); head = smin(head, ears, 0.006 * sc)
+        concha = pair(lambda k: E((k * 0.086, 0.084, -0.002), (0.005, 0.014, 0.009)))
+        head = ssub(head, concha, 0.003 * sc)
+        nostril = pair(lambda k: E((k * 0.0075, 0.062, 0.1), (0.0038, 0.0022, 0.004)))
+        head = ssub(head, nostril, 0.002 * sc)
+        sockets = pair(lambda k: E((k * 0.033, 0.098, 0.088), (0.019, 0.012, 0.012)))
+        head = ssub(head, sockets, 0.008 * sc)
+        mouth = C((-0.019, 0.0405, 0.098), (0.019, 0.0405, 0.098), 0.0016, 0.0016)
+        head = ssub(head, mouth, 0.0025 * sc)
+        head = smin(head, neck, 0.025 * sc)
+        out.append(('skin', head))
+        e0, e1 = hp(0.033, 0.097, 0.077), hp(-0.033, 0.097, 0.077)
+        eyes = np.minimum(length(X - e0) - 0.0118 * sc, length(X - e1) - 0.0118 * sc)
+        out.append(('eyes', eyes))
+        look = Rh @ np.array(s.get('look', (0, 0, 1.0))); look = look / np.linalg.norm(look)
+        iris = np.minimum(length(X - (e0 + look * 0.0092 * sc)) - 0.0052 * sc, length(X - (e1 + look * 0.0092 * sc)) - 0.0052 * sc)
+        out.append(('iris', iris))
+        # eyelids: thin shells over the top and bottom of each eye
+        lid = lambda e, cut: np.maximum(length(X - e) - 0.0133 * sc, cut)
+        sh = -0.0075 if s.get('shut') else 0.0028
+        up0 = -((X - e0) @ Rh)[:, 1] + sh * sc; up1 = -((X - e1) @ Rh)[:, 1] + sh * sc
+        lo0 = ((X - e0) @ Rh)[:, 1] + 0.0072 * sc; lo1 = ((X - e1) @ Rh)[:, 1] + 0.0072 * sc
+        out.append(('skin', np.minimum(np.minimum(lid(e0, up0), lid(e1, up1)), np.minimum(lid(e0, lo0), lid(e1, lo1)))))
         # --- hair / headwear ---
         hs = s.get('hair', 'short')
         if hs == 'long':
@@ -197,14 +201,20 @@ class Field:
             drape = sd_ellipsoid(X, P(H, (0, 0.03, -0.065)), Rh, np.array([0.09, 0.14, 0.05]) * sc)
             drape -= (fbm3(X, 120) - 0.5) * 0.008 * sc
             out.append(('hair', drape))
-        if hs in ('short', 'long', 'bald', 'swept') and not s.get('scan', True):
-            cap = sd_ellipsoid(X, P(H, (0, 0.118, -0.016)), Rh, np.array([0.087, 0.098, 0.106]) * sc)
+        if hs in ('short', 'long', 'bald', 'swept'):
+            cap = sd_ellipsoid(X, P(H, (0, 0.118, -0.016)), Rh, np.array([0.087 * w, 0.098, 0.106]) * sc)
             q = (X - P(H)) @ Rh / sc
-            hairline = np.maximum(0.085 - q[:, 1] + np.maximum(q[:, 2], 0) * 0.0, q[:, 2] - 0.06 - (q[:, 1] - 0.12) * 0.9)
+            if hs != 'bald':  # the back of the head, down to the nape, behind the ears
+                back = np.maximum(sd_ellipsoid(X, P(H, (0, 0.092, -0.02)), Rh, np.array([0.083 * w, 0.088, 0.1]) * sc), (q[:, 2] + 0.022) * sc)
+                cap = smin(cap, back, 0.012 * sc)
+            nape = 0.085 - 0.06 * np.clip(-(q[:, 2] + 0.01) / 0.06, 0, 1)  # hair comes down to the nape at the back
+            hairline = np.maximum(nape - q[:, 1], q[:, 2] - 0.06 - (q[:, 1] - 0.12) * 0.9)
             if hs == 'bald':
                 hairline = np.maximum(0.03 - q[:, 1], np.maximum(q[:, 1] - 0.13, q[:, 2] - 0.0))
             hair = np.maximum(cap, hairline * sc)
-            hair -= (fbm3(X, 160) - 0.5) * 0.006 * sc
+            # combed strands: grooves fanning back from the crown, broken up by noise
+            ang = np.arctan2(q[:, 0], q[:, 2] + 0.02)
+            hair -= (np.sin(ang * 70 + fbm3(X, 60) * 9) * 0.5 + 0.5) * 0.0028 * sc + (fbm3(X, 160) - 0.5) * 0.005 * sc
             if hs == 'long':
                 drape = sd_ellipsoid(X, P(H, (0, 0.04, -0.06)), Rh, np.array([0.085, 0.13, 0.05]) * sc)
                 hair = smin(hair, drape, 0.03 * sc)
@@ -214,7 +224,7 @@ class Field:
             sc_shell = sd_ellipsoid(X, P(H, (-0.004, 0.112, -0.006)), Rh, np.array([0.113, 0.127, 0.133]) * sc)
             face_open = sd_ellipsoid(X, P(H, (-0.004, 0.072, 0.135)), Rh, np.array([0.072, 0.098, 0.095]) * sc)
             scarf = ssub(sc_shell, face_open, 0.01 * sc)
-            knot = sd_ellipsoid(X, P(H, (0, -0.03, 0.07)), Rh, np.array([0.032, 0.026, 0.03]) * sc)
+            knot = sd_ellipsoid(X, P(H, (0, -0.05, 0.05)), Rh, np.array([0.026, 0.02, 0.024]) * sc)
             scarf = smin(scarf, knot, 0.02 * sc) - (fbm3(X, 90) - 0.5) * 0.006 * sc
             out.append(('scarf', scarf))
         if s.get('hat') == 'cap':
@@ -338,6 +348,8 @@ class Field:
             blob((sx * 0.033, 0.097, 0.082), (0.03, 0.022, 0.025), (0.8, 0.72, 0.75), 0.9)
             blob((sx * 0.08, 0.085, 0.0), (0.02, 0.04, 0.03), (1.0, 0.82, 0.8), 0.8)
         blob((0, 0.07, 0.105), (0.02, 0.02, 0.02), (1.0, 0.82, 0.8), 0.7)
+        for sx in (1, -1):  # eyebrows
+            blob((sx * 0.034, 0.1225, 0.087), (0.023, 0.0065, 0.02), self.s.get('browCol', (0.4, 0.34, 0.3)), 0.9)
         st = self.s.get('stubble', 0)
         if st:
             jaw = np.clip((0.07 - q[:, 1]) / 0.03, 0, 1) * np.clip((q[:, 2] + 0.02) / 0.04, 0, 1) * np.clip((0.115 - q[:, 1]) / 0.1, 0, 1)
