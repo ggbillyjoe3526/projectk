@@ -42,20 +42,31 @@ export interface Interior extends Box2 {
 }
 
 /**
- * Things the player can use with E, each at a point:
+ * What has happened in the story so far, as the opening's pacing beats (stage 1, story beats 6 to 9):
+ * - `sawDead`: the dead have seen the player (on the first trip over, with only the torch);
+ * - `sawRise`: one the knife cut down has got up again;
+ * - `swordHome`: the player has brought the sword back to the cottage (the end of the opening).
+ */
+export type Beat = 'sawDead' | 'sawRise' | 'swordHome';
+
+/**
+ * Things the player can use with E, each at a point. Any thing can wait for a beat (`after`): until it has happened,
+ * the thing isn't there to use. `nudge` is said once when the player first comes near it while it's there, unused.
  * - `hearth`: rest, recover fully and save; if the causeway is under water, rest until it clears.
  * - `refuge`: wait out the tide and save, at a cost in Resolve; no recovery.
  * - `document`: something to read (`lines`, shown in the reader).
  * - `tideTable`: the printed tide times, and the time now.
+ * - `knife`: the kitchen knife.
  * - `sword`: the old sword, lying `top` high.
  * - `gate`: opens the wall named `wall`, but only from inside `side` (it's barred from the other side).
  */
-export type Thing = { readonly id: string } & Point &
+export type Thing = { readonly id: string; readonly after?: Beat; readonly nudge?: string } & Point &
   (
     | { readonly kind: 'hearth' }
     | { readonly kind: 'refuge' }
     | { readonly kind: 'document'; readonly title: string; readonly lines: readonly string[] }
     | { readonly kind: 'tideTable' }
+    | { readonly kind: 'knife' }
     | { readonly kind: 'sword'; readonly top: number }
     | { readonly kind: 'gate'; readonly wall: string; readonly side: Box2 }
   );

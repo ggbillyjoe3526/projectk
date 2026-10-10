@@ -35,8 +35,9 @@ const WALLS: Wall[] = [
   { minX: 15, maxX: 16, minZ: 7.5, maxZ: 8.3, height: 0.8, kind: 'boulder' },
   { minX: 26, maxX: 26.6, minZ: -16, maxZ: -5, height: 1.2, kind: 'dyke' },
   { minX: 26, maxX: 26.6, minZ: -2, maxZ: 16, height: 1.2, kind: 'dyke' },
-  // A table and the bier in the cottage (low, still solid).
+  // A table, the dresser and the bier in the cottage (low, still solid).
   { minX: -25.2, maxX: -23.8, minZ: -1.2, maxZ: 0.2, height: 0.8, kind: 'stone' },
+  { minX: -23.8, maxX: -22.2, minZ: 2.4, maxZ: 3, height: 0.9, kind: 'stone' },
   { minX: -27.6, maxX: -26.2, minZ: 1.2, maxZ: 2.6, height: 0.9, kind: 'stone' },
 ];
 
@@ -101,11 +102,16 @@ export const BROUGH_AREA: LevelArea = {
   ],
   things: [
     { id: 'hearth', kind: 'hearth', x: -27, z: -2.2 },
+    // Only thought of once the dead have been seen.
+    { id: 'kitchen-knife', kind: 'knife', x: -23, z: 1.9, after: 'sawDead', nudge: 'The kitchen knife. It’s in the dresser drawer.' },
+    // Only looked for once the knife has failed.
     {
       id: 'fathers-notebook',
       kind: 'document',
       x: -24.5,
       z: -0.5,
+      after: 'sawRise',
+      nudge: 'Your father wrote everything down. His notebook’s on the table.',
       title: 'Your father’s notebook',
       lines: [
         'From your father’s notebook, the last page written:',

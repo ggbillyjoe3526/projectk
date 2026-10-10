@@ -12,16 +12,18 @@ import { Rain } from '../render/rain';
 import { ps1Snap } from '../render/retro/ps1Snap';
 import { internalResolution } from '../render/retro/retroMath';
 import { createRetroPipeline, type RetroControls } from '../render/retro/retroPipeline';
-import type { FighterInput } from '../sim/combat/encounter';
+import type { CombatEvent, FighterInput } from '../sim/combat/encounter';
 import { HumClock, listeningClarity } from '../sim/humClock';
 import { createPlayer, type PlayerCommand, type PlayerState } from '../sim/player';
 import { causewayPassable, humParams, nextCausewayOpen, tideLevel, tidePhase } from '../sim/tide';
 import type { WorldDef } from '../sim/world/types';
 import { createTorch, stepTorch, switchTorch, torchBrightness, type TorchState } from '../sim/torch';
+import { inBox } from '../sim/world/ground';
 import { type Checkpoint, readSavedGame, writeSavedGame } from '../save/progress';
 import { CombatHud } from '../ui/combatHud';
+import { BEAT_LINES, beatsFrom, END_LINES, weaponFor } from './beats';
 import { BroughFight } from './broughFight';
-import { freshProgress, onGateSide, type Progress, thingHere, thingPrompt, tideTableLines } from './things';
+import { freshProgress, nudgeHere, onGateSide, type Progress, thingHere, thingPrompt, tideTableLines } from './things';
 
 /**
  * The playable slice: the father's cottage, the Brough and the tidal causeway in greybox, under the authored cameras
@@ -43,8 +45,10 @@ export interface SliceIntent extends FighterInput {
 
 /** Island time runs this many times faster than real time, cycled by the debug key. */
 const TIME_SCALES = [1, 4, 16, 64] as const;
-/** Where a visit starts in the tide's cycle: just after the causeway closes, so it reopens within minutes. */
+/** Where a visit starts in the tide's cycle: 07:50, with the causeway just open and low water at ten. */
 const START_TIDE = 0.82;
+/** Said as a new game starts. */
+const OPENING_LINE = 'The morning after the vigil. The cottage is empty. Low water is at ten.';
 
 /** Interface for the browser storage the game saves to. */
 interface SaveStore {
@@ -75,6 +79,12 @@ export class BroughSlice {
   private readonly persist: boolean;
   /** The time of the last drawn frame (performance.now()), for the HUD's captions. */
   private now = 0;
+  /** A new game: the opening line waits for the first tick. */
+  private opening = false;
+  /** Things whose nudge has been said this visit. */
+  private readonly nudged = new Set<string>();
+  /** The cottage, where the sword is brought home: the interior around the hearth. */
+  private readonly home = this.level.interiors.find((i) => this.level.things.some((t) => t.kind === 'hearth' && inBox(i, t.x, t.z))) ?? null;
 
   private readonly player: PlayerState;
   /** The player at the previous tick, for interpolating between ticks. */
@@ -135,8 +145,14 @@ export class BroughSlice {
     if (saved) {
       this.progress = saved.progress;
       if (saved.checkpoint) this.load(saved.checkpoint);
+    } else this.opening = this.persist;
+    const weapon = params.get('weapon');
+    if (weapon === 'knife' || weapon === 'sword') {
+      // As if the story had got that far: the knife in hand once the dead are seen, the sword once it fails.
+      this.progress.knifeTaken = true;
+      this.progress.swordTaken = weapon === 'sword';
+      this.progress.beats = weapon === 'sword' ? ['sawDead', 'sawRise'] : ['sawDead'];
     }
-    if (params.get('weapon') === 'sword') this.progress.swordTaken = true;
     this.applyProgress();
     this.checkpoint = this.save();
     this.copyPrev();
@@ -160,6 +176,8 @@ export class BroughSlice {
     this.writeGame();
     this.copyPrev();
     this.snapCamera = true;
+    this.nudged.clear();
+    this.opening = true;
   }
 
   /** Draw with this renderer (the first one, or the one replacing a lost device). */
@@ -259,11 +277,40 @@ export class BroughSlice {
     else if (torchNews === 'charged') this.hud.say('The torch is charged.', this.now, 2.5);
     const lit = this.torch.on;
     const ctx = { lit, dark: !lit && !isIndoors(this.level, x, z), inRefuge: inRefuge(this.level, x, z) };
-    this.fight.tick(intent, this.cmd, this.player, this.world, tideLevel(this.tideClock), ctx, dt);
+    const events = this.fight.tick(intent, this.cmd, this.player, this.world, tideLevel(this.tideClock), ctx, dt);
+    this.storyBeats(events);
     if (this.fight.wantsWake) {
       this.load(this.checkpoint);
       this.hud.say('You come to where you last rested.', this.now, 3.5);
     }
+  }
+
+  /** The opening's pacing (game/beats.ts): what the fight just showed, what's near, and the sword brought home. */
+  private storyBeats(events: readonly CombatEvent[]): void {
+    const now = this.now;
+    if (this.opening) {
+      this.opening = false;
+      this.hud.say(OPENING_LINE, now, 6);
+    }
+    const p = this.progress;
+    const beats = beatsFrom(events, this.fight.weapon, p);
+    for (const beat of beats) {
+      p.beats.push(beat);
+      this.hud.say(BEAT_LINES[beat], now, 5);
+    }
+    const { x, z } = this.player;
+    // The nudges lead to the sword; once it's in hand they've done their work.
+    const nudge = beats.length || p.swordTaken ? null : nudgeHere(this.level.things, p, this.nudged, x, z);
+    if (nudge?.nudge) {
+      this.nudged.add(nudge.id);
+      this.hud.say(nudge.nudge, now, 5);
+    }
+    if (p.swordTaken && !p.beats.includes('swordHome') && this.home && inBox(this.home, x, z) && this.fight.free) {
+      p.beats.push('swordHome');
+      this.hud.read(END_LINES);
+      beats.push('swordHome');
+    }
+    if (beats.length) this.writeGame();
   }
 
   private use(thing: Thing): void {
@@ -294,9 +341,15 @@ export class BroughSlice {
       case 'tideTable':
         this.hud.read(tideTableLines(this.tideClock));
         break;
+      case 'knife':
+        this.progress.knifeTaken = true;
+        this.applyProgress();
+        this.hud.say('The kitchen knife. Better than nothing.', now, 4);
+        this.writeGame();
+        break;
       case 'sword':
         this.progress.swordTaken = true;
-        this.fight.takeSword();
+        this.applyProgress();
         this.hud.say('Iron from the howe.', now, 4);
         this.writeGame();
         break;
@@ -328,9 +381,10 @@ export class BroughSlice {
     this.writeGame();
   }
 
-  /** The sword in hand and the gates open, as the progress says, in the fight, the world and the scene. */
+  /** The blade in hand and the gates open, as the progress says, in the fight, the world and the scene. */
   private applyProgress(): void {
-    if (this.progress.swordTaken && !this.fight.swordTaken) this.fight.takeSword();
+    const weapon = weaponFor(this.progress);
+    if (this.fight.weapon !== weapon) this.fight.arm(weapon);
     const opened = this.progress.opened;
     this.world = { ...this.level.sim, walls: this.level.sim.walls.filter((w) => w.id === undefined || !opened.includes(w.id)) };
     for (const [id, mesh] of this.g.wallMeshes) mesh.visible = !opened.includes(id);

@@ -3,7 +3,8 @@
  * duration is in simulation ticks (60 a second, config/sim.ts); distances in metres; angles in radians.
  */
 
-export type WeaponId = 'knife' | 'sword';
+/** `none`: empty-handed (the first trip over, with only the phone's torch). */
+export type WeaponId = 'none' | 'knife' | 'sword';
 
 export interface WeaponTuning {
   /** Light attack: wind-up, hitting and recovery ticks. */
@@ -22,11 +23,14 @@ export interface WeaponTuning {
   readonly canLay: boolean;
   /** Hits in a chain before it starts again. */
   readonly chain: number;
+  /** Whether it can swing and deflect at all. Empty-handed, the player can only step aside and run. */
+  readonly armed: boolean;
 }
 
 export const WEAPONS: Readonly<Record<WeaponId, WeaponTuning>> = {
-  knife: { windup: 5, active: 4, recovery: 12, chainFrom: 4, reach: 1.35, halfArc: 0.8, damage: 20, breakPerHit: 0, canLay: false, chain: 3 },
-  sword: { windup: 9, active: 6, recovery: 15, chainFrom: 5, reach: 2.0, halfArc: 1.05, damage: 18, breakPerHit: 9, canLay: true, chain: 3 },
+  none: { windup: 0, active: 0, recovery: 0, chainFrom: 0, reach: 0, halfArc: 0, damage: 0, breakPerHit: 0, canLay: false, chain: 1, armed: false },
+  knife: { windup: 5, active: 4, recovery: 12, chainFrom: 4, reach: 1.35, halfArc: 0.8, damage: 20, breakPerHit: 0, canLay: false, chain: 3, armed: true },
+  sword: { windup: 9, active: 6, recovery: 15, chainFrom: 5, reach: 2.0, halfArc: 1.05, damage: 18, breakPerHit: 9, canLay: true, chain: 3, armed: true },
 };
 
 export const PLAYER_COMBAT = {

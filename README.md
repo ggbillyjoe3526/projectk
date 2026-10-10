@@ -13,8 +13,10 @@ the father's cottage, the Brough and the tidal causeway in greybox, under author
 in the low-resolution dithered look, with the tide and the island's hum; and M1, the fight: the dead on the shore,
 the kitchen knife that cuts them down but can't keep them down, the note on the cottage table, and the sword, with
 deflect, Resolve, Break and the Rite. The first stage of the vertical slice adds the village street and its shop, the
-lane up to the kirkyard, and the kirk, where the sword lies on the howe slab, with the vestry as a refuge. All of it is
-greybox; there is no story beyond that, and no art yet.
+lane up to the kirkyard, and the kirk, where the sword lies on the howe slab, with the vestry as a refuge, and plays
+the opening's beats with no cutscenes: you first go over with only the torch and have to turn back, take the kitchen
+knife from the dresser, watch one it cut down get up again, find your father's notebook, and bring the sword home from
+the kirk. All of it is greybox, and there is no story beyond that yet.
 
 ## Run it
 
@@ -32,7 +34,7 @@ Controls: WASD to walk (relative to the camera), the mouse to aim the torch, hol
 (the hum's strength and beat tell the tide), Q for the torch (its battery, the thin amber mark under Resolve, runs down
 while it's lit and charges in the cottage). Left click attacks (hold it with the sword for a sained
 strike, which costs Resolve), right click or Left Shift deflects (as the blow lands; a glint in the attacker's hand
-comes just before it), Space steps aside, and E reads (the notebook, the tide table by the cottage door), takes, opens
+comes just before it), Space steps aside (the only defence empty-handed), and E reads (the notebook, the tide table by the cottage door), takes, opens
 a gate from its barred side, rests at the hearth or waits out the tide in the kirk vestry (both save the game, and are
 where a death returns to), and gives a kneeling body the Rite. Press `` ` `` or F3 for the debug overlay (frame rate,
 renderer, draw calls, GPU time, simulation tick, seed, tide, player, camera zone, hum) and `]` to run island time
@@ -40,10 +42,10 @@ renderer, draw calls, GPU time, simulation tick, seed, tide, player, camera zone
 
 URL flags: `?seed=N` plays seed N; `?forceWebGL` draws with the renderer's WebGL2 back end without asking for WebGPU
 (automated browsers in containers have no WebGPU adapter); `?at=x,z` starts the player at that point and `?tide=f` at
-fraction f of the tide's cycle (0 low water, 0.5 high water); `?weapon=sword` starts with the sword in hand. Any of
+fraction f of the tide's cycle (0 low water, 0.5 high water); `?weapon=knife` or `?weapon=sword` starts with that in hand, the story as far on as it would be. Any of
 `at`, `tide` and `weapon` sets up a test visit that neither loads nor overwrites the saved game.
 
-The game saves in the browser: the sword, documents read and gates opened as soon as they happen, and the checkpoint
+The game saves in the browser: the blades taken, the story's beats, documents read and gates opened as soon as they happen, and the checkpoint
 when you rest. A new build that changes the level's layout keeps that progress but starts you at the cottage. The start
 pane offers to start over.
 
