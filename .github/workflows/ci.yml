@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Unit tests, type check and production build.
+      - run: npm run check
+      - run: npx playwright install --with-deps chromium
+      # The game starts and runs a new game on the WebGL2 path.
+      - run: npm run smoke

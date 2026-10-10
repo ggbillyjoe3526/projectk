@@ -28,6 +28,8 @@ npm run dev          # development server with hot reload, http://localhost:5173
 npm run t            # unit tests, dots and failures only
 npm run check        # unit tests, then type check and production build
 npm run build        # static site in dist/ (relative paths; any static host)
+npm run smoke        # after a build: start the game in headless Chromium on the WebGL2 path
+                     # (needs `npx playwright install chromium` once)
 ```
 
 Controls: WASD to walk (relative to the camera), the mouse to aim the torch, hold F to kneel and listen to the island
